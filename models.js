@@ -41,8 +41,13 @@ export const LOOKS = {
   cop: () => ({ coat: '#1a2448', trou: '#1a2040', hat: 'kepi', hatc: '#1a2040', belt: '#d4b040', long: true }),
   gend: () => ({ coat: '#22285a', trou: '#d8d0c0', hat: 'helmet', hatc: '#2a2a2a', belt: '#d8d8d8' }),
   soldier: () => ({ coat: '#2a3a7a', trou: '#b02020', hat: 'kepi', hatc: '#b02020', belt: '#d8d0b0' }),
-  vip: () => ({ coat: pick(['#e8e0f0', '#f0d8e0']), trou: '#000', hat: 'bonnet', hatc: '#6a4a5a', dress: true, scarf: '#f0ebe0' }),
-  boss: () => ({ coat: '#0e0e0e', trou: '#111', hat: 'top', hatc: '#0a0a0a', long: true, scarf: '#ece6d8' }),
+  vip: () => ({ coat: pick(['#e8e0f0', '#f0d8e0']), trou: '#000', hat: 'bonnet', hatc: '#6a4a5a', dress: true, scarf: '#f0ebe0', parasol: '#f4ece0' }),
+  boss: () => ({ coat: '#0e0e0e', trou: '#111', hat: 'top', hatc: '#0a0a0a', long: true, scarf: '#ece6d8', fur: '#3a2e26', cane: true, beard: Math.random() < .5 ? '#3a3430' : null }),
+  // named figures (use as spawn type, e.g. 'vautrin')
+  vautrin: () => ({ coat: '#6a5232', trou: '#3a3026', hat: 'beret', hatc: '#2a1a14', scarf: '#8a2a20', beard: '#5a3a22', vest: '#4a5a3a' }),
+  maza: () => ({ coat: '#e8e4dc', stripes: '#1a2a5a', trou: '#26242a', hat: 'cap', hatc: '#1a1a1a', scarf: '#a01818', sash: '#7a1414', beard: '#1a1410' }),
+  lucie: () => ({ coat: '#2a4a3e', trou: '#000', hat: 'bonnet', hatc: '#2a2a2a', dress: true, scarf: '#ece6d8', news: true }),
+  vaneau: () => ({ coat: '#1a1820', trou: '#2a2a30', hat: 'top', hatc: '#0c0c0c', long: true, fur: '#5a4634', monocle: true, cane: true, watch: true, beard: '#b8b0a4' }),
   player: () => ({ coat: '#7a5a2a', trou: '#3a3a44', hat: 'cap', hatc: '#5a4026', skin: '#e8c0a0', scarf: '#6a2420', apron: false, vest: '#8a6a3a', player: true }),
 };
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
@@ -57,13 +62,16 @@ function shade(geo, y0, y1, lo = .62) { const P = geo.attributes.position.array,
 // smooth lathe/capsule helpers
 function lathe(b, prof, x, y, z, col, sx = 1, sz = 1, seg = 18, ry = 0, phi0 = 0, phiL = Math.PI * 2) { if (prof[0][1] > prof[prof.length - 1][1]) prof = prof.slice().reverse(); const g = new THREE.LatheGeometry(prof.map(([r, h]) => new THREE.Vector2(r, h)), seg, phi0, phiL); g.computeVertexNormals(); const m = M(x, y, z, 0, ry, 0); m.scale(new THREE.Vector3(sx, 1, sz)); return b.add(g, col, m); }
 function caps(b, r, len, x, y, z, col, rx = 0, rz = 0, sx = 1, sz = 1) { const g = new THREE.CapsuleGeometry(r, len, 4, 10); const m = M(x, y, z, rx, 0, rz); m.scale(new THREE.Vector3(sx, 1, sz)); return b.add(g, col, m); }
+// fabric folds: ripple the radius by angle (deeper toward the hem) and darken the troughs
+function fold(b, p0, cx, n, amp, top) { for (let k = p0; k < b.p.length; k += 3) { const x = b.p[k] - cx, z = b.p[k + 2], y = b.p[k + 1], a = Math.atan2(z, x), dpt = Math.max(0, Math.min(1, (top - y) / .6)), s = Math.sin(a * n * 2 + Math.sin(a * 3) * 1.3);
+    const f = 1 + s * amp * dpt; b.p[k] = cx + x * f; b.p[k + 2] = z * f; const sh = 1 - (1 - s) * .5 * .28 * dpt; b.c[k] *= sh; b.c[k + 1] *= sh; b.c[k + 2] *= sh * 1.03; } }
 function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, () => {
   const hs = key.length * 7 + key.charCodeAt(5) * 3, sk = L.skin || SK[hs % SK.length], hair = L.dress ? HAIR[(hs >> 1) % 6] : HAIR[(hs >> 1) % HAIR.length], b = new GB();
   const coat = L.stripes ? '#f2f2f2' : L.coat, cHi = lt(coat, .12), cDk = dk(coat, .72);
   if (L.dress) { // smooth bodice + bell skirt with flounce ripples and bustle
     lathe(b, [[.001, .78], [.13, .8], [.15, .9], [.135, 1.0], [.16, 1.12], [.19, 1.2], [.13, 1.27], [.06, 1.3]], 0, 0, 0, coat, .8, 1.05);
     const sp = []; for (let k = 0; k <= 14; k++) { const t = k / 14, y = .82 - t * .8; sp.push([.12 + Math.pow(t, 1.5) * .21 + (k % 5 === 4 ? .015 : 0), y]); } sp.push([.001, .02]);
-    lathe(b, sp.reverse(), .03, 0, 0, coat, .95, 1, 22);
+    { const p0 = b.p.length; lathe(b, sp.reverse(), .03, 0, 0, coat, .95, 1, 30); fold(b, p0, .03, 9, .07, .82); }
     b.sph(.18, -.17, .76, 0, cDk, 1, .85, 1.05, 10); // bustle
     lathe(b, [[.15, .84], [.165, .86], [.165, .9], [.15, .92]], 0, 0, 0, L.scarf || dk(coat, .55), .8, 1.06);
     b.sph(.07, .1, 1.08, 0, lt(coat, .5), .5, 1.6, .9, 8); // lace jabot
@@ -76,16 +84,21 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
       for (const s of [-1, 1]) b.sph(.06, .105, 1.1, s * .07, cDk, .4, 2.1, .7, 7); for (const y of [.86, .95, 1.04]) b.sph(.014, .12, y, .03, '#c8a050', 1, 1, 1, 4); }
     if (L.vest) lathe(b, [[.158, .8], [.162, .95], [.17, 1.1], [.12, 1.2]], .012, 0, 0, L.vest, .74, 1.0, 16, 0, Math.PI * .2, Math.PI * .6);
     const tl = L.long ? .32 : .58; // coat skirt / tails, open at the front
-    lathe(b, [[.17, .8], [.18, .72], [.21, (tl + .72) / 2], [.235, tl], [.225, tl - .02]], -.01, 0, 0, coat, .8, 1.02, 18, 0, Math.PI * .62, Math.PI * 1.76);
+    { const p0 = b.p.length; lathe(b, [[.17, .8], [.18, .72], [.21, (tl + .72) / 2], [.235, tl], [.225, tl - .02]], -.01, 0, 0, coat, .8, 1.02, 26, 0, Math.PI * .62, Math.PI * 1.76); fold(b, p0, -.01, 7, .05, .8); }
     b.sph(.012, -.13, .78, .05, cDk); b.sph(.012, -.13, .78, -.05, cDk); // back buttons
     if (L.apron) lathe(b, [[.17, .5], [.175, .6], [.17, .9], [.15, 1.0]], .01, 0, 0, '#c8b8a0', .76, 1.02, 14, 0, Math.PI * .15, Math.PI * .7);
     if (L.belt) { lathe(b, [[.16, .76], [.168, .78], [.168, .81], [.16, .83]], 0, 0, 0, L.belt, .75, 1.06); for (let y = .88; y < 1.2; y += .09) b.sph(.018, .125, y, 0, L.belt, 1, 1, 1, 5); for (const s of [-1, 1]) b.sph(.06, 0, 1.27, s * .19, L.belt, 1, .35, 1.1, 8); }
     lathe(b, [[.001, .66], [.14, .66], [.155, .72], [.15, .76]], 0, 0, 0, dk(L.trou, .9), .74, 1.05, 14); }
+  if (L.fur) { lathe(b, [[.13, 1.18], [.2, 1.2], [.21, 1.25], [.15, 1.31], [.09, 1.33]], 0, 0, 0, L.fur, .85, 1.12, 16); }
+  if (L.sash) lathe(b, [[.16, .74], [.172, .76], [.172, .84], [.16, .86]], 0, 0, 0, L.sash, .76, 1.07);
   if (L.scarf && !L.dress) lathe(b, [[.08, 1.24], [.12, 1.26], [.11, 1.31], [.07, 1.33]], .01, 0, 0, L.scarf, 1, 1.05, 14);
   const hIdx = b.p.length; // neck & head (built at old scale, then shrunk to realistic ~1/7.5 proportions)
   b.cyl(.06, .07, .1, .01, 1.32, 0, sk, 10); b.sph(.145, .02, 1.47, 0, sk, 1.0, 1.1, .94, 14);
   b.sph(.04, .155, 1.45, 0, sk, .9, .9, .7, 6); for (const s of [-1, 1]) { b.sph(.032, .02, 1.46, s * .14, sk, .55, 1, .45, 6); b.sph(.018, .145, 1.495, s * .05, '#1a1410', .6, 1, 1, 6); b.sph(.03, .145, 1.535, s * .055, dk(hair, .8), .4, .35, 1.2, 5); }
   b.sph(.03, .155, 1.405, 0, '#a85a4a', .5, .4, 1.3, 5);
+  b.sph(.05, .14, 1.52, 0, dk(sk, .82), .45, .35, 1.9, 7); for (const s of [-1, 1]) b.sph(.035, .135, 1.43, s * .075, L.dress ? '#e09a8a' : dk(sk, .93), .5, .6, .8, 6); b.sph(.07, .1, 1.37, 0, dk(sk, .86), .7, .5, 1, 7); // brow shadow, cheeks, jaw
+  if (L.beard) { b.sph(.1, .1, 1.37, 0, L.beard, .75, 1.1, 1.05, 9); b.sph(.05, .155, 1.42, 0, L.beard, .5, .45, 1.7, 6); }
+  if (L.monocle) b.add(new THREE.TorusGeometry(.028, .006, 4, 10), '#d8c060', M(.16, 1.49, -.05, 0, Math.PI / 2, 0));
   b.sph(.152, -.015, 1.51, 0, hair, 1.04, .78, 1, 14); b.sph(.11, -.08, 1.44, 0, hair, .8, .95, 1.15, 10);
   if (!L.dress && !L.player) { const f = hs % 5; if (f === 1 || f === 3) b.sph(.05, .155, 1.42, 0, dk(hair, .85), .5, .45, 1.6, 6); if (f === 2) b.sph(.11, .07, 1.37, 0, dk(hair, .85), .9, .8, 1.1, 8); if (f === 4) { b.sph(.05, .155, 1.42, 0, dk(hair), .5, .45, 1.8, 6); b.sph(.04, .14, 1.35, 0, dk(hair), 1, 1.3, 1, 6); } }
   if (L.dress) { b.sph(.09, -.13, 1.53, 0, hair, 1, .9, 1.1, 9); for (const s of [-1, 1]) b.sph(.04, .03, 1.55, s * .11, hair, 1, 1, 1, 6); }
@@ -159,12 +172,14 @@ function horseGeos(col) { return cached('h' + col, () => { const b = new GB(), d
   cylE(b, .1, .13, .52, 1.12, 1.66, 0, col, 1, .75, 9, 1.95); b.sph(.08, 1.32, 1.56, 0, mu, 1.2, 1, 1.1, 7); // head + muzzle
   for (const s of [-1, 1]) { b.add(new THREE.ConeGeometry(.035, .13, 5), col, M(1.0, 1.9, s * .06, s * .2, 0, .25)); b.sph(.022, 1.18, 1.71, s * .085, '#0a0806', 1, 1, 1, 4); b.box(.12, .1, .015, 1.15, 1.72, s * .1, LE); } // ears, eyes, blinkers
   for (let k = 0; k < 6; k++) b.box(.12, .08, .06, .66 + k * .08, 1.42 + k * .085, 0, dk, 0, 0, -.75); b.box(.14, .12, .1, 1.0, 1.86, 0, dk, 0, 0, .3); // mane + forelock
-  cylE(b, .05, .1, .62, -.92, .9, 0, dk, 1, 1, 7, -.32); b.sph(.07, -.86, 1.2, 0, dk, 1, 1, 1, 5); // tail
+  for (let k = 0; k < 4; k++) cylE(b, .03 + k * .012, .07 + k * .015, .66 - k * .05, -.9 - k * .02, .92 + k * .04, (k - 1.5) * .025, dk, 1, 1, 7, -.28 - k * .03); b.sph(.08, -.84, 1.22, 0, dk, 1, 1, 1, 6); // flowing tail
+  for (const s of [-1, 1]) { b.sph(.2, .5, 1.06, s * .1, mu, 1.15, 1.2, .5, 9); b.sph(.24, -.5, 1.1, s * .1, col, 1.1, 1.15, .5, 9); } // shoulders, haunches, belly shading
+  b.sph(.09, 1.38, 1.5, 0, mu, 1.3, .8, .95, 7); for (const s of [-1, 1]) b.sph(.018, 1.44, 1.53, s * .045, '#0a0806', 1, 1, 1, 4); // longer muzzle + nostrils
   b.add(new THREE.TorusGeometry(.2, .055, 6, 12), LE, M(.66, 1.4, 0, 0, Math.PI / 2, -.75)); b.sph(.03, .74, 1.62, .1, BR, 1, 1, 1, 4); b.sph(.03, .74, 1.62, -.1, BR, 1, 1, 1, 4); // collar + hames knobs
   b.box(.42, .05, .6, .05, 1.42, 0, LE); b.box(.06, .52, .62, .02, 1.17, 0, LE); b.sph(.035, .05, 1.48, 0, BR, 1, 1, 1, 4); // saddle pad + girth + terret
   for (const s of [-1, 1]) { b.box(1.3, .04, .02, .0, 1.3, s * .255, LE, 0, 0, .04); b.box(.03, .03, .4, 1.2, 1.62, s * .0, LE); } // traces & noseband
   b.box(.04, .3, .58, -.55, 1.14, 0, LE, 0, 0, -.2); // breeching
-  const lg = new GB(); lg.cyl(.085, .065, .42, 0, -.18, 0, col, 7); lg.cyl(.042, .04, .32, 0, -.54, 0, col, 6); lg.sph(.055, 0, -.7, 0, mu, 1, 1, 1, 5); lg.cyl(.065, .075, .1, 0, -.76, 0, '#1a1410', 7);
+  const lg = new GB(); lg.cyl(.085, .065, .42, 0, -.18, 0, col, 7); lg.cyl(.042, .04, .32, 0, -.54, 0, col, 6); lg.sph(.055, 0, -.7, 0, (col.length && col.charCodeAt(2) % 3 === 0) ? '#e8e0d0' : mu, 1, 1, 1, 6); lg.sph(.05, 0, -.36, 0, col, 1.1, .8, 1, 6); lg.cyl(.065, .075, .1, 0, -.76, 0, '#1a1410', 7);
   return { body: shade(b.geo(), .8, 1.6, .7), leg: shade(lg.geo(), -.8, 0, .7) }; }); }
 export function makeHorse(col) { col = col || HC[Math.floor(Math.random() * HC.length)]; const G = horseGeos(col), g = new THREE.Group(), body = new THREE.Mesh(G.body, VC); body.castShadow = true; g.add(body);
   const legs = [[.5, .15], [.5, -.15], [-.5, .15], [-.5, -.15]].map(([x, z]) => { const m = new THREE.Mesh(G.leg, VC); m.position.set(x, .9, z); m.castShadow = true; g.add(m); return m; }); return { g, body, legs, ph: Math.random() * 6, dead: false }; }
@@ -188,21 +203,21 @@ function wheelPair(r, track, x, y = r) { const g = new THREE.Group(); g.position
   rim.cyl(.04, .04, track, 0, 0, 0, '#2a1c10', 5, Math.PI / 2);
   const m = new THREE.Mesh(cached('w' + r.toFixed(2) + track.toFixed(2), () => rim.geo()), VC); m.castShadow = true; g.add(m); return { g, r }; }
 // ================= VEHICLES =================
-function coachman(b, x, y, col = '#1e1e24', hat = '#111') { b.box(.3, .45, .4, x, y + .25, 0, col); b.box(.22, .22, .22, x + .02, y + .6, 0, '#e0b898'); b.cyl(.13, .12, .28, x, y + .86, 0, hat, 8); b.cyl(.2, .2, .03, x, y + .72, 0, hat, 10); }
+function coachman(b, x, y, col = '#1e1e24', hat = '#111') { b.cyl(.15, .22, .5, x, y + .25, 0, col, 12); b.sph(.12, x, y + .5, 0, col, 1, .5, 1.6, 10); b.sph(.1, x + .02, y + .62, 0, '#d8b090', 1, 1.1, .95, 10); b.cyl(.11, .1, .26, x, y + .82, 0, hat, 12); b.cyl(.18, .18, .025, x, y + .7, 0, hat, 14); b.sph(.12, x + .1, y + .1, 0, '#3a3430', 1.6, .4, 1.8, 8); }
 function lampGeo(b, x, y, z) { b.box(.1, .5, .1, x, y - .2, z, '#1a1a1a'); }
 const LAMPG = new THREE.CylinderGeometry(.08, .1, .24, 6);
 export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), out = { g, wheels: [], horses: [], lamps: [], cars: [] };
   const L = d.len, W = d.wid, h2 = L / 2; let lampAt = [];
   const panel = (x, y, z, w, h, dd, c) => b.add(rbox(w, h, dd, Math.min(h, dd) * .42), c, M(x, y, z));
   switch (type) {
-    case 'brougham': case 'police': { const c = d.body, tr = d.roof; panel(-.2, 1.45, 0, 2.3, 1.3, W * .9, c); b.box(2.4, .1, W * .95, -.2, 2.14, 0, tr); b.box(2.0, .06, W * .8, -.2, 2.2, 0, tr);
+    case 'brougham': case 'police': { const c = d.body, tr = d.roof; panel(-.2, 1.45, 0, 2.3, 1.3, W * .9, c); b.add(rbox(2.45, .14, W * .97, .06), tr, M(-.2, 2.14, 0)); b.add(rbox(2.15, .1, W * .82, .05), new THREE.Color(tr).lerp(new THREE.Color('#8a8070'), .18).getStyle(), M(-.2, 2.22, 0)); b.add(rbox(1.6, .04, W * .5, .02), new THREE.Color(tr).lerp(new THREE.Color('#c8c0b0'), .22).getStyle(), M(-.2, 2.28, 0));
       for (const s of [-1, 1]) { b.box(.7, .55, .02, .35, 1.6, s * W * .45, '#8aa0a8'); b.box(.6, .55, .02, -.65, 1.6, s * W * .45, '#8aa0a8'); b.box(.06, 1.2, .03, -.15, 1.45, s * W * .46, '#c8a040'); }
       b.box(.8, .5, W * .8, 1.3, 1.25, 0, c); b.box(.6, .12, W * .75, 1.35, 1.65, 0, '#3a2a1a'); coachman(b, 1.3, 1.6, type === 'police' ? '#1a2448' : '#2a2a30', type === 'police' ? '#1a2040' : '#111');
       b.box(L * .9, .12, .12, 0, .8, W * .3, '#2a1c10'); b.box(L * .9, .12, .12, 0, .8, -W * .3, '#2a1c10');
       if (type === 'police') { b.box(1.6, .3, .02, -.2, 1.0, W * .46, '#d8d0a0'); b.box(1.6, .3, .02, -.2, 1.0, -W * .46, '#d8d0a0'); }
       for (const s of [-1, 1]) { const z = s * W * .462; b.box(2.3, .05, .02, -.2, 1.28, z, '#c8a040'); b.box(2.3, .05, .02, -.2, 1.92, z, '#c8a040'); b.box(.05, .05, .05, -.5, 1.4, z + s * .02, '#e0c060');
         b.box(.5, .05, .25, -.2, .78, s * W * .55, '#2a1c10'); b.add(new THREE.TorusGeometry(.28, .035, 4, 10, Math.PI), '#1a1410', M(-1.0, 1.0, s * W * .38, 0, 0, Math.PI)); b.add(new THREE.TorusGeometry(.22, .035, 4, 10, Math.PI), '#1a1410', M(1.25, 1.0, s * W * .38, 0, 0, Math.PI));
-        b.box(.04, .04, 2.0, -.2, 2.32, 0, '#c8a040'); b.box(2.0, .04, .04, -.2, 2.32, s * W * .38, '#c8a040'); b.sph(.18, -.2, 1.6, z + s * .01, type === 'police' ? '#d8d0a0' : '#c8a040', .6, .6, .1, 8); }
+        b.box(1.9, .03, .03, -.2, 2.3, s * W * .36, '#a88a40'); b.box(.03, .03, W * .72, -.2 + s * .95, 2.3, 0, '#a88a40'); b.sph(.18, -.2, 1.6, z + s * .01, type === 'police' ? '#d8d0a0' : '#c8a040', .6, .6, .1, 8); }
       b.box(.1, 1.0, W * .86, -1.37, 1.45, 0, new THREE.Color(c).multiplyScalar(.7).getStyle()); b.box(.4, .06, W * .7, -1.55, 1.0, 0, '#2a1c10');
       out.wheels.push(wheelPair(.75, W * 1.02, -1.0), wheelPair(.55, W * 1.0, 1.25)); lampAt = [[.95, 1.9, W * .5], [.95, 1.9, -W * .5]]; break; }
     case 'phaeton': { const c = d.body; panel(-.3, 1.05, 0, 1.8, .55, W * .9, c); b.box(1.1, .5, W * .85, -.5, 1.55, 0, '#5a1a10'); b.box(.4, .7, W * .85, -1.0, 1.5, 0, '#3a1a10');
