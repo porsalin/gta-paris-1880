@@ -12,7 +12,7 @@ export class GB { constructor() { this.p = []; this.n = []; this.c = []; }
   geo() { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3)); g.computeBoundingSphere(); return g; } }
 const _q = new THREE.Quaternion(), _e = new THREE.Euler();
 export function M(x, y, z, rx = 0, ry = 0, rz = 0) { return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), new THREE.Vector3(1, 1, 1)); }
-export const VC = new THREE.MeshLambertMaterial({ vertexColors: true });
+export const VC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .78, metalness: 0, envMapIntensity: .6 });
 const VCw = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x2a2420 }); // charred
 export const charMat = VCw;
 const lampOn = new THREE.MeshBasicMaterial({ color: 0xffd890 }); export const LAMPMAT = lampOn;
@@ -38,31 +38,61 @@ export const LOOKS = {
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 export function gangLook(c1, c2) { return { coat: c1, stripes: c1 === '#d8d8d8' || c1 === '#c8c8c8' ? '#1a2a5a' : null, trou: '#2a2a2a', hat: 'cap', hatc: c2 === '#111' ? '#222' : '#2a2a2a', scarf: c2 }; }
 const SK = ['#e8c4a0', '#d8b08a', '#c89878', '#a87858', '#f0d0b8'];
+const HAIR = ['#2a1a10', '#4a3020', '#1a1410', '#6a4a2a', '#8a6a3a', '#3a2a20', '#9a9088'];
+const dk = (c, f = .7) => '#' + new THREE.Color(c).multiplyScalar(f).getHexString();
+const lt = (c, f = .25) => '#' + new THREE.Color(c).lerp(new THREE.Color(1, 1, 1), f).getHexString();
+// ellipsoid/elliptic-cylinder helpers (sx = front/back depth scale, sz = width scale)
+function cylE(b, rt, rb, h, x, y, z, col, sx = 1, sz = 1, seg = 9, rz = 0) { const m = M(x, y, z, 0, 0, rz); m.scale(new THREE.Vector3(sx, 1, sz)); return b.add(new THREE.CylinderGeometry(rt, rb, h, seg), col, m); }
+function shade(geo, y0, y1, lo = .62) { const P = geo.attributes.position.array, Cc = geo.attributes.color.array; for (let k = 0; k < P.length; k += 3) { const f = lo + (1 - lo) * Math.min(1, Math.max(0, (P[k + 1] - y0) / (y1 - y0))); Cc[k] *= f; Cc[k + 1] *= f; Cc[k + 2] *= f; } return geo; }
 function pedGeos(L) { const key = JSON.stringify(L); return cached('p' + key, () => {
-  const sk = L.skin || SK[(key.length * 7) % SK.length], b = new GB();
-  // torso
-  if (L.dress) { b.cyl(.2, .42, .78, 0, .42, 0, L.coat, 10); b.box(.26, .42, .36, 0, 1.0, 0, L.coat); if (L.apron) b.box(.04, .6, .3, .2, .55, 0, '#f4f0e8'); }
-  else { b.box(.28, .5, .42, 0, .98, 0, L.stripes ? '#f2f2f2' : L.coat); if (L.stripes) for (let y = .78; y < 1.2; y += .1) b.box(.29, .035, .43, 0, y, 0, L.stripes);
-    if (L.vest) b.box(.3, .32, .3, 0, 1.0, 0, L.vest); if (L.long) b.box(.3, .32, .44, -.01, .62, 0, L.coat); if (L.apron) b.box(.05, .55, .32, .15, .72, 0, '#c8b8a0'); if (L.belt) b.box(.3, .06, .44, 0, .76, 0, L.belt); }
-  if (L.scarf) b.box(.3, .08, .3, .02, 1.25, 0, L.scarf);
-  // head
-  b.box(.24, .26, .24, .02, 1.42, 0, sk); b.box(.04, .05, .06, .15, 1.4, 0, sk); // nose
-  if (!L.dress && !L.player && key.length % 3 === 0) b.box(.05, .06, .16, .14, 1.34, 0, '#3a2a1a'); // moustache
-  const hc = L.hatc;
+  const hs = key.length * 7 + key.charCodeAt(5) * 3, sk = L.skin || SK[hs % SK.length], hair = L.dress ? HAIR[(hs >> 1) % 6] : HAIR[(hs >> 1) % HAIR.length], b = new GB();
+  const coat = L.stripes ? '#f2f2f2' : L.coat;
+  if (L.dress) { // bodice, bell skirt with bustle, flounces, sash
+    cylE(b, .16, .13, .36, 0, 1.02, 0, coat, .78, 1.05, 10); cylE(b, .2, .17, .14, 0, 1.15, 0, coat, .8, 1.05, 10);
+    cylE(b, .13, .44, .86, .03, .43, 0, coat, .95, 1, 14); cylE(b, .45, .46, .07, .03, .03, 0, dk(coat, .8), .95, 1, 14);
+    b.sph(.24, -.2, .78, 0, coat, .9, .8, 1.15, 9); b.sph(.18, -.27, .62, 0, dk(coat, .88), .9, .9, 1.1, 8); // bustle
+    for (const y of [.22, .4]) cylE(b, .33 + (.4 - y) * .55, .35 + (.4 - y) * .55, .05, .03, y, 0, lt(coat, .18), .95, 1, 14); // flounces
+    cylE(b, .15, .15, .05, 0, .86, 0, L.scarf || dk(coat, .6), .8, 1.07, 10);
+    b.box(.02, .22, .1, .13, 1.06, 0, lt(coat, .45)); // lace front
+    if (L.apron) { b.box(.04, .62, .32, .27, .5, 0, '#f4f0e8', 0, 0, .14); b.box(.03, .16, .2, .13, 1.06, 0, '#f4f0e8'); }
+  } else { // trousers waist, coat torso, shoulders, lapels, shirt and cravat
+    cylE(b, .17, .15, .5, 0, .99, 0, coat, .72, 1.05, 10); b.sph(.19, 0, 1.19, 0, coat, .72, .45, 1.12, 9);
+    if (L.stripes) for (let y = .8; y < 1.2; y += .09) cylE(b, .172 - (y - .8) * .05 + .005, .172 - (y - .8) * .05 + .005, .03, 0, y, 0, L.stripes, .73, 1.06, 10);
+    if (!L.stripes && !L.apron) { b.box(.02, .26, .11, .125, 1.1, 0, '#efe8dc', 0, 0, .1); b.box(.03, .07, .07, .14, 1.2, 0, L.scarf ? L.scarf : '#151515');
+      for (const s of [-1, 1]) b.box(.025, .28, .06, .13, 1.08, s * .06, dk(coat, .78), s * .25, 0, .1); }
+    if (L.vest) cylE(b, .165, .155, .3, .01, 1.02, 0, L.vest, .74, 1.0, 10);
+    if (L.long) { cylE(b, .16, .23, .46, -.01, .6, 0, coat, .78, 1.0, 10); b.box(.02, .44, .02, .17, .62, 0, dk(coat, .6)); }
+    if (L.apron) b.box(.04, .6, .3, .16, .74, 0, '#c8b8a0', 0, 0, .05);
+    if (L.belt) { cylE(b, .158, .158, .055, 0, .78, 0, L.belt, .74, 1.07, 10); for (let y = .86; y < 1.2; y += .09) b.sph(.018, .135, y, 0, L.belt, 1, 1, 1, 4); }
+    cylE(b, .15, .15, .12, 0, .72, 0, dk(L.trou, .9), .72, 1.05, 9); }
+  if (L.scarf && !L.dress) cylE(b, .1, .12, .08, .01, 1.26, 0, L.scarf, 1, 1, 9);
+  // neck & head
+  b.cyl(.065, .07, .1, .01, 1.31, 0, sk, 7); b.sph(.13, .02, 1.45, 0, sk, 1.02, 1.12, .95, 10);
+  b.sph(.05, .14, 1.435, 0, sk, .8, .9, .7, 5); for (const s of [-1, 1]) { b.sph(.03, .02, 1.44, s * .125, sk, .6, 1, .5, 5); b.box(.015, .024, .03, .135, 1.48, s * .048, '#1a1410'); b.box(.012, .014, .05, .138, 1.515, s * .05, dk(hair, .8)); }
+  b.box(.02, .012, .05, .142, 1.39, 0, '#a05a4a');
+  b.sph(.137, -.012, 1.49, 0, hair, 1.04, .8, 1, 9); b.sph(.1, -.07, 1.42, 0, hair, .8, .9, 1.15, 7); // hair cap & back
+  if (!L.dress && !L.player) { const f = hs % 5; if (f === 1 || f === 3) b.box(.03, .03, .14, .145, 1.405, 0, dk(hair, .85), 0, 0, 0); if (f === 2) b.sph(.1, .07, 1.35, 0, dk(hair, .85), .9, .8, 1.1, 7); if (f === 4) { b.box(.03, .03, .16, .145, 1.405, 0, dk(hair)); b.sph(.04, .13, 1.34, 0, dk(hair), 1, 1.3, 1, 5); } }
+  if (L.dress) { b.sph(.08, -.12, 1.5, 0, hair, 1, .9, 1.1, 7); b.sph(.035, .02, 1.53, .1, hair, 1, 1, 1, 5); b.sph(.035, .02, 1.53, -.1, hair, 1, 1, 1, 5); }
+  const hc = L.hatc, band = L.hat === 'top' ? '#3a3a3a' : dk(hc, .55);
   switch (L.hat) {
-    case 'top': b.cyl(.15, .14, .34, 0, 1.72, 0, hc, 10); b.cyl(.24, .24, .03, 0, 1.56, 0, hc, 12); b.cyl(.152, .152, .05, 0, 1.6, 0, '#3a3a3a', 10); break;
-    case 'bowler': b.sph(.15, 0, 1.6, 0, hc, 1, .8, 1); b.cyl(.21, .21, .025, 0, 1.56, 0, hc, 12); break;
-    case 'kepi': b.cyl(.13, .14, .2, -.02, 1.64, 0, hc, 10); b.box(.12, .02, .2, .14, 1.56, 0, '#111'); b.cyl(.141, .141, .04, -.02, 1.56, 0, '#1a1a1a', 10); break;
-    case 'helmet': b.sph(.16, 0, 1.6, 0, hc, 1, 1.1, 1); b.box(.04, .26, .04, -.02, 1.76, 0, '#c0c0c0'); break;
-    case 'cap': b.cyl(.15, .15, .08, -.01, 1.58, 0, hc, 10); b.box(.12, .02, .22, .13, 1.55, 0, hc); break;
-    case 'beret': b.cyl(.18, .15, .07, 0, 1.6, 0, hc, 10); break;
-    case 'bonnet': b.sph(.17, -.02, 1.55, 0, hc, 1, .9, 1.05); b.cyl(.26, .26, .025, .02, 1.56, 0, hc, 12); b.box(.1, .04, .3, -.1, 1.56, 0, '#a03050'); break;
-    default: b.box(.26, .08, .26, -.01, 1.57, 0, '#3a2a1a'); }
-  if (L.dress) b.box(.12, .14, .3, -.12, 1.34, 0, '#3a2a1a'); // chignon
-  const body = b.geo();
-  const lg = new GB(); lg.box(.15, .54, .14, 0, -.27, 0, L.dress ? '#1a1a1a' : L.trou); lg.box(.22, .07, .14, .04, -.54, 0, '#1a1410');
-  const ar = new GB(); ar.box(.12, .46, .12, 0, -.21, 0, L.stripes ? '#f2f2f2' : L.coat); if (L.stripes) { ar.box(.13, .035, .13, 0, -.12, 0, L.stripes); ar.box(.13, .035, .13, 0, -.28, 0, L.stripes); } ar.box(.1, .09, .1, 0, -.46, 0, sk);
-  return { body, leg: lg.geo(), arm: ar.geo() }; }); }
+    case 'top': b.cyl(.135, .12, .36, -.005, 1.76, 0, hc, 12); b.cyl(.122, .122, .06, -.005, 1.62, 0, band, 12); cylE(b, .23, .23, .022, -.005, 1.585, 0, hc, .85, 1, 14); cylE(b, .21, .215, .03, -.005, 1.6, 0, hc, .85, 1, 14); break;
+    case 'bowler': b.sph(.142, -.005, 1.6, 0, hc, 1.02, .82, 1, 10); b.cyl(.143, .143, .035, -.005, 1.6, 0, band, 12); cylE(b, .2, .2, .02, -.005, 1.58, 0, hc, .9, 1, 14); break;
+    case 'kepi': b.cyl(.12, .14, .2, -.02, 1.66, 0, hc, 12); b.cyl(.122, .122, .02, -.025, 1.765, 0, dk(hc), 12); b.box(.12, .015, .2, .14, 1.565, 0, '#111', 0, 0, -.2); b.cyl(.142, .142, .045, -.015, 1.58, 0, '#14141c', 12); b.box(.01, .09, .03, .12, 1.66, 0, '#d4b040'); break;
+    case 'helmet': b.sph(.155, 0, 1.6, 0, hc, 1.05, 1.1, 1, 10); b.box(.04, .24, .035, -.02, 1.76, 0, '#d8d8d8'); b.sph(.04, .14, 1.62, 0, '#d4b040', .5, 1, 1, 5); break;
+    case 'cap': b.cyl(.145, .15, .085, -.01, 1.585, 0, hc, 10); b.sph(.15, -.03, 1.62, 0, hc, 1.05, .35, 1, 9); b.box(.12, .018, .2, .14, 1.555, 0, dk(hc, .8), 0, 0, -.12); break;
+    case 'beret': cylE(b, .19, .14, .06, -.03, 1.6, 0, hc, 1, 1, 12); b.sph(.18, -.03, 1.625, 0, hc, 1, .25, 1, 10); b.cyl(.01, .01, .04, -.03, 1.66, 0, hc, 4); break;
+    case 'bonnet': b.sph(.15, -.04, 1.52, 0, hc, 1, 1, 1.05, 10); cylE(b, .2, .22, .04, .05, 1.55, 0, hc, .7, 1, 12, -.5);
+      for (const s of [-1, 1]) b.box(.02, .18, .035, .05, 1.36, s * .1, '#a03050'); b.sph(.045, -.01, 1.66, .08, '#c84060', 1, 1, 1, 5); b.sph(.04, -.05, 1.65, -.04, '#f0e0a0', 1, 1, 1, 5); b.sph(.035, -.02, 1.68, .02, '#5a8a4a', 1, .6, 1, 5); break;
+    default: break; }
+  const body = shade(b.geo(), .0, 1.2, .7);
+  const lg = new GB(); if (L.dress) { lg.cyl(.04, .045, .3, 0, -.4, 0, '#2a2020', 6); } else { lg.cyl(.075, .062, .5, 0, -.25, 0, L.trou, 8); lg.cyl(.064, .064, .04, 0, -.48, 0, dk(L.trou, .8), 8); }
+  lg.box(.2, .07, .1, .035, -.535, 0, '#16100c'); lg.sph(.055, .12, -.53, 0, '#1e1610', 1.2, .6, .9, 6);
+  const ar = new GB(); b.sph; ar.sph(.075, 0, -.01, 0, coat, 1, 1, 1, 7); ar.cyl(.068, .055, .42, 0, -.22, 0, coat, 8);
+  if (L.dress) ar.sph(.09, 0, -.03, 0, coat, 1, .9, 1, 7); // puffed sleeve
+  if (L.stripes) for (const y of [-.1, -.22, -.34]) ar.cyl(.066, .066, .03, 0, y, 0, L.stripes, 8);
+  ar.cyl(.059, .059, .04, 0, -.42, 0, L.dress ? lt(coat, .5) : '#efe8dc', 8); ar.sph(.052, .01, -.47, 0, (L.dress || L.boss) && hs % 2 ? '#f4f0e8' : sk, .9, 1.15, .7, 6);
+  return { body, leg: shade(lg.geo(), -.56, 0, .6), arm: ar.geo() }; }); }
+
 export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
   const body = new THREE.Mesh(G.body, VC); body.castShadow = true; rig.add(body);
   const legs = [-1, 1].map(s => { const m = new THREE.Mesh(G.leg, VC); m.position.set(0, .56, s * .1); m.castShadow = true; rig.add(m); return m; });
@@ -77,17 +107,25 @@ export function animPed(P, sp, dt, punch, dead) {
   if (P.horse) { animHorse(P.horse, sp, dt); return; }
   P.ph += dt * Math.min(16, sp * 2.6); const a = Math.sin(P.ph) * Math.min(.9, sp * .14), run = sp > 5;
   P.legs[0].rotation.z = a; P.legs[1].rotation.z = -a; P.arms[0].rotation.z = -a * .9; P.arms[1].rotation.z = a * .9;
-  P.rig.position.y = run ? Math.abs(Math.sin(P.ph)) * .06 : 0; P.rig.rotation.z = run ? -.12 : 0;
-  if (punch) { P.arms[1].rotation.z = 1.5; P.arms[1].rotation.x = -.2; } else P.arms[1].rotation.x = 0; }
+  P.t = (P.t || 0) + dt; const idle = sp < .2 ? Math.sin(P.t * 1.8 + P.g.id) * .04 : 0; if (sp < .2) { P.arms[0].rotation.z = idle; P.arms[1].rotation.z = -idle; }
+  P.arms[0].rotation.x = .08 + Math.abs(a) * .1; P.arms[1].rotation.x = -.08 - Math.abs(a) * .1;
+  P.rig.position.y = run ? Math.abs(Math.sin(P.ph)) * .06 : Math.abs(Math.sin(P.ph)) * Math.min(.03, sp * .01) + idle * .1; P.rig.rotation.z = run ? -.12 : -Math.min(.05, sp * .02); P.rig.rotation.y = Math.sin(P.ph) * Math.min(.1, sp * .03);
+  if (punch) { P.arms[1].rotation.z = 1.5; P.arms[1].rotation.x = -.2; } }
 // ================= HORSES =================
 const HC = ['#5a3a22', '#3a2416', '#2a1a12', '#7a5030', '#8a8580', '#1a1410', '#6a4428'];
-function horseGeos(col) { return cached('h' + col, () => { const b = new GB(), dk = new THREE.Color(col).multiplyScalar(.6).getStyle();
-  b.box(1.25, .52, .5, 0, 1.12, 0, col); b.sph(.3, .55, 1.12, 0, col, 1.1, 1, .9); b.sph(.3, -.55, 1.12, 0, col, 1.1, 1, .9);
-  b.box(.62, .28, .26, .82, 1.5, 0, col, 0, 0, .9); b.box(.48, .22, .22, 1.12, 1.68, 0, col, 0, 0, -.35); b.box(.08, .14, .06, 1.0, 1.86, .06, dk); b.box(.08, .14, .06, 1.0, 1.86, -.06, dk);
-  b.box(.5, .1, .08, .76, 1.6, 0, dk, 0, 0, .9); // mane
-  b.box(.12, .55, .12, -.86, .98, 0, dk, 0, 0, -.5); // tail
-  b.box(.7, .06, .54, .05, 1.4, 0, '#1a1410'); // harness saddle pad
-  const lg = new GB(); lg.box(.13, .78, .13, 0, -.39, 0, col); lg.box(.15, .1, .15, 0, -.78, 0, '#1a1410'); return { body: b.geo(), leg: lg.geo() }; }); }
+function horseGeos(col) { return cached('h' + col, () => { const b = new GB(), dk = new THREE.Color(col).multiplyScalar(.55).getStyle(), mu = new THREE.Color(col).multiplyScalar(.75).getStyle(), LE = '#2a1a10', BR = '#c8a040';
+  b.sph(.36, 0, 1.13, 0, col, 1.75, .78, .7, 12); b.sph(.32, .5, 1.17, 0, col, 1.05, 1.05, .82, 10); b.sph(.33, -.52, 1.17, 0, col, 1.05, 1, .85, 10); // barrel, chest, rump
+  cylE(b, .15, .23, .7, .82, 1.5, 0, col, 1.15, .78, 10, -.75); // neck
+  cylE(b, .1, .13, .52, 1.12, 1.66, 0, col, 1, .75, 9, 1.95); b.sph(.08, 1.32, 1.56, 0, mu, 1.2, 1, 1.1, 7); // head + muzzle
+  for (const s of [-1, 1]) { b.add(new THREE.ConeGeometry(.035, .13, 5), col, M(1.0, 1.9, s * .06, s * .2, 0, .25)); b.sph(.022, 1.18, 1.71, s * .085, '#0a0806', 1, 1, 1, 4); b.box(.12, .1, .015, 1.15, 1.72, s * .1, LE); } // ears, eyes, blinkers
+  for (let k = 0; k < 6; k++) b.box(.12, .08, .06, .66 + k * .08, 1.42 + k * .085, 0, dk, 0, 0, -.75); b.box(.14, .12, .1, 1.0, 1.86, 0, dk, 0, 0, .3); // mane + forelock
+  cylE(b, .05, .1, .62, -.92, .9, 0, dk, 1, 1, 7, -.32); b.sph(.07, -.86, 1.2, 0, dk, 1, 1, 1, 5); // tail
+  b.add(new THREE.TorusGeometry(.2, .055, 6, 12), LE, M(.66, 1.4, 0, 0, Math.PI / 2, -.75)); b.sph(.03, .74, 1.62, .1, BR, 1, 1, 1, 4); b.sph(.03, .74, 1.62, -.1, BR, 1, 1, 1, 4); // collar + hames knobs
+  b.box(.42, .05, .6, .05, 1.42, 0, LE); b.box(.06, .52, .62, .02, 1.17, 0, LE); b.sph(.035, .05, 1.48, 0, BR, 1, 1, 1, 4); // saddle pad + girth + terret
+  for (const s of [-1, 1]) { b.box(1.3, .04, .02, .0, 1.3, s * .255, LE, 0, 0, .04); b.box(.03, .03, .4, 1.2, 1.62, s * .0, LE); } // traces & noseband
+  b.box(.04, .3, .58, -.55, 1.14, 0, LE, 0, 0, -.2); // breeching
+  const lg = new GB(); lg.cyl(.085, .065, .42, 0, -.18, 0, col, 7); lg.cyl(.042, .04, .32, 0, -.54, 0, col, 6); lg.sph(.055, 0, -.7, 0, mu, 1, 1, 1, 5); lg.cyl(.065, .075, .1, 0, -.76, 0, '#1a1410', 7);
+  return { body: shade(b.geo(), .8, 1.6, .7), leg: shade(lg.geo(), -.8, 0, .7) }; }); }
 export function makeHorse(col) { col = col || HC[Math.floor(Math.random() * HC.length)]; const G = horseGeos(col), g = new THREE.Group(), body = new THREE.Mesh(G.body, VC); body.castShadow = true; g.add(body);
   const legs = [[.5, .15], [.5, -.15], [-.5, .15], [-.5, -.15]].map(([x, z]) => { const m = new THREE.Mesh(G.leg, VC); m.position.set(x, .9, z); m.castShadow = true; g.add(m); return m; }); return { g, body, legs, ph: Math.random() * 6, dead: false }; }
 export function animHorse(H, sp, dt) { if (H.dead) return; H.ph += dt * Math.min(18, 2 + sp * .9); const gal = Math.min(1, sp / 6), am = .15 + .55 * gal;
@@ -99,12 +137,16 @@ const spokeTex = (() => { const c = document.createElement('canvas'); c.width = 
   g.fillStyle = '#3a2814'; g.beginPath(); g.arc(32, 32, 25, 0, 7); g.fill(); g.globalCompositeOperation = 'destination-out'; for (let k = 0; k < 12; k++) { g.beginPath(); g.moveTo(32, 32); g.arc(32, 32, 24, k * .5236 + .08, k * .5236 + .44); g.fill(); } g.globalCompositeOperation = 'source-over';
   g.fillStyle = '#d4a840'; g.beginPath(); g.arc(32, 32, 6, 0, 7); g.fill(); g.strokeStyle = '#1a1208'; g.lineWidth = 4; g.beginPath(); g.arc(32, 32, 29, 0, 7); g.stroke(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; })();
 const wheelMat = new THREE.MeshLambertMaterial({ map: spokeTex, transparent: true, alphaTest: .4, side: THREE.DoubleSide });
-function wheelPair(r, track, x, y = r) { const g = new THREE.Group(); g.position.set(x, y, 0); const rim = new GB(); for (const s of [-1, 1]) rim.add(new THREE.TorusGeometry(r * .95, .05, 4, 16), '#1a1208', M(0, 0, s * track / 2)); rim.cyl(.04, .04, track, 0, 0, 0, '#2a1c10', 4, Math.PI / 2);
-  const m = mk(rim); g.add(m); for (const s of [-1, 1]) { const d = new THREE.Mesh(new THREE.CircleGeometry(r * .97, 16), wheelMat); d.position.z = s * track / 2; d.castShadow = true; g.add(d); } return { g, r }; }
+function wheelPair(r, track, x, y = r) { const g = new THREE.Group(); g.position.set(x, y, 0); const rim = new GB();
+  for (const s of [-1, 1]) { const z = s * track / 2; rim.add(new THREE.TorusGeometry(r * .94, .055, 5, 20), '#151210', M(0, 0, z)); rim.add(new THREE.TorusGeometry(r * .85, .04, 4, 20), '#b8902c', M(0, 0, z));
+    rim.cyl(.11, .11, .16, 0, 0, z, '#2a1c10', 8, Math.PI / 2); rim.cyl(.06, .06, .2, 0, 0, z + s * .02, '#d4a840', 6, Math.PI / 2);
+    for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; rim.box(.035, r * .78, .03, Math.cos(a) * r * .47, Math.sin(a) * r * .47, z, '#9a7030', 0, 0, a - Math.PI / 2); } }
+  rim.cyl(.04, .04, track, 0, 0, 0, '#2a1c10', 5, Math.PI / 2);
+  const m = new THREE.Mesh(cached('w' + r.toFixed(2) + track.toFixed(2), () => rim.geo()), VC); m.castShadow = true; g.add(m); return { g, r }; }
 // ================= VEHICLES =================
 function coachman(b, x, y, col = '#1e1e24', hat = '#111') { b.box(.3, .45, .4, x, y + .25, 0, col); b.box(.22, .22, .22, x + .02, y + .6, 0, '#e0b898'); b.cyl(.13, .12, .28, x, y + .86, 0, hat, 8); b.cyl(.2, .2, .03, x, y + .72, 0, hat, 10); }
 function lampGeo(b, x, y, z) { b.box(.1, .5, .1, x, y - .2, z, '#1a1a1a'); }
-const LAMPG = new THREE.BoxGeometry(.18, .22, .18);
+const LAMPG = new THREE.CylinderGeometry(.08, .1, .24, 6);
 export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), out = { g, wheels: [], horses: [], lamps: [], cars: [] };
   const L = d.len, W = d.wid, h2 = L / 2; let lampAt = [];
   const panel = (x, y, z, w, h, dd, c) => b.box(w, h, dd, x, y, z, c);
@@ -114,6 +156,10 @@ export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), ou
       b.box(.8, .5, W * .8, 1.3, 1.25, 0, c); b.box(.6, .12, W * .75, 1.35, 1.65, 0, '#3a2a1a'); coachman(b, 1.3, 1.6, type === 'police' ? '#1a2448' : '#2a2a30', type === 'police' ? '#1a2040' : '#111');
       b.box(L * .9, .12, .12, 0, .8, W * .3, '#2a1c10'); b.box(L * .9, .12, .12, 0, .8, -W * .3, '#2a1c10');
       if (type === 'police') { b.box(1.6, .3, .02, -.2, 1.0, W * .46, '#d8d0a0'); b.box(1.6, .3, .02, -.2, 1.0, -W * .46, '#d8d0a0'); }
+      for (const s of [-1, 1]) { const z = s * W * .462; b.box(2.3, .05, .02, -.2, 1.28, z, '#c8a040'); b.box(2.3, .05, .02, -.2, 1.92, z, '#c8a040'); b.box(.05, .05, .05, -.5, 1.4, z + s * .02, '#e0c060');
+        b.box(.5, .05, .25, -.2, .78, s * W * .55, '#2a1c10'); b.add(new THREE.TorusGeometry(.28, .035, 4, 10, Math.PI), '#1a1410', M(-1.0, 1.0, s * W * .38, 0, 0, Math.PI)); b.add(new THREE.TorusGeometry(.22, .035, 4, 10, Math.PI), '#1a1410', M(1.25, 1.0, s * W * .38, 0, 0, Math.PI));
+        b.box(.04, .04, 2.0, -.2, 2.32, 0, '#c8a040'); b.box(2.0, .04, .04, -.2, 2.32, s * W * .38, '#c8a040'); b.sph(.18, -.2, 1.6, z + s * .01, type === 'police' ? '#d8d0a0' : '#c8a040', .6, .6, .1, 8); }
+      b.box(.1, 1.0, W * .86, -1.37, 1.45, 0, new THREE.Color(c).multiplyScalar(.7).getStyle()); b.box(.4, .06, W * .7, -1.55, 1.0, 0, '#2a1c10');
       out.wheels.push(wheelPair(.75, W * 1.02, -1.0), wheelPair(.55, W * 1.0, 1.25)); lampAt = [[.95, 1.9, W * .5], [.95, 1.9, -W * .5]]; break; }
     case 'phaeton': { const c = d.body; panel(-.3, 1.05, 0, 1.8, .55, W * .9, c); b.box(1.1, .5, W * .85, -.5, 1.55, 0, '#5a1a10'); b.box(.4, .7, W * .85, -1.0, 1.5, 0, '#3a1a10');
       b.add(new THREE.CylinderGeometry(.75, .75, W * .9, 10, 1, true, 0, Math.PI), d.roof, M(-1.05, 1.5, 0, Math.PI / 2, 0, Math.PI / 2 + .3)); coachman(b, .3, 1.2, '#3a2a40', '#222');
