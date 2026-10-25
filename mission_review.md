@@ -5,7 +5,7 @@ This pass reworks all 112 missions (5 acts of 20, plus 12 kiosk side jobs). It c
 ## What changed
 **Engine (game/main.js).** The rendering files (gfx.js, post.js, models.js) were not touched. New step types:
 - **tail:** follow a talking mark along a Dijkstra road route. Too close and you are blown; too far and you lose him.
-- **eaves:** stay within earshot on foot. The dialogue unspools as your progress builds. Too close, wheels or police attention fail the step.
+- **eaves:** stay within earshot on foot. The dialogue unspools as your progress builds. Too close, wheels, or a real police chase (2 stars) fail the step.
 - **sneak:** guards sweep visible vision cones. A sighting or a hurt guard fails the job.
 - **choice:** two marked destinations. The pick is saved in `choices` (localStorage), and later steps carry `only: key=a|b`.
 - **timed escapes**, **optional bonus pickups** ("OPTIONAL:"), and mission **intro and outro dialogue**.
