@@ -57,9 +57,9 @@ export const DCUT = [4, 3, 3, 5];
 // building height (walls) for tile, 0 if open. Returns also courtyard/workshop
 export function bldH(i, j) { if (!inb(i, j)) return 0; const t = ti(i, j); if (kind[t] !== K.BLD || skipT[t]) return 0; const st = styleOf(i, j), dp = depth[t];
   const pi = i >> 2, pj = j >> 2, h0 = hash(pi, pj, 3);
-  if (dp > DCUT[st]) return hash(i >> 1, j >> 1, 9) < .45 ? 0 : 2.6 + (st === 3 ? 2 : 0); // courtyard or workshop
+  if (dp > DCUT[st]) return hash(i >> 1, j >> 1, 9) < .45 ? 0 : 3.6 + (st === 3 ? 2.5 : 0); // courtyard or workshop
   const f = st === 0 ? 4 + Math.floor(h0 * 2.4) : st === 1 ? 3 + Math.floor(h0 * 2.2) : st === 2 ? 1 + Math.floor(h0 * 2) : 2 + Math.floor(h0 * 3);
-  return 1.6 + f * 1.2 + .3; }
+  return (1.6 + f * 1.2 + .3) * 1.5; } // Haussmann storeys (FS = 1.5 in gfx.js)
 export const isYard = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && !skipT[ti(i, j)] && bldH(i, j) === 0;
 // ---- props (data, generated lazily per chunk) ----
 export const PD = { lamp: { r: .3, hp: 25 }, tree: { r: .6, hp: 200 }, morris: { r: .9, hp: 80 }, wallace: { r: .7, hp: 120 }, trough: { r: .8, hp: 60 }, pissoir: { r: .9, hp: 90 }, bench: { r: .5, hp: 40 }, kiosk: { r: 1, hp: 120 },

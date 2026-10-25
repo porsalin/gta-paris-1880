@@ -134,7 +134,7 @@ export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(
   let horse = null; if (mounted) { horse = makeHorse('#2a1a12'); g.add(horse.g); rig.position.set(-.1, 1.05, 0); legs.forEach(l => { l.rotation.z = 1.3; l.rotation.x = l.position.z > 0 ? -.35 : .35; }); }
   if (L.player) { const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), RINGM); ring.rotation.x = -Math.PI / 2; ring.position.y = .05; ring.userData.blob = 1; ring.renderOrder = -1; g.add(ring); g.userData.ring = ring; }
   if (mounted) blob(g, 2.6, 1.1); else blob(g, .9, .8);
-  g.scale.set(1.3, 1.5, 1.3); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
+  g.scale.set(1.12, 1.3, 1.12); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
 // state: sp (units/s), dt, punch, aim
 export function animPed(P, sp, dt, punch, dead) {
   if (dead) { if (!P.dead) { P.dead = true; P.rig.rotation.set(0, 0, Math.PI / 2); P.rig.position.y = P.horse ? .2 : .25; P.rig.position.x = P.horse ? 1.2 : -.3; P.legs.forEach(l => l.rotation.set(0, 0, 0)); if (P.horse) killHorse(P.horse); } return; }

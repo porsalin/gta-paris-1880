@@ -35,7 +35,7 @@ const COMP = mat(`uniform sampler2D t; uniform sampler2D bl; uniform sampler2D a
 // PAINT: Impressionist oil-on-canvas pass. Brush-direction warp + Kuwahara (picks the calmest quadrant => flat
 // dabs of paint with crisp-but-soft edges), muted harmonious palette, lifted shadows, canvas weave and colour bleed.
 const PAINT = mat(`uniform sampler2D t; uniform vec2 px; uniform float q, night, time; varying vec2 vUv;
-  float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+  float h(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
   float n2(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y); }
   void main(){ vec2 sp=vUv/px; // brush strokes: a slowly varying stroke angle; warp along it
     float ang=n2(sp*.012)*6.283; vec2 dir=vec2(cos(ang),sin(ang)); float st=n2(vec2(dot(sp,dir)*.11, dot(sp,vec2(-dir.y,dir.x))*.32)+n2(sp*.02)*7.);
@@ -48,11 +48,13 @@ const PAINT = mat(`uniform sampler2D t; uniform vec2 px; uniform float q, night,
       float best=1e9; c=vec3(0.); for(int k=0;k<4;k++){ vec3 mu=m[k]/9.; vec3 v=abs(s2[k]/9.-mu*mu); float vs=v.r+v.g+v.b; if(vs<best){best=vs;c=mu;} } }
     else c=texture2D(t,uv).rgb*.6+(texture2D(t,uv+px*vec2(1.5,0)).rgb+texture2D(t,uv-px*vec2(0,1.5)).rgb)*.2;
     // palette: muted, harmonious, no pure blacks; ochre-warm lights, grey-blue shade
-    float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.86); c+=(vec3(n2(sp*.035),n2(sp*.035+17.),n2(sp*.035+41.))-.5)*vec3(.07,.05,.08)*min(q,1.); // broken colour
+    float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.86); c+=(vec3(n2(sp*.035),n2(sp*.035+17.),n2(sp*.035+41.))-.5)*vec3(.035,.025,.04)*min(q,1.); // broken colour
     c=mix(c, mix(vec3(.08,.085,.1)*(1.-night*.5), vec3(1.,.965,.9), c), .7);
     c=mix(c, c*vec3(1.06,1.,.88), smoothstep(.45,.9,l)*(1.-night)); c=mix(c, c*vec3(.86,.9,1.1), 1.-smoothstep(.08,.5,l)); // Caillebotte blue-violet shade
+    { float cl=smoothstep(.35,.7,n2(sp*.0022+vec2(time*.012,time*.004))); c*=mix(1.,mix(.84,1.05,cl),1.-night); } // drifting cloud light over the city
+    c=mix(c, mix(vec3(.74,.77,.8),vec3(.12,.13,.17),night), .07); // aerial haze
     // canvas weave + pigment granulation + stroke ridges
-    float w=sin(sp.x*1.9)*sin(sp.y*1.9); float g=n2(sp*.7); c*=1.+w*.01*q+(g-.5)*.04+(st-.5)*.03*min(q,1.);
+    float w=sin(sp.x*1.9)*sin(sp.y*1.9); float g=n2(sp*.7); c*=1.+(g-.5)*.035+0.;
     c=mix(c, vec3(.93,.9,.83), .02); // ground of the canvas showing through
     gl_FragColor=vec4(clamp(c,0.,1.),1.); }`, { t: { value: null }, px: { value: new THREE.Vector2() }, q: { value: 2 }, night: { value: 0 }, time: { value: 0 } });
 // SSAO (Ultra): half-res, view-space positions from the depth buffer, 12 spiral taps, normal from depth derivatives
@@ -82,5 +84,5 @@ export function postRender(r, scene, camera, t) { const tm = r.toneMapping; r.to
   COMP.uniforms.ts.value = tsOn ? .65 : 0; COMP.uniforms.ssr.value = POST.fx >= 1 ? 1 : 0;
   const aoOn = !!(POST.ssao && POST.ao && POST.rt.depthTexture); if (aoOn) { SSAO.uniforms.dT.value = POST.rt.depthTexture; SSAO.uniforms.pInv.value.copy(camera.projectionMatrixInverse); pass(r, SSAO, POST.ao); COMP.uniforms.ao.value = POST.ao.texture; } COMP.uniforms.aoOn.value = aoOn ? 1 : 0;
   COMP.uniforms.t.value = POST.rt.texture; COMP.uniforms.bl.value = POST.a.texture; COMP.uniforms.bs.value = POST.bloom ? POST.bs ?? .9 : 0; COMP.uniforms.time.value = t % 100;
-  if (POST.paint > 0 && POST.p) { pass(r, COMP, POST.p); PAINT.uniforms.t.value = POST.p.texture; PAINT.uniforms.px.value.set(1 / POST.p.width, 1 / POST.p.height); PAINT.uniforms.q.value = POST.paint; PAINT.uniforms.night.value = COMP.uniforms.night.value; pass(r, PAINT, null); }
+  if (POST.paint > 0 && POST.p) { pass(r, COMP, POST.p); PAINT.uniforms.t.value = POST.p.texture; PAINT.uniforms.px.value.set(1 / POST.p.width, 1 / POST.p.height); PAINT.uniforms.q.value = POST.paint; PAINT.uniforms.night.value = COMP.uniforms.night.value; PAINT.uniforms.time.value = t % 1000; pass(r, PAINT, null); }
   else pass(r, COMP, null); r.toneMapping = tm; }

@@ -68,6 +68,13 @@ GP.yard = cv(128, 128, g => { g.fillStyle = '#5a544c'; g.fillRect(0, 0, 128, 128
 GP.parvis = cv(128, 128, g => { noise(g, 128, 128, [176, 168, 150], 10, 2); g.strokeStyle = 'rgba(90,80,70,.4)'; for (let k = 0; k <= 128; k += 16) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 128); g.moveTo(0, k); g.lineTo(128, k); g.stroke(); } });
 GP.stair = cv(128, 128, g => { for (let y = 0; y < 128; y += 8) { g.fillStyle = sh([170, 162, 150], (rnd() - .5) * 10); g.fillRect(0, y, 128, 6); g.fillStyle = '#5a544c'; g.fillRect(0, y + 6, 128, 2); } });
 GP.rail = cv(128, 128, g => { noise(g, 128, 128, [86, 80, 74], 30, 2); g.fillStyle = 'rgba(70,46,24,.85)'; for (let y = 2; y < 128; y += 10) g.fillRect(0, y, 128, 4); });
+// Impressionist texture pass: re-lay every canvas as short, overlapping dabs of the colour beneath them, wrapping at the edges
+// so tiles still repeat. Gives brushwork in the world itself (it rotates and scales with the scene) instead of a screen overlay.
+function paintify(c, w0 = 3, dens = .9, a = .55) { const g = c.getContext('2d'), W = c.width, H = c.height, src = g.getImageData(0, 0, W, H).data; const n = Math.round(W * H / (w0 * w0 * 3) * dens); g.lineCap = 'round';
+  for (let k = 0; k < n; k++) { const x = rnd() * W, y = rnd() * H, o = ((y | 0) * W + (x | 0)) * 4, j = (rnd() - .5) * 14; const ang = Math.sin(x * .013 + Math.cos(y * .011) * 2) * 1.2 + (rnd() - .5) * 1.8, L = w0 * (1.6 + rnd() * 1.8), dx = Math.cos(ang) * L / 2, dy = Math.sin(ang) * L / 2;
+    g.strokeStyle = `rgba(${src[o] + j | 0},${src[o + 1] + j | 0},${src[o + 2] + j * 1.2 | 0},${a})`; g.lineWidth = w0 * (.7 + rnd() * .6);
+    for (const ox of [0, x < L ? W : x > W - L ? -W : 0]) for (const oy of [0, y < L ? H : y > H - L ? -H : 0]) { if ((ox || oy) && !(ox && oy) && false) continue; g.beginPath(); g.moveTo(x + ox - dx, y + oy - dy); g.lineTo(x + ox + dx, y + oy + dy); g.stroke(); } } return c; }
+for (const k of ['mac', 'dirt', 'grass', 'flag', 'gravel', 'yard', 'parvis']) paintify(GP[k], 3.2, .8, .45); paintify(GP.pave, 2.2, .5, .28);
 GP.under = cv(128, 128, g => { g.fillStyle = '#4a443c'; g.fillRect(0, 0, 128, 128); });
 const CLS = { mac: 0, pave: 1, dirt: 2, grass: 3, flag: 4, water: 5, stair: 6, rail: 7, yard: 8, parvis: 9, gravel: 10, under: 11 }; const CLSN = Object.keys(CLS);
 const ROADC = c => c <= 2; // carriageway classes
@@ -106,7 +113,7 @@ function facade(st, emis) { return cv(256, 512, g => { rs = 77 + st * 13 + (emis
     if (!emis && st === 0 && (f === 1 || f === 4)) { const y = FY(y0 + .25); g.fillStyle = '#e4dcc8'; g.fillRect(0, y, 256, 4); g.fillStyle = '#121416'; g.fillRect(0, y - 14, 256, 2); for (let k = 0; k < 256; k += 4) g.fillRect(k, y - 14, 1, 14); }
     if (!emis && st !== 2) { g.fillStyle = 'rgba(80,70,56,.3)'; g.fillRect(0, FY(y0), 256, 2); } }
   if (!emis && st === 0) { g.fillStyle = '#e8e0cc'; g.fillRect(0, FY(1.62), 256, 5); } }); }
-const FACC = [0, 1, 2, 3].map(s => facade(s, false)); const FAC = FACC.map(c => tex(c)), FACE = [0, 1, 2, 3].map(s => tex(facade(s, true)));
+const FACC = [0, 1, 2, 3].map(s => paintify(facade(s, false), 2.2, .55, .38)); const FAC = FACC.map(c => tex(c)), FACE = [0, 1, 2, 3].map(s => tex(facade(s, true)));
 // window glass: smooth and partly metallic so it picks up the sky; stone stays matte
 const FACRM = FACC.map(c => { const o = cv(c.width, c.height, () => {}); const gi = c.getContext('2d').getImageData(0, 0, c.width, c.height), go = o.getContext('2d'), od = go.createImageData(c.width, c.height);
   for (let k = 0; k < gi.data.length; k += 4) { const r = gi.data[k], gg = gi.data[k + 1], b = gi.data[k + 2], glass = r < 96 && gg < 108 && b < 120 && b >= r - 4; od.data[k] = 255; od.data[k + 1] = glass ? 30 : 232; od.data[k + 2] = glass ? 150 : 0; od.data[k + 3] = 255; } go.putImageData(od, 0, 0); return tex(o, true, false); });
@@ -115,7 +122,7 @@ function slope(st, emis) { return cv(128, 64, g => { rs = 99 + st; const base = 
   if (emis) { g.fillStyle = '#000'; g.fillRect(0, 0, 128, 64); } else { noise(g, 128, 64, base, 14, 2); g.fillStyle = 'rgba(30,30,40,.35)'; if (st === 2) for (let y = 0; y < 64; y += 5) g.fillRect(0, y, 128, 1); else for (let x = 0; x < 128; x += 6) g.fillRect(x, 0, 1, 64); }
   if (st < 2) for (const x of [32, 96]) { if (emis) { g.fillStyle = rnd() < .3 ? '#ffc070' : '#000'; g.fillRect(x - 7, 26, 14, 18); continue; } g.fillStyle = st === 0 ? '#e8e0d0' : '#c8c0b0'; g.fillRect(x - 11, 20, 22, 30); g.beginPath(); g.moveTo(x - 13, 22); g.lineTo(x, 10); g.lineTo(x + 13, 22); g.fill(); g.fillStyle = '#1c2226'; g.fillRect(x - 7, 26, 14, 18); }
   if (!emis) { g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, 128, 3); } }); }
-const SLO = [0, 1, 2, 3].map(s => tex(slope(s, false))), SLOE = [0, 1, 2, 3].map(s => tex(slope(s, true)));
+const SLO = [0, 1, 2, 3].map(s => tex(paintify(slope(s, false), 2, .7, .45))), SLOE = [0, 1, 2, 3].map(s => tex(slope(s, true)));
 function roofT(st) { return cv(256, 256, g => { rs = 55 + st; const base = [[126, 129, 134], [98, 96, 98], [168, 90, 58], [74, 72, 70]][st]; noise(g, 256, 256, base, 10, 2);
   for (let k = 0; k < 10; k++) { g.fillStyle = `rgba(${rnd() < .5 ? '255,255,255' : '20,24,30'},${.04 + rnd() * .05})`; g.fillRect(rnd() * 256, rnd() * 256, 30 + rnd() * 60, 20 + rnd() * 60); } // weathered patches
   if (st === 0) for (let x = 0; x < 256; x += 8) { g.fillStyle = "rgba(255,255,255,.2)"; g.fillRect(x, 0, 1, 256); g.fillStyle = "rgba(20,24,30,.3)"; g.fillRect(x + 1, 0, 1, 256); for (let y = 0; y < 256; y += 64) { g.fillStyle = 'rgba(20,24,30,.15)'; g.fillRect(x, y + rnd() * 8, 12, 1); } }
@@ -125,7 +132,7 @@ function roofT(st) { return cv(256, 256, g => { rs = 55 + st; const base = [[126
   if (st < 2) { for (let k = 0; k < 2; k++) { const x = 30 + rnd() * 190, y = 30 + rnd() * 190; g.fillStyle = 'rgba(30,34,40,.7)'; g.fillRect(x, y, 16, 22); g.fillStyle = 'rgba(160,190,200,.55)'; g.fillRect(x + 2, y + 2, 12, 18); g.fillStyle = 'rgba(30,34,40,.6)'; g.fillRect(x + 7, y + 2, 2, 18); } // skylights
     for (let k = 0; k < 3; k++) { const x = rnd() * 256, y = rnd() * 256, gr = g.createLinearGradient(x, y, x, y + 70); gr.addColorStop(0, 'rgba(20,18,16,.25)'); gr.addColorStop(1, 'rgba(20,18,16,0)'); g.fillStyle = gr; g.fillRect(x, y, 10, 70); } } // soot streaks
   g.fillStyle = 'rgba(255,255,255,.06)'; for (let k = 0; k < 10; k++) g.fillRect(rnd() * 256, rnd() * 256, 30, 3); }); }
-const ROOF = [0, 1, 2, 3].map(s => tex(roofT(s)));
+const ROOF = [0, 1, 2, 3].map(s => tex(paintify(roofT(s), 3, .8, .5)));
 const PARTY = tex(cv(128, 128, g => { noise(g, 128, 128, [184, 170, 146], 16, 2); g.fillStyle = 'rgba(60,50,40,.15)'; for (let k = 0; k < 6; k++) g.fillRect(rnd() * 128, 0, 6 + rnd() * 6, 128); }));
 const QUAY = tex(cv(128, 128, g => { g.fillStyle = '#5a544a'; g.fillRect(0, 0, 128, 128); for (let y = 0; y < 128; y += 16) for (let x = (y / 16 % 2) * 16; x < 140; x += 32) { g.fillStyle = sh([160, 150, 132], (rnd() - .5) * 26); g.fillRect(x - 16 + 1, y + 1, 30, 14); } g.fillStyle = 'rgba(30,50,40,.35)'; g.fillRect(0, 96, 128, 32); }));
 const GLASS = tex(cv(64, 64, g => { g.fillStyle = '#8aa4a8'; g.fillRect(0, 0, 64, 64); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, 0, 64, 20); g.fillStyle = '#2a3230'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); for (let y = 0; y < 64; y += 16) g.fillRect(0, y, 64, 2); }));
@@ -351,17 +358,18 @@ function flowerCart(B, W) { B.box(W, 0, .45, 0, 1.4, .35, .8, WOOD, WHT, GDUV(1)
   B.q(W(-.4, 2.0, -.9), W(1.4, 2.0, -.9), W(1.4, 2.0, .3), W(-.4, 2.0, .3), AWUV(1), [2, 2, 2]); }
 function cafeSet(B, W, u, w) { B.box(W, u, 0, w, .07, .72, .07, IRONC); B.box(W, u, 0, w, .32, .03, .32, IRONC); B.box(W, u, .72, w, .58, .04, .58, MARBLE);
   for (const s of [-1, 1]) { B.box(W, u + s * .48, 0, w, .05, .44, .3, IRONC); B.box(W, u + s * .48, .44, w, .34, .05, .34, WICKER); B.box(W, u + s * .64, .44, w, .05, .45, .34, WICKER); } }
+const FS = 1.5; // Haussmann storey scale: 3.6 m storeys against ~1.8 m people
 function detailGeo(det, cx, cz) { const B = new QB(); const lvl = Q.det | 0; if (!lvl) return B;
   for (const [ax, az, bx, bz, h, st, nx, nz, ua, ub, oi, oj, bi, bj] of det) { const L = Math.hypot(bx - ax, bz - az), W = B.frame((ax + bx) / 2, (az + bz) / 2, nx, nz), mid = (ua + ub) / 2;
     // window sills and lintels (stone), Haussmann wrought-iron balconies on the 2nd and 5th floors
-    if (lvl >= 2) { const fl = st === 2 ? 3 : 7; for (let f = 0; f < fl; f++) { const y0 = 1.6 + f * 1.2, wh = f === 0 && st === 0 ? .86 : .7; if (y0 + .3 + wh > h) break;
-        for (let sp = Math.ceil((ua - .8) / 1.6) * 1.6 + .8; sp < ub - .35; sp += 1.6) { if (sp < ua + .35) continue; const u = -(sp - mid); B.box(W, u, y0 + .17, .04, .78, .07, .14, STONE2); if (st === 0) B.box(W, u, y0 + .3 + wh, .03, .74, .08, .1, STONE); } } }
-    if (st === 0) for (const y0 of [2.8, 6.4]) { if (y0 + 1.2 > h) continue; B.box(W, 0, y0 + .2, .2, L, .06, .42, STONE2); B.q(W(-L / 2, y0 + .26, .4), W(L / 2, y0 + .26, .4), W(L / 2, y0 + .62, .4), W(-L / 2, y0 + .62, .4), RAIL); }
-    else B.box(W, 0, 1.6, .05, L, .08, .12, STONE2);
+    if (lvl >= 2) { const fl = st === 2 ? 3 : 7; for (let f = 0; f < fl; f++) { const y0 = (1.6 + f * 1.2) * FS, wh = (f === 0 && st === 0 ? .86 : .7) * FS; if (y0 + .3 + wh > h) break;
+        for (let sp = Math.ceil((ua - .8 * FS) / (1.6 * FS)) * 1.6 * FS + .8 * FS; sp < ub - .35; sp += 1.6 * FS) { if (sp < ua + .35) continue; const u = -(sp - mid); B.box(W, u, y0 + .25, .04, 1.1, .08, .16, STONE2); if (st === 0) B.box(W, u, y0 + .38 + wh, .03, 1.06, .1, .12, STONE); } } }
+    if (st === 0) for (const y0 of [2.8 * FS, 6.4 * FS]) { if (y0 + 1.8 > h) continue; B.box(W, 0, y0 + .3, .2, L, .07, .5, STONE2); B.q(W(-L / 2, y0 + .37, .48), W(L / 2, y0 + .37, .48), W(L / 2, y0 + .85, .48), W(-L / 2, y0 + .85, .48), RAIL); }
+    else B.box(W, 0, 1.6 * FS, .05, L, .08, .12, STONE2);
     // ground-floor shopfronts on the pavement side
     if (gclass(oi, oj) !== 4 || hash(bi, bj, 61) > (st === 2 ? .45 : .7)) continue; const k = Math.floor(hash(bi >> 1, bj >> 1, 62) * 8);
-    B.q(W(-L * .46, 1.64, .05), W(L * .46, 1.64, .05), W(L * .46, 1.96, .05), W(-L * .46, 1.96, .05), SGUV(k)); B.box(W, 0, 1.6, .04, L * .96, .05, .06, GILT);
-    if (hash(bi, bj, 63) < .8) { const A = AWUV(Math.floor(hash(bi >> 2, bj >> 2, 64) * 8)), hi = [2, 2, 2]; B.q(W(-L / 2, 1.24, .82), W(L / 2, 1.24, .82), W(L / 2, 1.58, .07), W(-L / 2, 1.58, .07), A, hi); B.q(W(-L / 2, 1.1, .82), W(L / 2, 1.1, .82), W(L / 2, 1.24, .82), W(-L / 2, 1.24, .82), A, hi); }
+    B.q(W(-L * .46, 2.46, .05), W(L * .46, 2.46, .05), W(L * .46, 2.9, .05), W(-L * .46, 2.9, .05), SGUV(k)); B.box(W, 0, 2.4, .04, L * .96, .05, .06, GILT);
+    if (hash(bi, bj, 63) < .8) { const A = AWUV(Math.floor(hash(bi >> 2, bj >> 2, 64) * 8)), hi = [2, 2, 2]; B.q(W(-L / 2, 1.86, 1.1), W(L / 2, 1.86, 1.1), W(L / 2, 2.36, .07), W(-L / 2, 2.36, .07), A, hi); B.q(W(-L / 2, 1.66, 1.1), W(L / 2, 1.66, 1.1), W(L / 2, 1.86, 1.1), W(-L / 2, 1.86, 1.1), A, hi); }
     if (Q.life && (k === 0 || k === 3)) { if (gclass(oi + Math.round(nx), oj + Math.round(nz)) !== 0 || true) cafeSet(B, W, -.45 + hash(bi, bj, 65) * .2, 1.3); if (lvl >= 2 && hash(bi, bj, 66) < .6) cafeSet(B, W, .5, 1.25); }
     else if (lvl >= 2 && hash(bi, bj, 67) < .7) { const t = k === 1 ? 2 : k === 6 ? 3 : k === 5 ? 1 : 0; B.box(W, -.4, 0, .45, .66, .42, .5, WOOD, WHT, GDUV(t)); if (hash(bi, bj, 68) < .5) B.box(W, .42, 0, .4, .6, .34, .45, WOOD, WHT, GDUV((t + 1) % 4)); } }
   // street life on squares and pavements
@@ -479,7 +487,7 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
 function insetPoly(pts, ins) { const n = pts.length, L = []; for (let k = 0; k < n; k++) { const a = pts[k], b = pts[(k + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = dz / l, nz = -dx / l; // outward for CW in screen (x right, z down)
     L.push([a[0] - nx * ins[k], a[1] - nz * ins[k], dx, dz]); }
   const out = []; for (let k = 0; k < n; k++) { const p = L[(k + n - 1) % n], q = L[k]; const den = p[2] * q[3] - p[3] * q[2]; if (Math.abs(den) < 1e-9) { out.push([q[0], q[1]]); continue; } const t = ((q[0] - p[0]) * q[3] - (q[1] - p[1]) * q[2]) / den; out.push([p[0] + p[2] * t, p[1] + p[3] * t]); } return out; }
-const SLH = [1.4, 1.2, 1.1, 0], SLI = [.9, .8, 1, 0];
+const SLH = [2.0, 1.7, 1.4, 0], SLI = [.9, .8, 1, 0];
 function buildingGeo(cx, cz, out) { const A = BM.map(() => ({ p: [], n: [], u: [], c: [] })); const i0 = cx * CH, j0 = cz * CH;
   const tri = (mi, a, b, c, ua, ub, uc, ca, cb, cc, N3) => { const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2]; let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
     const T_ = A[mi]; T_.p.push(...a, ...b, ...c); if (N3) T_.n.push(...N3[0], ...N3[1], ...N3[2]); else T_.n.push(nx, ny, nz, nx, ny, nz, nx, ny, nz); T_.u.push(...ua, ...ub, ...uc); T_.c.push(...ca, ...cb, ...cc); };
@@ -505,9 +513,9 @@ function buildingGeo(cx, cz, out) { const A = BM.map(() => ({ p: [], n: [], u: [
     const mt = work ? MI.glass : MI.roof + st; const tc = [tint[0] * .95, tint[1] * .95, tint[2] * .95]; for (let k = 1; k < n - 1; k++) { const a = [ip[0][0], top, ip[0][1]], b = [ip[k + 1][0], top, ip[k + 1][1]], c = [ip[k][0], top, ip[k][1]]; tri(mt, a, b, c, [a[0] / 4, a[2] / 4], [b[0] / 4, b[2] / 4], [c[0] / 4, c[2] / 4], tc, tc, tc); }
     for (let k = 0; k < n; k++) { const a = pts[k], b = pts[(k + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), ux = dx / l, uz = dz / l, ua = UO && UO[k] != null ? UO[k] : (a[0] * ux + a[1] * uz), ub = UO && UO[k] != null ? UO[k] + l : (b[0] * ux + b[1] * uz); const RN = RC && UO && UO[k] != null ? [a, b].map(p => { const rx = p[0] - RC[0], rz = p[1] - RC[1], rl = Math.hypot(rx, rz) || 1; return [rx / rl, 0, rz / rl]; }) : null;
       if (eo[k]) { const wh = sl ? h : top, lo = [tint[0] * .5, tint[1] * .5, tint[2] * .5];
-        quad(MI.fac + st, [a[0], 0, a[1]], [b[0], 0, b[1]], [b[0], wh, b[1]], [a[0], wh, a[1]], [ua / 6.4, 0], [ub / 6.4, 0], [ub / 6.4, wh / 10], [ua / 6.4, wh / 10], lo, lo, tint, tint, RN && RN[0], RN && RN[1], RN && RN[1], RN && RN[0]);
+        quad(MI.fac + st, [a[0], 0, a[1]], [b[0], 0, b[1]], [b[0], wh, b[1]], [a[0], wh, a[1]], [ua / 9.6, 0], [ub / 9.6, 0], [ub / 9.6, wh / 15], [ua / 9.6, wh / 15], lo, lo, tint, tint, RN && RN[0], RN && RN[1], RN && RN[1], RN && RN[0]);
         if (sl && n === 4 && st < 3 && !RC) det.push([a[0], a[1], b[0], b[1], h, st, uz, -ux, ua, ub, i + N4[k][0], j + N4[k][1], i, j]);
-        if (sl) { const ia = ip[k], ib = ip[(k + 1) % n]; quad(MI.slo + st, [a[0], h, a[1]], [b[0], h, b[1]], [ib[0], top, ib[1]], [ia[0], top, ia[1]], [ua / 3.2, 0], [ub / 3.2, 0], [ub / 3.2, 1], [ua / 3.2, 1], tint, tint, tint, tint, ...(RN ? (() => { const q = RN.map(n => { const v = [n[0] * sl, inn, n[2] * sl], m = Math.hypot(...v); return v.map(c => c / m); }); return [q[0], q[1], q[1], q[0]]; })() : [])); } }
+        if (sl) { const ia = ip[k], ib = ip[(k + 1) % n]; quad(MI.slo + st, [a[0], h, a[1]], [b[0], h, b[1]], [ib[0], top, ib[1]], [ia[0], top, ia[1]], [ua / 4.8, 0], [ub / 4.8, 0], [ub / 4.8, 1], [ua / 4.8, 1], tint, tint, tint, tint, ...(RN ? (() => { const q = RN.map(n => { const v = [n[0] * sl, inn, n[2] * sl], m = Math.hypot(...v); return v.map(c => c / m); }); return [q[0], q[1], q[1], q[0]]; })() : [])); } }
       else if (en[k] < top - .05) { const y0 = en[k], pc = [tint[0] * .8, tint[1] * .8, tint[2] * .8], ia = ip[k], ib = ip[(k + 1) % n];
         quad(MI.party, [a[0], y0, a[1]], [b[0], y0, b[1]], [ib[0], top, ib[1]], [ia[0], top, ia[1]], [ua / 4, y0 / 4], [ub / 4, y0 / 4], [ub / 4, top / 4], [ua / 4, top / 4], pc, pc, tint, tint);
         // fill any gap between straight edge and inset at top (vertical part below slope)
