@@ -220,7 +220,7 @@ function fitFootprint(key, l, sp) { const ci = Math.floor(l[1] / T), cj = Math.f
     fp.key = key; fp.type = type; fp.model = fp.model || (type === 'concert' ? 'theatre' : type === 'store' ? 'palace' : type); LMODELS.push(fp);
     const ca = Math.cos(fp.ang), sa = Math.sin(fp.ang), solid = (lx, lz, r) => addProp('solid', fp.x + lx * ca - lz * sa, fp.z + lx * sa + lz * ca, { r, hp: 1e9 });
     if (type === 'arc') { solid(0, -6, 3.6); solid(0, 6, 3.6); } else if (type === 'obelisk') { solid(0, 0, 1.4); solid(0, 15, 4.6); solid(0, -15, 4.6); } else if (type === 'column') solid(0, 0, 1.7); else if (type === 'mill') solid(0, 0, 2); else if (type === 'tower') solid(0, 0, 2.6); else if (fp.solid) solid(0, 0, fp.solid); } })();
-function buildLandmark(L) { const b = new MB(); const f = BUILD[L.model]; if (!f) return null; f.call(BUILD, b, L.w, L.d, L.key, L.type === 'concert'); const g = b.build(); g.position.set(L.x, 0, L.z); g.rotation.y = -L.ang;
+function buildLandmark(L) { const b = new MB(); const f = BUILD[L.model]; if (!f) return null; f.call(BUILD, b, L.w, L.d, L.key, L.type === 'concert'); const g = b.build(); g.position.set(L.x, 0, L.z); g.rotation.y = -L.ang; g.scale.y = .58;
   if (L.model === 'mill') { const s = new THREE.Group(); s.position.set(1.95, 5.3, 0); for (let k = 0; k < 4; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.08, 4.8, .9), L_.sail); m.position.y = 2.4; const a = new THREE.Group(); a.rotation.x = k * Math.PI / 2; a.add(m); s.add(a); m.castShadow = true; } g.add(s); L.sails = s; }
   if (L.model === 'sign') { const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .4, .3), LAMPMAT); lamp.position.set(1.3, 2.4, 0); g.add(lamp); }
   return g; }
@@ -341,7 +341,7 @@ function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: 
   const pool = mk(by.lamp || [], POOLG, POOLM, p => place(p.x, 0, p.z, 0, p.arc ? 15 : 10), false); if (pool) { (by.lamp || []).forEach((p, k) => pool.setColorAt(k, _c4.set(p.arc ? 0xb8ccff : 0xffa850))); pool.receiveShadow = false; }
   ch.lamps = by.lamp || [];
   const trees = by.tree || []; mk(trees, PG.trunk, PROPMAT, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 1) * 6, p.s || 1));
-  const can = mk(trees, PG.canopy, CANOPYM, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 2) * 6, p.s || 1)); if (can) trees.forEach((p, k) => { const h = hash(p.x | 0, p.z | 0, 3); can.setColorAt(k, _c4.setRGB(.42 + h * .14, .55 + h * .12, .26 + h * .06)); });
+  const can = mk(trees, PG.canopy, CANOPYM, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 2) * 6, p.s || 1)); if (can) trees.forEach((p, k) => { const h = hash(p.x | 0, p.z | 0, 3); can.setColorAt(k, _c4.setRGB(.25 + h * .12, .36 + h * .1, .15 + h * .05, THREE.SRGBColorSpace)); });
   for (const ty of ['morris', 'wallace', 'trough', 'pissoir', 'bench', 'kiosk']) mk(by[ty] || [], PG[ty], PROPMAT, p => place(p.x, 0, p.z, -(p.ry || 0) + (ty === 'bench' ? Math.PI / 2 : 0), 1));
   for (const p of props) if (!p.alive) killInst(p);
   return ch; }
