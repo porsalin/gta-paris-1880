@@ -63,13 +63,14 @@ export function bldH(i, j) { if (!inb(i, j)) return 0; const t = ti(i, j); if (k
 export const isYard = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && !skipT[ti(i, j)] && bldH(i, j) === 0;
 // ---- props (data, generated lazily per chunk) ----
 export const PD = { lamp: { r: .3, hp: 25 }, tree: { r: .6, hp: 200 }, morris: { r: .9, hp: 80 }, wallace: { r: .7, hp: 120 }, trough: { r: .8, hp: 60 }, pissoir: { r: .9, hp: 90 }, bench: { r: .5, hp: 40 }, kiosk: { r: 1, hp: 120 },
-  crate: { r: .7, hp: 50 }, table: { r: .6, hp: 30 }, barricade: { r: 1.2, hp: 300 }, phone: { r: .4, hp: 1e9 }, manhole: { r: 0, hp: 1e9 }, solid: { r: 1, hp: 1e9 }, fountain: { r: 1.8, hp: 1e9 } };
+  crate: { r: .7, hp: 50 }, table: { r: .6, hp: 30 }, barricade: { r: 1.2, hp: 300 }, phone: { r: .4, hp: 1e9 }, manhole: { r: 0, hp: 1e9 }, solid: { r: 1, hp: 1e9 }, fountain: { r: 2.4, hp: 1e9 } };
 const propGrid = new Map(); export const chunkProps = new Map(); export const dynProps = [];
 const gk = (x, z) => Math.floor(x / 8) * 10000 + Math.floor(z / 8);
 export function addProp(type, x, z, extra) { const p = Object.assign({ type, x, z, r: PD[type].r, hp: PD[type].hp, alive: true }, extra || {}); const k = gk(x, z); if (!propGrid.has(k)) propGrid.set(k, []); propGrid.get(k).push(p); return p; }
 export const hooks = { prop: null };
 export function setPropM(p) { if (hooks.prop) hooks.prop(p); }
 function nearSame(type, x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if (p.type === type && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
+function nearAny(x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if ((p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L);
   for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if (k !== K.SIDE && k !== K.PARK) continue;
@@ -77,8 +78,8 @@ export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps
     for (const [di, dj] of N4) { const kk = kij(i + di, j + dj); if ((kk === K.ROAD || kk === K.BRIDGE) && !road) road = [di, dj]; if (kk === K.WATER) water = true; if (kk === K.BLD) bld = true; }
     const put = (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; };
     // fountains: only in the middle of open paved squares (every tile within 2 is pavement / parvis)
-    if (k === K.SIDE && hash(i, j, 77) < .05 && !nearSame('fountain', x, z, 70)) { let ok = true; for (let b = -2; b <= 2 && ok; b++) for (let a = -2; a <= 2; a++) if (kij(i + a, j + b) !== K.SIDE) { ok = false; break; } if (ok) { put('fountain', x, z); continue; } }
-    if (nearSame('fountain', x, z, 4)) continue;
+    if (k === K.SIDE && hash(i, j, 77) < .05 && !nearSame('fountain', x, z, 70)) { let ok = true; for (let b = -2; b <= 2 && ok; b++) for (let a = -2; a <= 2; a++) if (kij(i + a, j + b) !== K.SIDE) { ok = false; break; } if (ok && !nearAny(x, z, 5.2)) { put('fountain', x, z); continue; } }
+    if (nearSame('fountain', x, z, 5.2)) continue;
     if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }
     if (road) { const rs = surf[ti(i + road[0], j + road[1])], boul = rs === S.MAC; const lx = x + road[0] * .7, lz = z + road[1] * .7;
       if (h < .3 && !nearSame('lamp', x, z, boul ? 11 : 12)) { put('lamp', lx, lz, { arc: boul && (d === 1 || d === 7), ry: Math.atan2(road[1], road[0]) }); continue; }

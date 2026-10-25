@@ -236,7 +236,7 @@ const BUILD = {
   church(b, w, d, k) { b.box(w * .8, 7, d * .55, -w * .08, 0, 0, L_.stoneD).gable(w * .8, d * .55, 3.2, -w * .08, 7, 0, L_.slate);
     if (k === 'stsulpice') { for (const s of [-1, 1]) b.box(w * .16, 13, d * .2, w * .38, 0, s * d * .28, L_.stoneD).cyl(1.2, 1.4, 2.5, w * .38, 13, s * d * .28, L_.stoneD); b.box(w * .1, 8, d * .7, w * .44, 0, 0, L_.stoneD).cols(w * .5, -d * .3, w * .5, d * .3, 6, 6, .4, 0, L_.stone); }
     else if (k === 'staugustin') { b.cyl(d * .25, d * .25, 4, -w * .25, 7, 0, L_.stoneD, 16).dome(d * .26, -w * .25, 11, 0, L_.slate, 1.3).cone(.6, 3, -w * .25, 14.3, 0, L_.gold); }
-    else { b.box(w * .16, 12, d * .26, w * .36, 0, 0, L_.stoneD).cone(d * .18, 6, w * .36, 12, 0, L_.slate, 4); } },
+    else { b.box(w * .16, 12, d * .26, w * .36, 0, 0, L_.stoneD).box(w * .17, 1.6, d * .27, w * .36, 9, 0, L_.soot).box(w * .19, .4, d * .29, w * .36, 12, 0, L_.stone).cone(d * .18, 6, w * .36, 12.4, 0, L_.slate, 4).box(.12, 1.4, .12, w * .36, 18.2, 0, L_.gold).box(.12, .12, .7, w * .36, 18.9, 0, L_.gold); } },
   opera(b, w, d) { b.box(w * .86, 7, d * .78, -w * .02, 0, 0, L_.stone).box(w * .14, 8.5, d * .7, w * .38, 0, 0, L_.stone).cols(w * .46, -d * .3, w * .46, d * .3, 8, 4.5, .35, 3, L_.stoneD)
       .box(w * .12, .8, d * .72, w * .38, 8.5, 0, L_.copper).dome(d * .26, w * .14, 7, 0, L_.copper, .55).cyl(.8, .8, .8, w * .14, 9.6, 0, L_.gold)
       .box(w * .3, 11, d * .6, -w * .2, 0, 0, L_.stone).gable(d * .6, w * .3, 4, -w * .2, 11, 0, L_.copper, true).cyl(.5, .5, 1.6, -w * .2, 15, 0, L_.gold, 6);
@@ -426,7 +426,18 @@ const PG = {
   dome: gbGeo(b => { const P = []; for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI / 2; P.push(new THREE.Vector2(Math.max(.001, Math.cos(a) * 2.1), Math.sin(a) * 2.6)); } const g = new THREE.LatheGeometry(P, 22); b.cyl(2.25, 2.3, .35, 0, .15, 0, '#d8ccb4', 22); b.add(g, '#55636e', new THREE.Matrix4().makeTranslation(0, .3, 0)); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; b.add(new THREE.CylinderGeometry(.06, .06, 2.4, 6), '#c8b070', (() => { const m = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(-Math.sin(a), 0, Math.cos(a)), .62); m.setPosition(Math.cos(a) * 1.25, 1.55, Math.sin(a) * 1.25); return m; })()); b.sph(.3, Math.cos(a) * 1.9, 1.05, Math.sin(a) * 1.9, '#5a6670', .9, 1.2, .9, 8); } b.cyl(.35, .45, .6, 0, 3.0, 0, '#d8ccb4', 14).sph(.38, 0, 3.4, 0, '#55636e', 1, .9, 1, 10).cyl(.03, .05, .7, 0, 3.9, 0, '#c8a040', 6).sph(.07, 0, 4.25, 0, '#d4b040'); }),
   skylight: gbGeo(b => { b.box(1.5, .14, 1.0, 0, .07, 0, '#3a3c40'); b.box(1.36, .1, .86, 0, .17, 0, '#8fa4b0'); for (const x of [-.34, 0, .34]) b.box(.04, .06, .9, x, .24, 0, '#2a2c30'); }),
   wtower: gbGeo(b => { for (const [x, z] of [[-.7, -.7], [.7, -.7], [-.7, .7], [.7, .7]]) b.cyl(.06, .06, 2.4, x, 1.2, z, '#3a3430', 5); b.cyl(1.15, 1.15, 1.8, 0, 3.2, 0, '#6a5a4c', 14).cyl(1.2, 1.2, .12, 0, 2.3, 0, '#2a2420', 14).cyl(1.2, .2, .5, 0, 4.35, 0, '#4a4a4c', 14); }),
-  fountain: gbGeo(b => { b.cyl(1.7, 1.8, .45, 0, .22, 0, '#bdb3a0', 24).cyl(1.5, 1.5, .06, 0, .4, 0, '#4a6a74', 24).cyl(.28, .36, 1.3, 0, .9, 0, '#a89e8a', 12).cyl(.75, .3, .25, 0, 1.6, 0, '#b0a690', 16).cyl(.66, .66, .04, 0, 1.7, 0, '#5a7a84', 16).cyl(.12, .16, .6, 0, 2, 0, '#a89e8a', 10).sph(.16, 0, 2.38, 0, '#5a6a4a'); }),
+  // tiered Wallace-era fountain read from above: dark stone rims, three basins stepping up, sculpted centre group (water and spray are separate meshes)
+  fountain: gbGeo(b => { b.cyl(2.25, 2.35, .5, 0, .25, 0, '#a59b88', 28).cyl(2.25, 2.25, .1, 0, .55, 0, '#5a544a', 28).cyl(1.98, 1.98, .02, 0, .48, 0, '#26343a', 28)
+      .cyl(.42, .55, 1.3, 0, .9, 0, '#b4aa94', 12).cyl(1.25, .5, .35, 0, 1.6, 0, '#a59b88', 20).cyl(1.28, 1.28, .07, 0, 1.79, 0, '#4a463e', 20)
+      .cyl(.2, .26, .7, 0, 2.1, 0, '#b4aa94', 10).cyl(.62, .22, .22, 0, 2.5, 0, '#a59b88', 16).cyl(.64, .64, .05, 0, 2.62, 0, '#4a463e', 16);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; b.sph(.2, Math.cos(a) * .35, 1.25, Math.sin(a) * .35, '#5a6448', 1, 1.6, 1, 6).sph(.12, Math.cos(a) * .35, 1.62, Math.sin(a) * .35, '#5a6448', 1, 1, 1, 6); }
+    b.sph(.16, 0, 2.95, 0, '#5a6a4a', 1, 1.5, 1, 8).sph(.09, 0, 3.25, 0, '#6a7a58', 1, 1, 1, 6);
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; b.box(.07, .5, .07, Math.cos(a) * 3.05, .25, Math.sin(a) * 3.05, '#1e2224'); } }),
+  fountainW: gbGeo(b => { b.cyl(1.98, 1.98, .02, 0, .62, 0, '#ffffff', 28).cyl(1.2, 1.2, .02, 0, 1.84, 0, '#ffffff', 20).cyl(.58, .58, .02, 0, 2.665, 0, '#ffffff', 16); }),
+  fountainS: gbGeo(b => { b.cyl(.04, .34, .7, 0, 3.0, 0, '#ffffff', 10); for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; b.cyl(.03, .1, .55, Math.cos(a) * .95, 2.0, Math.sin(a) * .95, '#ffffff', 6, Math.sin(a) * .5, 0, -Math.cos(a) * .5); } b.cyl(1.0, .5, .25, 0, 1.92, 0, '#ffffff', 20); }),
+  spireSq: gbGeo(b => { b.box(2.6, 7, 2.6, 0, 3.5, 0, '#b8ab94').box(2.75, .3, 2.75, 0, 7.1, 0, '#8a8070'); for (const r of [0, Math.PI / 2]) b.box(2.66, 1.5, .5, 0, 5.6, 0, '#2a2622', 0, r); b.cyl(.01, 1.9, 6.5, 0, 10.5, 0, '#4a5058', 4, 0, Math.PI / 4).box(.1, 1, .1, 0, 14.1, 0, '#d0a840').box(.1, .1, .55, 0, 14.3, 0, '#d0a840'); }),
+  spireTwin: gbGeo(b => { for (const z of [-2.2, 2.2]) { b.box(2.3, 9, 2.3, 0, 4.5, z, '#c4b8a0').box(2.42, 1.6, 2.42, 0, 7.4, z, '#36302a').box(2.5, .35, 2.5, 0, 9.1, z, '#9a8e7a'); for (const [x, y] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) b.box(.3, .5, .3, x, 9.5, z + y, '#9a8e7a'); b.cyl(.01, 1.4, 7.5, 0, 13.1, z, '#56606a', 8).box(.08, .7, .08, 0, 17.1, z, '#d0a840'); } b.box(2.1, 6, 2.2, 0, 3, 0, '#b8ab94').cyl(.9, .9, .2, 0, 6.1, 0, '#3a3430', 16); }),
+  spireDome: gbGeo(b => { b.cyl(2.2, 2.4, 3, 0, 1.5, 0, '#bcae98', 16).sph(2.25, 0, 3.4, 0, '#5a6470', 1, .8, 1, 14).cyl(.45, .55, 1.4, 0, 5.4, 0, '#bcae98', 8).sph(.45, 0, 6.2, 0, '#5a6470', 1, 1, 1, 8).box(.08, .8, .08, 0, 6.9, 0, '#d0a840'); }),
   stack: gbGeo(b => b.cyl(.55, .85, 11, 0, 5.5, 0, '#8a4a34', 10).cyl(.62, .62, .5, 0, 10.8, 0, '#2a2420', 10).cyl(.9, .9, .3, 0, 3, 0, '#6a3a2a', 10)),
 };
 const POOLTEX = tex(cv(64, 64, g => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.4, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }), false);
@@ -446,10 +457,13 @@ const CHUNKS = new Map(); export const chunkGroup = new THREE.Group(); scene.add
 const isBldT = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && (skipT[ti(i, j)] || bldH(i, j) > 0);
 // ---- building footprint field: blocks fill the land between the vector streets, contoured by marching squares (1-unit samples) ----
 const BF = new Map(), FM = 3, FPU = 4;
+// parish churches that are not full landmarks: [x, z, model, rotation, scale] (positions fitted from lat/lon to the map's landmark frame)
+const SPIRES = [[1406, 1614, 'spireTwin', 0, 1.15], [2364, 706, 'spireTwin', Math.PI / 2, 1], [2481, 1766, 'spireSq', 0, 1.1], [2295, 2156, 'spireSq', .3, 1], [1838, 1333, 'spireDome', 0, 1], [2079, 1580, 'spireSq', 0, .95],
+  [2365, 1595, 'spireSq', .2, .9], [2088, 364, 'spireSq', 0, .8], [2480, 1407, 'spireSq', 0, .9], [2213, 1909, 'spireSq', 0, .9]];
 const Hb = (i, j) => (inb(i, j) && kind[ti(i, j)] === K.BLD && !skipT[ti(i, j)]) ? bldH(i, j) : 0;
 function bldField(cx, cz) { const key = cx * 1000 + cz; if (BF.has(key)) return BF.get(key);
   const ox = cx * CHU, oz = cz * CHU, X0 = ox - FM, Z0 = oz - FM, N = CHU + 2 * FM + 1, bx = X0 - 1, bz = Z0 - 1, CW = (N + 2) * FPU;
-  const c = document.createElement('canvas'); c.width = c.height = CW; const g = c.getContext('2d'); g.setTransform(FPU, 0, 0, FPU, -bx * FPU, -bz * FPU); g.lineCap = g.lineJoin = 'round';
+  const c = document.createElement('canvas'); c.width = c.height = CW; const g = c.getContext('2d', { willReadFrequently: true }); g.setTransform(FPU, 0, 0, FPU, -bx * FPU, -bz * FPU); g.lineCap = g.lineJoin = 'round';
   const ia = Math.floor(bx / T) - 2, ib = Math.ceil((bx + N + 2) / T) + 2, ja = Math.floor(bz / T) - 2, jb = Math.ceil((bz + N + 2) / T) + 2;
   g.fillStyle = '#fff'; for (let j = ja; j <= jb; j++) for (let i = ia; i <= ib; i++) if (Hb(i, j) > 0) g.fillRect(i * T - .8, j * T - .8, T + 1.6, T + 1.6);
   g.globalCompositeOperation = 'destination-out'; g.fillStyle = g.strokeStyle = '#000';
@@ -460,12 +474,21 @@ function bldField(cx, cz) { const key = cx * 1000 + cz; if (BF.has(key)) return 
   if (ETOILE) { g.beginPath(); g.arc(ETOILE.x, ETOILE.z, ETOILE.ro, 0, 7); g.fill(); }
   // keep street furniture clear of the smoothed frontages
   const FPROPS = []; { const PR = { tree: 1.5, kiosk: 1.9, morris: 1.5, pissoir: 1.8, wallace: 1.3, trough: 1.6, bench: 1.5, lamp: .7, fountain: 2.6 }; for (let a = cx - 1; a <= cx + 1; a++) for (let b = cz - 1; b <= cz + 1; b++) { if (a < 0 || b < 0 || a * CHU >= WX || b * CHU >= WZ) continue; for (const p of ensureChunk(a, b)) { const r = PR[p.type]; if (!r || p.x < x0 || p.z < z0 || p.x > x1 || p.z > z1) continue; g.beginPath(); g.arc(p.x, p.z, r, 0, 7); g.fill(); FPROPS.push([p.x, p.z, r * .75]); } } }
-  const c2 = document.createElement('canvas'); c2.width = c2.height = CW; const g2 = c2.getContext('2d', { willReadFrequently: true }); g2.filter = 'blur(3.5px)'; g2.drawImage(c, 0, 0); const D = g2.getImageData(0, 0, CW, CW).data;
-  const F = new Float32Array(N * N); for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) F[v * N + u] = D[(((v + 1) * FPU) * CW + (u + 1) * FPU) * 4 + 3] / 255 - .5;
+  const c2 = document.createElement('canvas'); c2.width = c2.height = CW; const g2 = c2.getContext('2d', { willReadFrequently: true }); g2.filter = 'blur(4.5px)'; g2.drawImage(c, 0, 0); const D = g2.getImageData(0, 0, CW, CW).data;
+  const F = new Float32Array(N * N); let fin = 0; for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) { const f = D[(((v + 1) * FPU) * CW + (u + 1) * FPU) * 4 + 3] / 255 - .5; F[v * N + u] = f; if (f > 0) fin++; }
+  // root cause of the "missing boulevard building": the mask canvas was a GPU-backed 2D canvas; under GPU memory pressure Chrome evicts
+  // such canvases and the read-back comes back empty, so a whole chunk got a zero field and no buildings (ground was drawn from a different canvas).
+  // Masks are now CPU canvases (willReadFrequently), and a chunk with building tiles but an empty field is rebuilt from tiles and never cached.
+  let bt = 0; for (let j = Math.floor(oz / T); j < Math.floor((oz + CHU) / T); j++) for (let i = Math.floor(ox / T); i < Math.floor((ox + CHU) / T); i++) if (Hb(i, j) > 0) bt++;
+  if (bt > 2 && fin < bt) { stats.fieldRetry = (stats.fieldRetry || 0) + 1; BF.delete(key); if (!bldField.retry) { bldField.retry = 1; try { return bldField(cx, cz); } finally { bldField.retry = 0; } }
+    for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) F[v * N + u] = Hb(Math.floor((X0 + u) / T), Math.floor((Z0 + v) / T)) > 0 ? .5 : -.5; }
   // hard clearance after the blur: no sample within a prop's radius may be inside a building
   for (const p of FPROPS) { const u0 = Math.floor(p[0] - p[2] - X0), u1 = Math.ceil(p[0] + p[2] - X0), v0 = Math.floor(p[1] - p[2] - Z0), v1 = Math.ceil(p[1] + p[2] - Z0);
     for (let v = Math.max(0, v0); v <= Math.min(N - 1, v1); v++) for (let u = Math.max(0, u0); u <= Math.min(N - 1, u1); u++) { const d = Math.hypot(X0 + u - p[0], Z0 + v - p[1]); if (d < p[2] + .6) F[v * N + u] = Math.min(F[v * N + u], -.25); } }
   // inward distance (chamfer) for the mansard slope
+  // drop slivers: tiny disconnected islands left by the blur / prop clearance read as odd broken pieces of a block
+  { const seen = new Uint8Array(N * N); for (let q = 0; q < N * N; q++) if (F[q] > 0 && !seen[q]) { const comp = [q], st = [q]; seen[q] = 1; while (st.length) { const z = st.pop(); const u = z % N, v = (z / N) | 0; for (const w of [u + 1 < N ? z + 1 : -1, u > 0 ? z - 1 : -1, v + 1 < N ? z + N : -1, v > 0 ? z - N : -1]) if (w >= 0 && !seen[w] && F[w] > 0) { seen[w] = 1; st.push(w); comp.push(w); } }
+    const edge = comp.some(z => { const u = z % N, v = (z / N) | 0; return u === 0 || v === 0 || u === N - 1 || v === N - 1; }); if (comp.length < 8 && !edge) for (const z of comp) F[z] = -.2; } }
   const DI = new Float32Array(N * N).fill(1e3); for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) { const a = F[v * N + u]; if (a <= 0) { DI[v * N + u] = 0; continue; } for (const [du, dv] of N4) { const uu = u + du, vv = v + dv; if (uu < 0 || vv < 0 || uu >= N || vv >= N) continue; const b = F[vv * N + uu]; if (b <= 0) DI[v * N + u] = Math.min(DI[v * N + u], a / (a - b)); } }
   for (let pass = 0; pass < 2; pass++) for (let q = 0; q < N * N; q++) { const k = pass ? N * N - 1 - q : q, u = k % N, v = (k / N) | 0, s = pass ? 1 : -1; for (const [du, dv, w] of [[s, 0, 1], [0, s, 1], [s, s, 1.414], [-s, s, 1.414]]) { const uu = u + du, vv = v + dv; if (uu < 0 || vv < 0 || uu >= N || vv >= N) continue; DI[k] = Math.min(DI[k], DI[vv * N + uu] + w); } }
   // marching squares → cell polygons (CW on screen) + contour segments (outward normal = (dz,-dx))
@@ -538,9 +561,22 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
       const gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, dk ? `rgba(40,30,20,${al})` : `rgba(255,244,215,${al * .8})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); } }
   { const F = bldField(cx, cz); g.filter = 'blur(7px)'; g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1.3; g.lineCap = 'round'; g.beginPath(); for (const s of F.segs) { g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); } g.stroke(); g.filter = 'none'; }
   g.globalCompositeOperation = 'source-over'; g.setTransform(1, 0, 0, 1, 0, 0);
+  // inner courtyards: small gardens (lawn, gravel border, clipped shrubs, a tree) and dark light wells inside blocks
+  { const sc2 = PXT / T, ox2 = i0 * T, oz2 = j0 * T; g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+    for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { if (!isYard(i, j)) continue; const X = (i * T - ox2) * sc2, Y = (j * T - oz2) * sc2, S2 = T * sc2, lot = hash(i >> 1, j >> 1, 92);
+      const enclosed = [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([a, b]) => kij(i + a, j + b) === K.BLD);
+      if (enclosed && hash(i, j, 93) < .22) { g.fillStyle = '#8a857c'; g.fillRect(X + 3, Y + 3, S2 - 6, S2 - 6); g.fillStyle = '#1c1a18'; g.fillRect(X + 6, Y + 6, S2 - 12, S2 - 12); g.fillStyle = 'rgba(120,150,170,.35)'; g.fillRect(X + 8, Y + 8, (S2 - 16) * .5, S2 - 16); continue; }
+      if (lot < .42) { g.fillStyle = '#a49a86'; g.fillRect(X, Y, S2, S2); g.fillStyle = '#5c7240'; g.fillRect(X + 3, Y + 3, S2 - 6, S2 - 6);
+        for (let k = 0; k < 14; k++) { g.fillStyle = `rgba(${70 + hash(i, j, k) * 40 | 0},${100 + hash(j, i, k) * 40 | 0},50,.5)`; g.beginPath(); g.arc(X + 4 + hash(i, j, 100 + k) * (S2 - 8), Y + 4 + hash(i, j, 200 + k) * (S2 - 8), 1.5 + hash(i, j, 300 + k) * 2, 0, 7); g.fill(); }
+        for (let k = 0; k < 4; k++) { const sx = X + 5 + (k % 2) * (S2 - 10), sy = Y + 5 + (k >> 1) * (S2 - 10); g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(sx + 1.5, sy + 1.5, 3.2, 0, 7); g.fill(); g.fillStyle = '#2f4a26'; g.beginPath(); g.arc(sx, sy, 3, 0, 7); g.fill(); g.fillStyle = '#4c6e36'; g.beginPath(); g.arc(sx - .8, sy - .8, 1.6, 0, 7); g.fill(); }
+        if (hash(i, j, 94) < .3) { const cx2 = X + S2 / 2, cy2 = Y + S2 / 2; g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(cx2 + 4, cy2 + 4, 13, 0, 7); g.fill(); for (const [r, c] of [[12, '#2c4424'], [9, '#3f5e30'], [5, '#5a7a40']]) { g.fillStyle = c; g.beginPath(); g.arc(cx2 - (12 - r) * .3, cy2 - (12 - r) * .3, r, 0, 7); g.fill(); } } } }
+    g.restore(); }
   // baked contact AO under props, autumn leaves under trees, horse droppings on carriageways
-  { const sc2 = PXT / T, ox2 = i0 * T, oz2 = j0 * T; const AOR = { tree: 2.4, kiosk: 1.5, morris: 1.1, pissoir: 1.4, wallace: .8, trough: 1.3, bench: .9, lamp: .45 };
+  { const sc2 = PXT / T, ox2 = i0 * T, oz2 = j0 * T; const AOR = { fountain: 3.4, tree: 2.4, kiosk: 1.5, morris: 1.1, pissoir: 1.4, wallace: .8, trough: 1.3, bench: .9, lamp: .45 };
     for (const p of ensureChunk(cx, cz)) { const r = AOR[p.type]; if (!r) continue; const X = (p.x - ox2) * sc2, Y = (p.z - oz2) * sc2, rr = r * sc2; const gr = g.createRadialGradient(X, Y, 0, X, Y, rr); gr.addColorStop(0, `rgba(0,0,0,${p.type === 'tree' ? .32 : .5})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X - rr, Y - rr, rr * 2, rr * 2);
+      if (p.type === 'fountain') { g.save(); g.fillStyle = '#c2b8a4'; g.beginPath(); g.arc(X, Y, 4.2 * sc2, 0, 7); g.fill(); g.strokeStyle = 'rgba(70,62,52,.6)'; g.lineWidth = 1;
+        for (const r of [2.6, 3.3, 4.2]) { g.beginPath(); g.arc(X, Y, r * sc2, 0, 7); g.stroke(); } for (let a = 0; a < 32; a++) { const c = Math.cos(a / 32 * 6.283), d2 = Math.sin(a / 32 * 6.283), r0 = (a & 1 ? 3.3 : 2.6) * sc2; g.beginPath(); g.moveTo(X + c * r0, Y + d2 * r0); g.lineTo(X + c * 4.2 * sc2, Y + d2 * 4.2 * sc2); g.stroke(); }
+        const sg = g.createRadialGradient(X + 6, Y + 8, 2.2 * sc2, X + 6, Y + 8, 3.2 * sc2); sg.addColorStop(0, 'rgba(0,0,0,.45)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sg; g.beginPath(); g.arc(X + 6, Y + 8, 3.2 * sc2, 0, 7); g.fill(); g.restore(); }
       if (p.type === 'tree' && kAt(p.x, p.z) === K.SIDE) { const gr2 = .85 * sc2; g.save(); g.fillStyle = 'rgba(60,46,32,.55)'; g.fillRect(X - gr2, Y - gr2, gr2 * 2, gr2 * 2); g.strokeStyle = 'rgba(28,30,30,.85)'; g.lineWidth = 1.6; g.strokeRect(X - gr2, Y - gr2, gr2 * 2, gr2 * 2); g.lineWidth = .7; g.strokeStyle = 'rgba(40,42,42,.7)';
         for (let r = .3; r < 1; r += .22) { g.beginPath(); g.arc(X, Y, r * gr2, 0, 7); g.stroke(); } for (let a = 0; a < 8; a++) { g.beginPath(); g.moveTo(X + Math.cos(a * .785) * gr2 * .25, Y + Math.sin(a * .785) * gr2 * .25); g.lineTo(X + Math.cos(a * .785) * gr2, Y + Math.sin(a * .785) * gr2); g.stroke(); } g.restore(); }
       if (p.type === 'tree') { rs = (p.x * 13 + p.z * 7) | 0 || 1; for (let k = 0; k < 26; k++) { const a = rnd() * 6.3, d = Math.sqrt(rnd()) * 3.4 * sc2; g.fillStyle = ['#a8642a', '#c8902a', '#8a4a1e', '#b87a30', '#6a5a24'][k % 5]; g.save(); g.translate(X + Math.cos(a) * d, Y + Math.sin(a) * d); g.rotate(rnd() * 6); g.beginPath(); g.ellipse(0, 0, 2.6, 1.4, 0, 0, 7); g.fill(); g.restore(); } } } }
@@ -563,7 +599,7 @@ function buildingGeo(cx, cz, out) { const A = BM.map(() => ({ p: [], n: [], u: [
   const chim = [], stacks = [], det = [], domes = [], sky = [], wtow = []; const FD = bldField(cx, cz), { F, DI, N: FN, X0: FX, Z0: FZ, cells: FC, segs: FS } = FD; const ox = cx * CHU, oz = cz * CHU;
   const PI = new Map(); const RING = [[0, 0], ...N4, [1, 1], [1, -1], [-1, 1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
   const cinfo = (x, z) => { let i = Math.floor(x / T), j = Math.floor(z / T), f = null; for (const [a, b] of RING) if (Hb(i + a, j + b)) { f = [i + a, j + b]; break; } if (!f) return null; [i, j] = f; const k = i * 4096 + j; if (PI.has(k)) return PI.get(k);
-    const st = styleOf(i, j), lot = hash(Math.floor(i / 3), Math.floor(j / 3), 61), h = Math.max(2.5, Hb(i, j) * (st === 3 ? 1 : .9 + lot * .22)), dp = depth[ti(i, j)], work = dp > DCUT[st] && h < 5.5, sl = work ? 0 : SLH[st], inn = work ? 0 : SLI[st]; const tv = .9 + hash(i >> 2, j >> 2, 31) * .2, tint = st === 3 ? [tv, tv * .97, tv * .95] : [tv, tv * (.97 + hash(i >> 2, j >> 2, 32) * .05), tv * (.92 + hash(i >> 2, j >> 2, 33) * .08)];
+    const st = styleOf(i, j), lot = hash(Math.floor(i / 4), Math.floor(j / 4), 61), h = Math.max(2.5, Hb(i, j) * (st >= 2 ? 1 : .92 + lot * .16)), dp = depth[ti(i, j)], work = dp > DCUT[st] && h < 5.5, sl = work ? 0 : SLH[st], inn = work ? 0 : SLI[st]; const tv = .9 + hash(i >> 2, j >> 2, 31) * .2, tint = st === 3 ? [tv, tv * .97, tv * .95] : [tv, tv * (.97 + hash(i >> 2, j >> 2, 32) * .05), tv * (.92 + hash(i >> 2, j >> 2, 33) * .08)];
     const o = { i, j, h, st, dp, work, sl, inn, top: h + sl, tint }; PI.set(k, o); return o; };
   const inC = (u, v) => u >= FM && v >= FM && u < FM + CHU && v < FM + CHU; const cellI = (u, v) => cinfo(FX + u + .5, FZ + v + .5);
   const ry = (p, ci) => p.k < 0 || !ci.sl ? ci.h : ci.h + ci.sl * Math.min(1, DI[p.k] / ci.inn);
@@ -621,14 +657,15 @@ function buildingGeo(cx, cz, out) { const A = BM.map(() => ({ p: [], n: [], u: [
   const geo = new THREE.BufferGeometry(), P = [], Nn = [], U = [], Cc = []; let off = 0;
   A.forEach((t, k) => { const cnt = t.p.length / 3; if (!cnt) return; P.push(...t.p); Nn.push(...t.n); U.push(...t.u); Cc.push(...t.c); geo.addGroup(off, cnt, k); off += cnt; });
   if (!off) return null; geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); geo.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geo, BM); mesh.castShadow = mesh.receiveShadow = true; out.chim = chim; out.stacks = stacks; out.det = det; out.domes = domes; out.sky = sky; out.wtow = wtow; return mesh; }
+  const mesh = new THREE.Mesh(geo, BM); mesh.castShadow = mesh.receiveShadow = true; out.chim = chim; out.stacks = stacks; out.det = det; out.domes = domes; out.sky = sky; out.wtow = wtow; out.spires = SPIRES.filter(q => q[0] >= ox && q[0] < ox + CHU && q[1] >= oz && q[1] < oz + CHU).map(q => { let best = null, bd = 1e9; for (let j = Math.floor(q[1] / T) - 5; j <= Math.floor(q[1] / T) + 5; j++) for (let i = Math.floor(q[0] / T) - 5; i <= Math.floor(q[0] / T) + 5; i++) { if (!Hb(i, j)) continue; const u = i * T + 1 - FX, v = j * T + 1 - FZ; if (u < 0 || v < 0 || u >= FN || v >= FN || DI[v * FN + u] < 1.5) continue; const d = (i * T + 1 - q[0]) ** 2 + (j * T + 1 - q[1]) ** 2 - DI[v * FN + u] * 4; if (d < bd) { bd = d; best = [i * T + 1, j * T + 1]; } } if (!best) return null; const ci = cinfo(best[0], best[1]); return [best[0], (ci.top || ci.h) - .2, best[1], q[2], q[3], q[4] || 1]; }).filter(Boolean); return mesh; }
 function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: [], stacks: [], mats: [] }; const c = groundCanvas(cx, cz); const t = tex(c, false); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = true;
   const gm = stdM({ map: t, alphaTest: .5, roughness: .95 }); if (Q.bloom && !CFG.ps1) { gm.bumpMap = t; gm.bumpScale = 2.2; } ch.mats.push(gm); ch.tex = t; applyWet(gm);
   const nearHill = Math.hypot(cx * CHU + CHU / 2 - HILL.x, cz * CHU + CHU / 2 - HILL.z) < HILL.r + CHU; const gseg = nearHill ? 40 : 1;
   const gp = new THREE.Mesh(new THREE.PlaneGeometry(CHU, CHU, gseg, gseg).rotateX(-Math.PI / 2), gm); gp.position.set(cx * CHU + CHU / 2, 0, cz * CHU + CHU / 2); gp.receiveShadow = true; ch.g.add(gp);
-  const out = {}; const bm = buildingGeo(cx, cz, out); if (bm) ch.g.add(bm);
+  const out = {}; const bm = buildingGeo(cx, cz, out); if (bm) { bm.userData.bld = 1; ch.g.add(bm); }
   { const dm = detailGeo(out.det || [], cx, cz).mesh(SHOPM); if (dm) ch.g.add(dm); const pm = Q.life ? puddleGeo(cx, cz) : null; if (pm) ch.g.add(pm); }
   const ch1 = inst(PG.chimney, PROPMAT, out.chim || [], q => _m4.compose(_v4.set(q[0], q[1], q[2]), _q4.setFromAxisAngle(_up, q[3]), _s4.set(1, q[5] || 1, q[4] || 1))); if (ch1) ch.g.add(ch1);
+  for (const ty of ['spireSq', 'spireTwin', 'spireDome']) { const L = (out.spires || []).filter(q => q[3] === ty); const m = inst(PG[ty], PROPMAT, L, q => { place(q[0], q[1], q[2], q[4], q[5]); _m4.compose(_v4.set(q[0], q[1], q[2]), _q4.setFromAxisAngle(_up, q[4]), _s4.set(q[5], q[5] * .55, q[5])); }); if (m) ch.g.add(m); } // squashed vertically so the tower stays under the top-down camera yet reads by silhouette + shadow
   const sk1 = inst(PG.skylight, PROPMAT, out.sky || [], q => place(q[0], q[1], q[2], q[3], 1)); if (sk1) ch.g.add(sk1);
   const wt1 = inst(PG.wtower, PROPMAT, out.wtow || [], q => place(q[0], q[1], q[2], 0, 1)); if (wt1) ch.g.add(wt1);
   const dm1 = inst(PG.dome, PROPMAT, out.domes || [], q => place(q[0], q[1], q[2], 0, .55)); if (dm1) ch.g.add(dm1);
@@ -648,6 +685,7 @@ function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: 
   for (const [trees, tg, cg, chest] of [[treesAll.filter(p => !isCh(p)), PG.trunk, PG.canopy, false], [treesAll.filter(isCh), PG.trunk2, PG.canopy2, true]]) { mk(trees, tg, PROPMAT, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 1) * 6, p.s || 1));
     const can = mk(trees, cg, CANOPYM, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 2) * 6, p.s || 1)); if (can) trees.forEach((p, k) => { const h = hash(p.x | 0, p.z | 0, 3); if (chest) can.setColorAt(k, _c4.setRGB(.17 + h * .06, .3 + h * .08, .12 + h * .04, THREE.SRGBColorSpace)); else can.setColorAt(k, _c4.setRGB(.3 + h * .14, .4 + h * .1, .17 + h * .06, THREE.SRGBColorSpace)); }); }
   mk(by.morris || [], PG.poster, POSTERM, p => place(p.x, 0, p.z, hash(p.x | 0, p.z | 0, 5) * 6, 1));
+  { const FL = by.fountain || []; mk(FL, PG.fountainW, FWATM, p => place(p.x, 0, p.z, 0, 1), false); mk(FL, PG.fountainS, FSPRM, p => place(p.x, 0, p.z, 0, 1), false); }
   for (const ty of ['morris', 'wallace', 'trough', 'pissoir', 'bench', 'kiosk', 'fountain']) mk(by[ty] || [], PG[ty], PROPMAT, p => place(p.x, 0, p.z, -(p.ry || 0) + (ty === 'bench' ? Math.PI / 2 : 0), 1));
   for (const p of props) if (!p.alive) killInst(p);
   return ch; }
@@ -673,6 +711,9 @@ function disposeChunk(ch) { chunkGroup.remove(ch.g); ch.g.traverse(o => { if (o.
 const WN = tex(cv(256, 256, g => { const id = g.createImageData(256, 256); for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) { const a = x / 256 * 6.283, b = y / 256 * 6.283; const dx = Math.cos(a * 3 + Math.sin(b * 2) * 1.5) * .5 + Math.cos(a * 7 + b * 5) * .25 + Math.cos(a * 13 - b * 4) * .12, dz = Math.cos(b * 4 + Math.sin(a * 2)) * .5 + Math.cos(b * 9 - a * 3) * .25 + Math.sin(a * 5 + b * 11) * .12;
   const i = (y * 256 + x) * 4; id.data[i] = 128 + dx * 70; id.data[i + 1] = 128 + dz * 70; id.data[i + 2] = 255; id.data[i + 3] = 255; } g.putImageData(id, 0, 0); }), true, false);
 WN.repeat.set(WX / 14, WZ / 14);
+const FWN = WN.clone(); FWN.repeat.set(1.6, 1.6); FWN.needsUpdate = true;
+const FWATM = new THREE.MeshStandardMaterial({ color: 0x6a98a2, roughness: .08, metalness: .1, normalMap: FWN, normalScale: new THREE.Vector2(.9, .9), envMapIntensity: 1.4 });
+const FSPRM = new THREE.MeshBasicMaterial({ color: 0xe8f0f2, transparent: true, opacity: .45, depthWrite: false });
 const WATERM = new THREE.MeshStandardMaterial({ color: 0x2f5258, roughness: .08, metalness: .3, normalMap: WN, normalScale: new THREE.Vector2(.45, .45) });
 export const WU = { uT: { value: 0 }, uDay: { value: 1 }, uMark: { value: 0 } };
 WATERM.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, WU);
@@ -757,7 +798,7 @@ function updateSky(dt, t) { const { day, rain } = ENV, night = 1 - day, dl = day
   for (let k = 0; k < 8; k++) BM[k].emissiveIntensity = night * [1.7, 1.05, 1.45, .75, 1.35, .9, 1.2, .65][k] * (1 + Math.sin(t * .05 + k * 1.7) * .08); LANTM.emissiveIntensity = night * 3 * fl + .05; GLOBEM.emissiveIntensity = night * 4.5; ROSEM.emissiveIntensity = .12 + night * 1.6; LANCET.emissiveIntensity = night * .9; POOLM.opacity = night * .62 * fl; SPILLM.opacity = night * .55; REFLM.opacity = night * ENV.wet * .75 * fl;
   for (const l of PL) if (l.userData.base) l.intensity = l.userData.base * fl;
   if (Math.abs((ENV.wetApplied ?? -1) - rain) > .02) { ENV.wetApplied = rain; for (const m of wetMats) applyWet(m); WATERM.roughness = .1 + rain * .15; }
-  WN.offset.x = t * .012; WN.offset.y = t * .02; WU.uT.value = t; WU.uDay.value = day * (1 - rain * .5);
+  WN.offset.x = t * .012; WN.offset.y = t * .02; FWN.offset.x = Math.sin(t * .7) * .3; FWN.offset.y = t * .25; FWN.rotation = t * .15; FSPRM.opacity = .32 + Math.sin(t * 11) * .06 + Math.sin(t * 17.3) * .04; WU.uT.value = t; WU.uDay.value = day * (1 - rain * .5);
   ENV.wet = Math.max(rain, (ENV.wet || 0) - dt * .004); PUDM.opacity = ENV.wet * .75; PUDM.visible = ENV.wet > .02; PUDM.roughness = .12 - ENV.wet * .1; PUDM.color.copy(_fc).lerp(sun.color, .2 * day).multiplyScalar(.45 + day * .2);
   updateSky2(t, dusk); }
 const SKYU = { sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(-.4, .55, .5).normalize() }, day: { value: 1 }, dusk: { value: 0 }, rain: { value: 0 }, t: { value: 0 }, fogC: { value: new THREE.Color() } };
@@ -887,3 +928,17 @@ function updateAmb(dt, t, cx, cz) { const life = CFG.ps1 ? 0 : (Q.life || 0); if
   // sewer steam from manholes on the roads near the camera
   if (R() < dt * (life > 1 ? 6 : 3) * (.4 + (1 - day) + rain)) { const i = Math.floor((cx + (R() - .5) * 56) / T), j = Math.floor((cz + (R() - .5) * 40) / T); if (kij(i, j) === K.ROAD && hash(i, j, 91) < .06) { const x = i * T + 1, z = j * T + 1; PA.emit(x, .2, z, (R() - .5) * .3, .8 + R() * .5, (R() - .5) * .3, 2 + R() * 1.5, .6, 2.6, .85, .85, .86, .32, -.1, .2); } }
 }
+// ================= AUDIT (test hook) =================
+// Builds every chunk's building mesh off-scene and reports chunks that have building tiles but no / broken geometry.
+export function auditChunks() { const bad = [], nan = [], frag = []; let n = 0;
+  for (let cx = 0; cx < NCX; cx++) for (let cz = 0; cz < NCZ; cz++) { let bt = 0; for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) if (kind[ti(i, j)] === K.BLD) bt++;
+    if (bt < 4) continue; n++; { const fd = bldField(cx, cz), { F, N } = fd, seen = new Uint8Array(N * N); for (let q = 0; q < N * N; q++) if (F[q] > 0 && !seen[q]) { let a = 0; const st = [q]; seen[q] = 1; while (st.length) { const z = st.pop(); a++; const u = z % N, v = (z / N) | 0; for (const [du, dv] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const uu = u + du, vv = v + dv; if (uu < 0 || vv < 0 || uu >= N || vv >= N) continue; const w = vv * N + uu; if (!seen[w] && F[w] > 0) { seen[w] = 1; st.push(w); } } } if (a < 10) frag.push([cx, cz, a]); } }
+    const out = {}; const m = buildingGeo(cx, cz, out); if (!m) { bad.push([cx, cz, bt, 'none']); continue; }
+    const P = m.geometry.attributes.position.array; let k = 0; for (let q = 0; q < P.length; q++) if (!Number.isFinite(P[q])) k++; m.geometry.computeBoundingSphere(); const bs = m.geometry.boundingSphere;
+    if (k || !Number.isFinite(bs.radius)) nan.push([cx, cz, k]); if (P.length < 9) bad.push([cx, cz, bt, 'empty']); m.geometry.dispose(); }
+  return { chunks: n, bad, nan, frags: frag.length, fragEx: frag.slice(0, 8) }; }
+// live check: every streamed chunk that has building tiles must carry a non-empty, finite building mesh
+export function auditLive() { const miss = []; let n = 0; for (const [k, ch] of CHUNKS) { let bt = 0; for (let j = ch.cz * CH; j < Math.min(NZ, ch.cz * CH + CH); j++) for (let i = ch.cx * CH; i < Math.min(NX, ch.cx * CH + CH); i++) if (Hb(i, j) > 0) bt++;
+    if (bt < 3) continue; n++; const m = ch.g.children.find(o => o.userData.bld); const P = m && m.geometry.attributes.position; if (!m || !P || P.count < 3 || !Number.isFinite((m.geometry.computeBoundingSphere(), m.geometry.boundingSphere.radius))) miss.push([ch.cx, ch.cz, bt]); }
+  return { chunks: n, miss, retries: stats.fieldRetry || 0 }; }
+if (typeof window !== 'undefined') { window.__auditChunks = auditChunks; window.__auditLive = auditLive; window.__spireAt = (cx, cz) => { const o = {}; const m = buildingGeo(cx, cz, o); if (m) m.geometry.dispose(); return o.spires; }; }
