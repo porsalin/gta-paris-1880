@@ -42,12 +42,10 @@ function snapWalk(ti_, tj, veh) { // nearest walkable tile center
 const POI = {}; for (const k in POI_T) POI[k] = snapWalk(POI_T[k][0], POI_T[k][1], false);
 const POIV = {}; for (const k in POI_T) POIV[k] = snapWalk(POI_T[k][0], POI_T[k][1], true);
 // ================= RENDERER =================
-const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
-if (isTouch) document.body.classList.add('touch');
 const glc = document.getElementById('gl');
 const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1);
-let PIX = isTouch ? 2.5 : 3;
+let PIX = 3;
 function resize() { renderer.setSize(Math.ceil(innerWidth / PIX), Math.ceil(innerHeight / PIX), false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); hud.width = innerWidth * Math.min(2, devicePixelRatio); hud.height = innerHeight * Math.min(2, devicePixelRatio); }
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0e0c0a);
 const camera = new THREE.PerspectiveCamera(48, 1, 1, 400); camera.up.set(0, 0, -1);
@@ -257,20 +255,11 @@ function addHeat(n) { if (player.god === 'noheat') return; heat = Math.min(40, h
 const keys = {}; const pressed = {};
 addEventListener('keydown', e => { audio(); if (!keys[e.code]) pressed[e.code] = true; keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
-const touch = { sx: 0, sy: 0, on: false, fire: false };
-(function setupTouch() { const st = document.getElementById('stick'), kn = document.getElementById('knob'); let id = null, cx = 0, cy = 0;
-  st.addEventListener('pointerdown', e => { audio(); id = e.pointerId; const r = st.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; st.setPointerCapture(id); mv(e); });
-  const mv = e => { if (e.pointerId !== id) return; let dx = (e.clientX - cx) / 60, dy = (e.clientY - cy) / 60; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } touch.sx = dx; touch.sy = dy; touch.on = true; kn.style.left = 45 + dx * 45 + 'px'; kn.style.top = 45 + dy * 45 + 'px'; };
-  st.addEventListener('pointermove', mv); const up = e => { if (e.pointerId !== id) return; id = null; touch.on = false; touch.sx = touch.sy = 0; kn.style.left = kn.style.top = '45px'; };
-  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
-  const btn = (el, dn, upf) => { const b = document.getElementById(el); b.addEventListener('pointerdown', e => { audio(); e.preventDefault(); dn(); }); if (upf) { b.addEventListener('pointerup', upf); b.addEventListener('pointercancel', upf); b.addEventListener('pointerleave', upf); } };
-  btn('tFire', () => touch.fire = true, () => touch.fire = false); btn('tEnter', () => pressed.KeyF = true); btn('tPrev', () => pressed.KeyQ = true); btn('tNext', () => pressed.KeyE = true); btn('tPause', () => pressed.Escape = true); })();
 let gpPrev = {};
 function readInput() { const I = { mx: 0, my: 0, fire: false, enter: false, prev: false, next: false, pause: false, stick: false, thr: 0, steer: 0 };
   const L = keys.KeyA || keys.ArrowLeft, R = keys.KeyD || keys.ArrowRight, U = keys.KeyW || keys.ArrowUp, D = keys.KeyS || keys.ArrowDown;
   I.mx = (R ? 1 : 0) - (L ? 1 : 0); I.my = (D ? 1 : 0) - (U ? 1 : 0); I.thr = (U ? 1 : 0) - (D ? 1 : 0); I.steer = I.mx;
-  I.fire = keys.Space || keys.ControlLeft || keys.ControlRight || touch.fire; I.enter = pressed.KeyF || pressed.Enter; I.prev = pressed.KeyQ; I.next = pressed.KeyE; I.pause = pressed.Escape || pressed.KeyP;
-  if (touch.on) { I.mx = touch.sx; I.my = touch.sy; I.stick = true; }
+  I.fire = keys.Space || keys.ControlLeft || keys.ControlRight; I.enter = pressed.KeyF || pressed.Enter; I.prev = pressed.KeyQ; I.next = pressed.KeyE; I.pause = pressed.Escape || pressed.KeyP;
   const gps = navigator.getGamepads ? navigator.getGamepads() : []; for (const gp of gps) { if (!gp) continue; const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0; const b = i => gp.buttons[i] && gp.buttons[i].pressed;
     if (Math.hypot(ax, ay) > .25) { I.mx = ax; I.my = ay; I.stick = true; } if (b(0) || b(7)) I.fire = true;
     if (b(14)) { I.mx = -1; } if (b(15)) I.mx = 1; if (b(12)) I.my = -1; if (b(13)) I.my = 1;
@@ -293,7 +282,7 @@ function spr(mat, x, z, s, t, y = 1.5, grow = 0) { const m = new THREE.Mesh(PG, 
 function damagePed(p, dmg, src) { if (!p.alive) return; p.hp -= dmg; p.flee = 6; SFX.hit(); if (p.hp <= 0) killPed(p, src); else if (p.type === 'civ') p.hostile = false; }
 function killPed(p, src) { p.alive = false; spr(bloodMat, p.x, p.z, 2, 25, .1); p.mesh.rotation.z = 0; p.mesh.children.forEach(c => c.material = c.material === horseMat ? deadHorseMat : c.material); p.mesh.scale.set(1, 1, .5); p.deadT = 20;
   if (src === 'player') { addMoney(p.type === 'cop' || p.type === 'soldier' || p.type === 'gend' ? 100 : 20); crime(p.type === 'cop' || p.type === 'gend' || p.type === 'soldier' ? 6 : 2); if (rnd() < .25) dropPickup(p.x, p.z); } }
-function damageVeh(v, dmg, horse, src) { if (!v.alive || v.d.rail) return; if (horse && v.d.horses) { v.horseHp -= dmg; if (v.horseHp <= 0 && !v.horseDead) { v.horseDead = true; v.av = (rnd() < .5 ? -1 : 1) * 6; v.hs.forEach(h => h.material = deadHorseMat); pager(v === player.veh ? 'Your horses are down!' : 'Horses down!', 2); } return; }
+function damageVeh(v, dmg, horse, src) { if (!v.alive || v.d.rail) return; if (horse && v.d.horses) { v.horseHp -= dmg; if (v.horseHp <= 0 && !v.horseDead) { v.horseDead = true; { const sp = Math.hypot(v.vx, v.vz); v.av = (rnd() < .5 ? -1 : 1) * (5 + sp * .5); v.vx *= 1.1; v.vz *= 1.1; v.hp -= 10; if (v.driver && v.driver.inVeh !== undefined) {} } v.hs.forEach(h => h.material = deadHorseMat); pager(v === player.veh ? 'Your horses are down!' : 'Horses down!', 2); } return; }
   v.hp -= dmg; if (v.hp <= 0 && !v.burn) { v.burn = 3; } if (src === 'player' && v.police) crime(.5); }
 function explode(x, z, r = 6, dmg = 160) { SFX.boom(); spr(flashMat, x, z, r * 1.6, .5, 3, 14); for (let k = 0; k < 5; k++) spr(smokeMat, x + (rnd() - .5) * 4, z + (rnd() - .5) * 4, 3, 1.5 + rnd(), 2.5, 3);
   for (const p of peds) if (p.alive && d2(p.x, p.z, x, z) < r * r) damagePed(p, dmg, 'player');
@@ -308,7 +297,7 @@ function hitscan(x, z, a, rng, dmg, src, ignore) { const dx = Math.cos(a), dz = 
   for (let s = .5; s < rng; s += .5) { ex = x + dx * s; ez = z + dz * s; if (pedBlock(ex, ez) && kAt(ex, ez) === K.BLD) break;
     for (const p of peds) if (p.alive && !p.inVeh && p !== ignore && Math.abs(p.x - ex) < .8 && Math.abs(p.z - ez) < .8) { damagePed(p, dmg, src); return [ex, ez]; }
     for (const v of vehs) { if (!v.alive || v === ignore) continue; const lx = (ex - v.x) * Math.cos(v.a) + (ez - v.z) * Math.sin(v.a), lz = -(ex - v.x) * Math.sin(v.a) + (ez - v.z) * Math.cos(v.a);
-      const front = v.d.horses ? v.d.len / 2 + 2.4 + (v.d.horses === 3 ? 2.8 : 0) : 0; if (Math.abs(lz) < v.d.wid / 2 + .2 && lx > -v.d.len / 2 && lx < v.d.len / 2 + front) { damageVeh(v, dmg, lx > v.d.len / 2, src); if (v === player.veh) hurtPlayer(dmg * .15); return [ex, ez]; } }
+      const front = v.d.horses ? v.d.len / 2 + 2.4 + (v.d.horses === 3 ? 2.8 : 0) : 0; const hb = lx > v.d.len / 2 ? .7 : .2; if (Math.abs(lz) < v.d.wid / 2 + hb && lx > -v.d.len / 2 && lx < v.d.len / 2 + front) { damageVeh(v, dmg, lx > v.d.len / 2, src); if (v === player.veh) hurtPlayer(dmg * .15); return [ex, ez]; } }
     if (src !== 'player' && !player.veh && player !== ignore && Math.abs(player.x - ex) < .7 && Math.abs(player.z - ez) < .7) { hurtPlayer(dmg); return [ex, ez]; }
     for (const p of propsNear(ex, ez)) if (p.r > 0 && d2(p.x, p.z, ex, ez) < p.r * p.r) { damageProp(p, dmg); return [ex, ez]; } }
   return [ex, ez]; }
@@ -540,9 +529,9 @@ function railAuto(v, dt) { if (v.type === 'tram') { const dir = v.dirS || 1; if 
     if (v.stopT > 0) { v.stopT -= dt; v.sp = 0; if (v.stopT <= 0) { tone(330, .6, 'sawtooth', .05); v.sp = 2; } return; } driveRail(v, .6, dt); v.sp = Math.min(v.sp, 18);
     v.smk = (v.smk || 0) - dt; if (v.smk < 0) { v.smk = .25; spr(smokeMat, v.x, v.z + 2, 2.5, 2, 3, 2); } } }
 function populate(dt) { const [px, pz] = ppos();
-  const civs = peds.filter(p => p.type === 'civ' && p.alive).length; const want = isTouch ? 30 : 42;
+  const civs = peds.filter(p => p.type === 'civ' && p.alive).length; const want = 42;
   if (civs < want) for (let k = 0; k < 3; k++) { const a = rnd() * 6.28, r = 30 + rnd() * 30, x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r; const kk = kAt(x, z); if (kk === K.SIDE || kk === K.PARK || kk === K.STAIR) { spawnPed('civ', x, z); break; } }
-  const tr = vehs.filter(v => v.traffic).length; if (tr < (isTouch ? 14 : 20)) spawnTraffic(px, pz);
+  const tr = vehs.filter(v => v.traffic).length; if (tr < (20)) spawnTraffic(px, pz);
   for (const p of [...peds]) if (!p.mission && d2(p.x, p.z, px, pz) > 100 * 100) removePed(p);
   for (const v of [...vehs]) if ((v.traffic || (v.wreck && !v.mission) || (v.police && wanted === 0)) && v !== player.veh && d2(v.x, v.z, px, pz) > 110 * 110) removeVeh(v);
   for (const p of props) if (p.temp && p.alive) { p.temp -= dt; if (p.temp < 0) { p.alive = false; setPropM(p); } }
@@ -575,7 +564,7 @@ function updateSky(dt) { gameTime = (gameTime + dt / 25) % 24; const h = gameTim
   const night = 1 - daylight; const fl = .82 + Math.sin(performance.now() * .013) * .08 + (rnd() < .05 ? -.25 : 0); gasPool.material.opacity = night * .65 * fl; arcPool.material.opacity = night * (.85 + (rnd() < .03 ? -.5 : Math.sin(performance.now() * .05) * .05)); }
 // ================= CAMERA =================
 let camH = 40; const camPos = new THREE.Vector3();
-function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = (48 + sp * 1.5) * (camera.aspect < 1 ? 1.35 : 1); camH += (tgt - camH) * Math.min(1, dt * 1.5);
+function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = (48 + sp * 1.5); camH += (tgt - camH) * Math.min(1, dt * 1.5);
   const lx = v ? v.vx * .5 : 0, lz = v ? v.vz * .5 : 0; const tx = player.x + lx, tz = player.z + lz; camPos.x += (tx - camPos.x) * Math.min(1, dt * 5); camPos.z += (tz - camPos.z) * Math.min(1, dt * 5);
   const sx = camShake > 0 ? (rnd() - .5) * camShake * 2 : 0; camShake = Math.max(0, camShake - dt); camera.position.set(camPos.x + sx, camH, camPos.z + .01 + sx); camera.lookAt(camPos.x + sx, 0, camPos.z + sx); }
 // ================= MESH SYNC =================
@@ -613,7 +602,7 @@ function drawHUD(dt) { const dpr = hud.width / innerWidth, Wd = hud.width, H = h
   // objective arrow
   if (tg) { const a = Math.atan2(tg[1] - pz, tg[0] - px), dd = Math.hypot(tg[0] - px, tg[1] - pz); if (dd > 12) { const cx = w / 2 + Math.cos(a) * Math.min(w, h) * .3, cy = h / 2 + Math.sin(a) * Math.min(w, h) * .3; hx.save(); hx.translate(cx, cy); hx.rotate(a); hx.fillStyle = '#ffe040'; hx.strokeStyle = '#000'; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(18, 0); hx.lineTo(-10, -12); hx.lineTo(-4, 0); hx.lineTo(-10, 12); hx.closePath(); hx.fill(); hx.stroke(); hx.restore(); } }
   if (M && M.s) { let st = M.s.text; if (M.s.t === 'kill') st += ` ${M.ents.filter(p => p.alive).length} left`; if (M.s.t === 'collect') st += ` ${M.pks.filter(p => p.alive).length} left`; if (M.s.t === 'race') st += ` CP ${M.cp + 1}/${M.cps.length}`; if (M.s.t === 'hold') st += ` ${Math.max(0, Math.ceil(M.s.time - M.hold))}s`; if (M.s.t === 'survive' && !M.s.lose) st += ` ${Math.ceil(M.timer)}s`;
-    if (M.timer && !['survive', 'hold'].includes(M.s.t)) st += `  ⏱ ${Math.ceil(M.timer)}`; txt(st, w / 2, h - (isTouch ? 190 : 30), sm ? 14 : 18, '#ffe040', 'center'); }
+    if (M.timer && !['survive', 'hold'].includes(M.s.t)) st += `  ⏱ ${Math.ceil(M.timer)}`; txt(st, w / 2, h - 30, sm ? 14 : 18, '#ffe040', 'center'); }
   if (bigT > 0) { bigT -= dt; txt(bigMsg, w / 2, h * .38, sm ? 30 : 52, bigMsg === 'WASTED' || bigMsg === 'BUSTED' || bigMsg.includes('FAIL') ? '#e02020' : '#f4c430', 'center'); }
   if (districtT > 0) { districtT -= dt; txt(districtMsg, w / 2, h * .48, sm ? 16 : 22, '#e8dcc0', 'center'); }
   if (!M && nearPhone) txt(nearPhone.fac === 'side' ? 'Newsstand kiosk — side job: walk in' : `${facName(nearPhone.fac)} — magneto phone`, w / 2, h * .6, sm ? 13 : 16, '#ffe040', 'center'); }
