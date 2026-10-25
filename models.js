@@ -41,9 +41,9 @@ export const LOOKS = {
   cop: () => ({ coat: '#1a2448', trou: '#1a2040', hat: 'kepi', hatc: '#1a2040', belt: '#d4b040', long: true }),
   gend: () => ({ coat: '#22285a', trou: '#d8d0c0', hat: 'helmet', hatc: '#2a2a2a', belt: '#d8d8d8' }),
   soldier: () => ({ coat: '#2a3a7a', trou: '#b02020', hat: 'kepi', hatc: '#b02020', belt: '#d8d0b0' }),
-  vip: () => ({ coat: pick(['#e8e0f0', '#f0d8e0']), trou: '#000', hat: 'bonnet', hatc: '#c03080', dress: true, scarf: '#ffffff' }),
-  boss: () => ({ coat: '#0e0e0e', trou: '#111', hat: 'top', hatc: '#0a0a0a', long: true, scarf: '#f4c430' }),
-  player: () => ({ coat: '#7a5a2a', trou: '#3a3a44', hat: 'cap', hatc: '#5a4026', skin: '#e8c0a0', scarf: '#2aa0a0', apron: false, vest: '#c89a3a', player: true }),
+  vip: () => ({ coat: pick(['#e8e0f0', '#f0d8e0']), trou: '#000', hat: 'bonnet', hatc: '#6a4a5a', dress: true, scarf: '#f0ebe0' }),
+  boss: () => ({ coat: '#0e0e0e', trou: '#111', hat: 'top', hatc: '#0a0a0a', long: true, scarf: '#ece6d8' }),
+  player: () => ({ coat: '#7a5a2a', trou: '#3a3a44', hat: 'cap', hatc: '#5a4026', skin: '#e8c0a0', scarf: '#6a2420', apron: false, vest: '#8a6a3a', player: true }),
 };
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 export function gangLook(c1, c2) { return { coat: c1, stripes: c1 === '#d8d8d8' || c1 === '#c8c8c8' ? '#1a2a5a' : null, trou: '#2a2a2a', hat: 'cap', hatc: c2 === '#111' ? '#222' : '#2a2a2a', scarf: c2 }; }
@@ -62,9 +62,9 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
   const coat = L.stripes ? '#f2f2f2' : L.coat, cHi = lt(coat, .12), cDk = dk(coat, .72);
   if (L.dress) { // smooth bodice + bell skirt with flounce ripples and bustle
     lathe(b, [[.001, .78], [.13, .8], [.15, .9], [.135, 1.0], [.16, 1.12], [.19, 1.2], [.13, 1.27], [.06, 1.3]], 0, 0, 0, coat, .8, 1.05);
-    const sp = []; for (let k = 0; k <= 14; k++) { const t = k / 14, y = .82 - t * .8; sp.push([.13 + Math.pow(t, 1.3) * .33 + (k % 5 === 4 ? .025 : 0), y]); } sp.push([.001, .02]);
+    const sp = []; for (let k = 0; k <= 14; k++) { const t = k / 14, y = .82 - t * .8; sp.push([.12 + Math.pow(t, 1.5) * .21 + (k % 5 === 4 ? .015 : 0), y]); } sp.push([.001, .02]);
     lathe(b, sp.reverse(), .03, 0, 0, coat, .95, 1, 22);
-    b.sph(.22, -.2, .74, 0, cDk, .9, .8, 1.15, 10); // bustle
+    b.sph(.18, -.17, .76, 0, cDk, 1, .85, 1.05, 10); // bustle
     lathe(b, [[.15, .84], [.165, .86], [.165, .9], [.15, .92]], 0, 0, 0, L.scarf || dk(coat, .55), .8, 1.06);
     b.sph(.07, .1, 1.08, 0, lt(coat, .5), .5, 1.6, .9, 8); // lace jabot
     if (L.apron) { lathe(b, [[.2, .3], [.2, .3], [.16, .62], [.15, .8]], .05, 0, 0, '#f4f0e8', .98, 1.02, 16, 0, Math.PI * .1, Math.PI * .8); b.sph(.09, .11, 1.05, 0, '#f4f0e8', .5, 1.2, 1.4, 8); }
@@ -82,7 +82,7 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
     if (L.belt) { lathe(b, [[.16, .76], [.168, .78], [.168, .81], [.16, .83]], 0, 0, 0, L.belt, .75, 1.06); for (let y = .88; y < 1.2; y += .09) b.sph(.018, .125, y, 0, L.belt, 1, 1, 1, 5); for (const s of [-1, 1]) b.sph(.06, 0, 1.27, s * .19, L.belt, 1, .35, 1.1, 8); }
     lathe(b, [[.001, .66], [.14, .66], [.155, .72], [.15, .76]], 0, 0, 0, dk(L.trou, .9), .74, 1.05, 14); }
   if (L.scarf && !L.dress) lathe(b, [[.08, 1.24], [.12, 1.26], [.11, 1.31], [.07, 1.33]], .01, 0, 0, L.scarf, 1, 1.05, 14);
-  // neck & head (slightly heroic proportions so heads read from above)
+  const hIdx = b.p.length; // neck & head (built at old scale, then shrunk to realistic ~1/7.5 proportions)
   b.cyl(.06, .07, .1, .01, 1.32, 0, sk, 10); b.sph(.145, .02, 1.47, 0, sk, 1.0, 1.1, .94, 14);
   b.sph(.04, .155, 1.45, 0, sk, .9, .9, .7, 6); for (const s of [-1, 1]) { b.sph(.032, .02, 1.46, s * .14, sk, .55, 1, .45, 6); b.sph(.018, .145, 1.495, s * .05, '#1a1410', .6, 1, 1, 6); b.sph(.03, .145, 1.535, s * .055, dk(hair, .8), .4, .35, 1.2, 5); }
   b.sph(.03, .155, 1.405, 0, '#a85a4a', .5, .4, 1.3, 5);
@@ -101,37 +101,40 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
     case 'bonnet': b.sph(.16, -.04, 1.53, 0, hc, 1, 1, 1.05, 12); lathe(b, [[.12, 1.45], [.21, 1.52], [.23, 1.58], [.2, 1.6]], .04, 0, 0, hc, .75, 1, 18, 0, -Math.PI * .1, Math.PI * 1.2);
       for (const s of [-1, 1]) b.add(new THREE.CylinderGeometry(.012, .012, .2, 6), '#a03050', M(.06, 1.37, s * .1)); b.sph(.05, -.01, 1.68, .08, '#c84060', 1, 1, 1, 7); b.sph(.045, -.06, 1.67, -.04, '#f0e0a0', 1, 1, 1, 7); b.sph(.04, -.02, 1.7, .02, '#5a8a4a', 1, .6, 1, 6); break;
     default: break; }
+  for (let k = 0; k < hIdx; k += 3) { b.p[k] *= .86; b.p[k + 2] *= .86; } // slimmer, elegant torso
+  for (let k = hIdx; k < b.p.length; k += 3) { b.p[k] = .01 + (b.p[k] - .01) * .72; b.p[k + 1] = 1.31 + (b.p[k + 1] - 1.32) * .72; b.p[k + 2] *= .72; }
   if (L.parasol) { b.cyl(.008, .008, 1.0, .1, 1.35, .26, '#3a2a1a', 5, 0, 0, -.12); lathe(b, [[.001, .17], [.15, .14], [.32, .06], [.42, 0], [.41, -.01], [.001, .16]], .16, 1.8, .26, L.parasol, 1, 1, 16); b.sph(.02, .16, 1.98, .26, '#c8a040'); }
   if (L.cane) { b.cyl(.012, .012, .9, .18, .45, .3, '#1a1410', 6, 0, 0, .12); b.sph(.025, .13, .91, .3, '#c8a040', 1, 1, 1, 6); }
   if (L.basket) { lathe(b, [[.001, 0], [.1, .005], [.12, .08], [.125, .14]], .1, .62, .3, '#8a6a3a', 1, 1, 12); b.sph(.05, .1, .78, .28, '#c8a050', 1, .6, 1, 6); b.sph(.04, .13, .79, .33, '#5a8a3a', 1, .6, 1, 6); }
   if (L.news) b.sph(.12, .18, .95, .29, '#ece4d0', .2, 1.1, .8, 6);
   if (L.watch) b.add(new THREE.TorusGeometry(.06, .006, 4, 10, Math.PI), '#d8b040', M(.125, .98, 0, Math.PI / 2, 0, 0));
+  for (let k = 0; k < b.c.length; k += 3) { const l = b.c[k] * .3 + b.c[k + 1] * .59 + b.c[k + 2] * .11; for (let q = 0; q < 3; q++) b.c[k + q] = l + (b.c[k + q] - l) * .72; } // muted, painterly cloth
   const body = shade(b.geo(), .0, 1.3, .74);
   const lg = new GB(); if (L.dress) { lg.cyl(.04, .045, .3, 0, -.4, 0, '#2a2020', 8); } else { caps(lg, .07, .38, 0, -.24, 0, L.trou); lg.cyl(.066, .066, .04, 0, -.47, 0, dk(L.trou, .8), 10); }
   lg.sph(.06, .06, -.53, 0, '#16100c', 1.9, .65, .95, 9);
-  const ar = new GB(); ar.sph(.08, 0, -.01, 0, L.dress ? lt(coat, .06) : coat, 1, 1, 1, 9); caps(ar, .062, .3, 0, -.22, 0, coat, 0, 0, 1, 1);
+  const ar = new GB(); ar.sph(.07, 0, -.01, 0, L.dress ? lt(coat, .06) : coat, 1, 1, 1, 9); caps(ar, .062, .3, 0, -.22, 0, coat, 0, 0, 1, 1);
   if (L.dress) ar.sph(.095, 0, -.03, 0, coat, 1, .9, 1, 9);
   if (L.stripes) for (const y of [-.1, -.22, -.34]) ar.cyl(.066, .066, .03, 0, y, 0, L.stripes, 10);
   ar.cyl(.058, .062, .05, 0, -.41, 0, L.dress ? lt(coat, .5) : '#efe8dc', 10); ar.sph(.052, .01, -.47, 0, (L.dress || L.boss) && hs % 2 ? '#f4f0e8' : sk, .9, 1.15, .75, 8);
   return { body, leg: shade(lg.geo(), -.56, 0, .6), arm: ar.geo() }; }); }
 // character material: soft rim light so figures pop off the cobbles from above
-export const PEDU = { rim: { value: .32 } };
-export const PEDM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .58, metalness: 0, envMapIntensity: .8, side: THREE.DoubleSide });
+export const PEDU = { rim: { value: .14 } };
+export const PEDM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .72, metalness: 0, envMapIntensity: .55, side: THREE.DoubleSide });
 PEDM.onBeforeCompile = sh => { sh.uniforms.uRim = PEDU.rim; sh.fragmentShader = 'uniform float uRim;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
   { float fr = pow(1. - clamp(abs(dot(normal, normalize(vViewPosition))), 0., 1.), 2.6); totalEmissiveRadiance += (diffuseColor.rgb * .9 + vec3(.1, .08, .05)) * fr * uRim; totalEmissiveRadiance += diffuseColor.rgb * .05; }`); };
 const OUTM = new THREE.MeshBasicMaterial({ color: 0x120c08, side: THREE.BackSide });
 OUTM.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * .022;'); };
-export const PEDCFG = { outline: true };
+export const PEDCFG = { outline: false };
 const RINGT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(255,210,90,0)'); gr.addColorStop(.62, 'rgba(255,214,100,.12)'); gr.addColorStop(.8, 'rgba(255,224,130,.75)'); gr.addColorStop(.88, 'rgba(255,200,80,.35)'); gr.addColorStop(1, 'rgba(255,190,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 export const RINGM = new THREE.MeshBasicMaterial({ map: RINGT, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
 export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
   const body = new THREE.Mesh(G.body, PEDM); body.castShadow = true; rig.add(body); if (PEDCFG.outline) { const o = new THREE.Mesh(G.body, OUTM); o.userData.blob = 1; body.add(o); }
   const legs = [-1, 1].map(s => { const m = new THREE.Mesh(G.leg, PEDM); m.position.set(0, .56, s * .1); m.castShadow = true; rig.add(m); return m; });
-  const arms = [-1, 1].map(s => { const m = new THREE.Mesh(G.arm, PEDM); m.position.set(0, 1.18, s * .27); m.castShadow = true; rig.add(m); return m; });
+  const arms = [-1, 1].map(s => { const m = new THREE.Mesh(G.arm, PEDM); m.position.set(0, 1.18, s * .235); m.castShadow = true; rig.add(m); return m; });
   let horse = null; if (mounted) { horse = makeHorse('#2a1a12'); g.add(horse.g); rig.position.set(-.1, 1.05, 0); legs.forEach(l => { l.rotation.z = 1.3; l.rotation.x = l.position.z > 0 ? -.35 : .35; }); }
   if (L.player) { const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), RINGM); ring.rotation.x = -Math.PI / 2; ring.position.y = .05; ring.userData.blob = 1; ring.renderOrder = -1; g.add(ring); g.userData.ring = ring; }
   if (mounted) blob(g, 2.6, 1.1); else blob(g, .9, .8);
-  g.scale.setScalar(1.42); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
+  g.scale.set(1.3, 1.5, 1.3); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
 // state: sp (units/s), dt, punch, aim
 export function animPed(P, sp, dt, punch, dead) {
   if (dead) { if (!P.dead) { P.dead = true; P.rig.rotation.set(0, 0, Math.PI / 2); P.rig.position.y = P.horse ? .2 : .25; P.rig.position.x = P.horse ? 1.2 : -.3; P.legs.forEach(l => l.rotation.set(0, 0, 0)); if (P.horse) killHorse(P.horse); } return; }
