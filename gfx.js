@@ -206,7 +206,8 @@ function fitFootprint(key, l, sp) { const ci = Math.floor(l[1] / T), cj = Math.f
   if (!sp.fl) { /* front on long side */ th += Math.PI / 2; [w, d] = [d, w]; } // local x = front direction
   if (sp.fl && w < d) { th += Math.PI / 2; [w, d] = [d, w]; if (!sp.fl) { } }
   const f = DIRS[FRONT[key]]; if (f && Math.cos(th) * f[0] + Math.sin(th) * f[1] < 0) th += Math.PI;
-  return { x, z, ang: th, w: Math.min(w, 140), d: Math.min(d, 140), tiles }; }
+  const cap = key === 'louvre' || key === 'industrie' ? [140, 140] : (LCAP[l[3]] || [80, 60]); return { x, z, ang: th, w: Math.min(w, cap[0]), d: Math.min(d, cap[1]), tiles }; }
+const LCAP = { cathedral: [54, 24], church: [40, 20], chapel: [16, 8], palace: [56, 44], temple: [36, 26], theatre: [32, 26], concert: [18, 14], opera: [70, 50], dome: [44, 44], station: [60, 48], store: [48, 40], scaffold: [48, 40], rotunda: [24, 24], hall: [70, 40] };
 (function placeLandmarks() { const order = Object.keys(LM).sort((p, q) => (LS[LM[p][3]]?.R || 0) - (LS[LM[q][3]]?.R || 0));
   for (const key of order) { const l = LM[key], type = l[3], sp = LS[type]; if (!sp) continue; let fp;
     if (sp.sign) { fp = { x: l[1], z: l[2], ang: 0, w: 2, d: 2, model: 'sign' }; let best = null, bd = 1e9; const ci = Math.floor(l[1] / T), cj = Math.floor(l[2] / T); for (let dj = -8; dj <= 8; dj++) for (let di = -8; di <= 8; di++) if (kij(ci + di, cj + dj) === K.SIDE) { const dd = di * di + dj * dj; if (dd < bd) { bd = dd; best = [ci + di, cj + dj]; } } if (!best) continue;
@@ -228,6 +229,9 @@ function buildLandmark(L) { const b = new MB(); const f = BUILD[L.model]; if (!f
 const PROPMAT = stdM({ vertexColors: true, roughness: .8 });
 const LANTM = stdM({ color: 0x3a3020, emissive: 0xffc070, emissiveIntensity: 0, roughness: .3 }), GLOBEM = stdM({ color: 0xd8dce0, emissive: 0xdde8ff, emissiveIntensity: 0, roughness: .2 });
 const CANOPYM = stdM({ color: 0xffffff, roughness: .9, vertexColors: true });
+export const CUTU = { uRes: { value: new THREE.Vector2(1280, 720) } };
+CANOPYM.onBeforeCompile = sh => { sh.uniforms.uRes = CUTU.uRes; sh.fragmentShader = 'uniform vec2 uRes;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  { vec2 q = (gl_FragCoord.xy - uRes * .5) / uRes.y; float r = length(q * vec2(1., 1.25)); float a = smoothstep(.2, .36, r); float dth = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453); if (dth > a) discard; }`); };
 function gbGeo(f) { const b = new GB(); f(b); return b.geo(); }
 const GRN = '#1f3a2c', IRON = '#26302c';
 const PG = {
@@ -260,8 +264,8 @@ const isBldT = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && (skipT[ti(i, j
 function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.width = c.height = CPX; const g = c.getContext('2d'); const i0 = cx * CH, j0 = cz * CH; const P = {}; for (const n of CLSN) P[n] = pat(g, n);
   const fill = (cl, i, j, tri) => { const x = (i - i0) * PXT, y = (j - j0) * PXT; g.beginPath(); if (!tri) g.rect(x, y, PXT, PXT); else { const C4 = [[x + PXT, y], [x + PXT, y + PXT], [x, y + PXT], [x, y]], k = tri[0]; g.moveTo(...C4[(k + 3) % 4]); g.lineTo(...C4[k]); g.lineTo(...C4[(k + 1) % 4]); g.closePath(); }
     if (cl === 5) { g.save(); g.clip(); g.clearRect(x, y, PXT, PXT); g.restore(); } else { g.fillStyle = P[CLSN[cl]]; g.fill(); } };
-  const cls = (i, j) => gclass(i, j); const cut = []; 
-  for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { const c0 = cls(i, j); let ct = c0 === 5 ? null : cutOf(cls, i, j, c0); if (ct && (c0 === 11 || ct[1] === 11)) ct = null; fill(ct ? ct[1] : c0, i, j);
+  const cls = (i, j) => gclass(i, j); const cut = []; const rawCut = (i, j) => { const c = cls(i, j); if (c === 5) return -1; const t = cutOf(cls, i, j, c); return t ? t[0] : -1; }; const DN = [[[-1, -1], [1, 1]], [[1, -1], [-1, 1]], [[-1, -1], [1, 1]], [[1, -1], [-1, 1]]]; const diagRun = (i, j, k) => DN[k].some(([a, b]) => rawCut(i + a, j + b) === k);
+  for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { const c0 = cls(i, j); let ct = c0 === 5 ? null : cutOf(cls, i, j, c0); if (ct && (c0 === 11 || ct[1] === 11)) ct = null; if (ct && !diagRun(i, j, ct[0])) ct = null; fill(ct ? ct[1] : c0, i, j);
     if (ct) { fill(c0, i, j, ct); cut.push([i, j, ct, c0]); }
     if (c0 <= 4 && c0 !== 3) { g.fillStyle = `rgba(0,0,0,${hash(i, j, 21) * .07})`; g.fillRect((i - i0) * PXT, (j - j0) * PXT, PXT, PXT); } }
   // kerbs & gutters
@@ -438,7 +442,7 @@ function updateSky(dt, t) { const { day, rain } = ENV, night = 1 - day, dl = day
   WN.offset.x = t * .012; WN.offset.y = t * .02; }
 // ================= FRAME =================
 let millT = 0;
-export function update(dt, t, cx, cz) { streamChunks(CHUNKS.size < 4 ? 400 : 6, false); updateSky(dt, t);
+export function update(dt, t, cx, cz) { { const c = renderer.domElement; CUTU.uRes.value.set(c.width, c.height); } streamChunks(CHUNKS.size < 4 ? 400 : 6, false); updateSky(dt, t);
   // shadows follow view
   if (sun.castShadow) { const sc = sun.shadow.camera, ext = Math.max(40, camera.position.y * .95); if (sc.right !== ext) { sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 260; sc.updateProjectionMatrix(); } const tx = Math.round(cx / 2) * 2, tz = Math.round(cz / 2) * 2; sun.target.position.set(tx, 0, tz); sun.position.set(tx + ENV.sunDir.x * 120, ENV.sunDir.y * 120, tz + ENV.sunDir.z * 120); }
   else if (ENV.sunDir) sun.position.copy(ENV.sunDir).multiplyScalar(100);

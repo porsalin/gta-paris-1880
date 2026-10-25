@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { FACTIONS, MISSIONS } from './missions.js';
+import { FACTIONS, MISSIONS, CHAPTERS, DRAMATIS } from './missions.js';
 import { K, S, SURF, NX, NZ, T, WX, WZ, kind, surf, dist, DN, LM, LABELS, FLAGGED, tileAt, kAt, pedBlock, vehBlock, snapWalk, POI, POIV, GN, GE, ADJ, nodesIn, nearestNode, edgePts, edgeOther, TRAM, TRAIN, pathAt, pathNear, propsNear, addDynProp, setPropM, dynProps } from './world.js';
 import * as G from './gfx.js';
 import { LOOKS, gangLook, makePed, animPed, killHorse, makeVeh, animVeh, charMat, LAMPMAT } from './models.js';
@@ -75,7 +75,7 @@ const WI = Object.fromEntries(WEAP.map((w, i) => [w.id, i]));
 function giveWeapon(id, n) { player.ammo[id] = Math.min(999999, (player.ammo[id] || 0) + (n || WEAP[WI[id]].pick)); }
 function haveW(i) { return (player.ammo[WEAP[i].id] || 0) > 0; }
 function cycleW(d) { for (let k = 1; k <= WEAP.length; k++) { const i = (player.w + d * k + WEAP.length * 3) % WEAP.length; if (haveW(i)) { player.w = i; return; } } }
-let money = 0, mult = 1, respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }, done = {}, heat = 0, wanted = 0, sightT = 0;
+let money = 0, mult = 1, respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }, done = {}, gallery = [], heat = 0, wanted = 0, sightT = 0;
 let gameTime = 20.5, rain = 0, rainTarget = 0, weatherT = 60;
 const pagerQ = []; let pagerT = 0, pagerMsg = '', bigMsg = '', bigT = 0, districtMsg = '', districtT = 0, lastDistrict = -1;
 function pager(msg, t = 5) { pagerQ.push([msg, t]); }
@@ -107,7 +107,7 @@ function tracer(x1, z1, x2, z2) { FX.tracer(x1, z1, x2, z2); }
 function spr(mat, x, z, s, t, y = 1.5, grow = 0) { const m = new THREE.Mesh(PG, mat); m.position.set(x, y, z); m.scale.set(s, 1, s); scene.add(m); fx.push({ m, t, grow, kill: true }); return m; }
 const PROJM = { brick: new THREE.Mesh(new THREE.BoxGeometry(.35, .25, .35), new THREE.MeshLambertMaterial({ color: 0x8a8478 })), dynamite: new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .5, 6).rotateZ(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xc02020, emissive: 0x401000 })), molotov: new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, .45, 6).rotateZ(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x60c040, emissive: 0x203010 })) };
 function projMesh(t) { const m = PROJM[t].clone(); scene.add(m); fx.push({ m, t: 99, kill: true }); return m; }
-function damagePed(p, dmg, src) { if (!p.alive) return; p.hp -= dmg; p.flee = 6; SFX.hit(); if (p.hp <= 0) killPed(p, src); else if (p.type === 'civ') p.hostile = false; }
+function damagePed(p, dmg, src) { if (!p.alive || p.god) return; p.hp -= dmg; p.flee = 6; SFX.hit(); if (p.hp <= 0) killPed(p, src); else if (p.type === 'civ') p.hostile = false; }
 function killPed(p, src) { p.alive = false; FX.blood(p.x, p.z, 14); p.deadT = 20;
   if (src === 'player') { addMoney(p.type === 'cop' || p.type === 'soldier' || p.type === 'gend' ? 100 : 20); crime(p.type === 'cop' || p.type === 'gend' || p.type === 'soldier' ? 6 : 2); if (rnd() < .25) dropPickup(p.x, p.z); } }
 function damageVeh(v, dmg, horse, src) { if (!v.alive || v.d.rail) return; if (horse && v.d.horses) { v.horseHp -= dmg; if (v.horseHp <= 0 && !v.horseDead) { v.horseDead = true; { const sp = Math.hypot(v.vx, v.vz); v.av = (rnd() < .5 ? -1 : 1) * (5 + sp * .5); v.vx *= 1.1; v.vz *= 1.1; v.hp -= 10; if (v.driver && v.driver.inVeh !== undefined) {} } v.V.horses.forEach(killHorse); FX.blood(v.x + Math.cos(v.a) * (v.d.len / 2 + 1.2), v.z + Math.sin(v.a) * (v.d.len / 2 + 1.2), 16); pager(v === player.veh ? 'Your horses are down!' : 'Horses down!', 2); } return; }
@@ -186,7 +186,7 @@ function enterExit() { if (player.veh) { const v = player.veh; const s = Math.hy
     player.x = ex; player.z = ez; player.mesh.visible = true; return; }
   let best = null, bd = 30; for (const v of vehs) { if (!v.alive || v.wreck) continue; const dd = d2(v.x, v.z, player.x, player.z); const rr = (v.d.len / 2 + 2.5) ** 2 + (v.type === 'train' ? 60 : 0); if (dd < rr && dd < bd) { bd = dd; best = v; } }
   if (!best) return; const v = best;
-  if (v.driver) { const dr = v.driver; dr.alive = true; dr.x = v.x - Math.sin(v.a) * 2; dr.z = v.z + Math.cos(v.a) * 2; dr.inVeh = null; dr.mesh.visible = true; dr.flee = 8; if (!peds.includes(dr)) peds.push(dr); v.driver = null; SFX.hit();
+  if (v.driver && typeof v.driver === 'string') { if (v.driver !== 'player') spawnPed(v.driver, v.x - Math.sin(v.a) * 2, v.z + Math.cos(v.a) * 2, {}); v.driver = null; } if (v.driver) { const dr = v.driver; dr.alive = true; dr.x = v.x - Math.sin(v.a) * 2; dr.z = v.z + Math.cos(v.a) * 2; dr.inVeh = null; dr.mesh.visible = true; dr.flee = 8; if (!peds.includes(dr)) peds.push(dr); v.driver = null; SFX.hit();
     if (v.police) { crime(4); } else crime(1); if (dr.type === 'cop') dr.hostile = true; pager(v.police ? 'You pulled a sergent off his own carriage!' : 'Carriage jacked!', 1.5); }
   if (v.traffic) v.traffic = false; v.parked = false; player.veh = v; v.driver = 'player'; player.mesh.visible = false; if (v.hp < 0) v.hp = 1; }
 function updatePlayer(I, dt) { player.cd -= dt; player.punch -= dt;
@@ -292,12 +292,14 @@ function respawn(why) { const at = why === 'BUSTED' ? POI.prefecture : POI.hotel
 let M = null; // active mission
 const byFac = {}; MISSIONS.forEach(m => (byFac[m.fac] = byFac[m.fac] || []).push(m));
 const facName = f => f === 'side' ? 'Kiosque (side jobs)' : FACTIONS[f].name;
-function nextFor(f) { return (byFac[f] || []).find(m => !done[m.id]) || null; }
+const STORYM = MISSIONS.filter(m => m.fac !== 'side'); function nextStory() { return STORYM.find(m => !done[m.id]) || null; }
+function nextFor(f) { if (f === 'side') return (byFac.side || []).find(m => !done[m.id]) || null; const m = nextStory(); return m && m.fac === f ? m : null; }
+function showCard(c) { const el = $('card'); if (!el) return; el.innerHTML = `<div class="ca">${c.act}</div><div class="cs">${c.season}</div><div class="ct">${c.title}</div><div class="cx">${c.text}</div>`; el.classList.remove('hidden'); el.style.opacity = 1; clearTimeout(showCard.t); showCard.t = setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.classList.add('hidden'), 900); }, 4200); }
 function nearPOI(name, veh) { const p = (veh ? POIV : POI)[name]; return p; }
 function ringPos(x, z, r) { for (let k = 0; k < 20; k++) { const a = rnd() * 6.28, rr = r * (.4 + rnd() * .6), xx = x + Math.cos(a) * rr, zz = z + Math.sin(a) * rr; if (!pedBlock(xx, zz) && kAt(xx, zz) !== K.STAIR) return [xx, zz]; } return [x, z]; }
-function startMission(def) { if (M) return; M = { def, i: -1, ents: [], vehs: [], props: [], pks: [], t: 0 }; big(def.title, 2.5); pager(`${facName(def.fac)}: "${def.title}"${def.en ? ' (' + def.en + ')' : ''} — ${def.brief}`, 7); SFX.pager(); nextStep(); }
+function startMission(def) { if (M) return; M = { def, i: -1, ents: [], vehs: [], props: [], pks: [], t: 0 }; if (def.card && CHAPTERS[def.chapter]) showCard(CHAPTERS[def.chapter]); big(def.title, 2.5); pager(`${facName(def.fac)}: "${def.title}"${def.en ? ' (' + def.en + ')' : ''} — ${def.brief}`, 7); SFX.pager(); nextStep(); }
 function cleanupStep() { if (!M) return; M.ents.forEach(p => { if (p.alive) { p.hostile = false; p.flee = 5; p.mission = false; } }); M.ents = []; M.props.forEach(p => { if (p.alive) { p.alive = false; setPropM(p); } }); M.props = []; M.pks.forEach(p => { p.alive = false; p.m.visible = false; }); M.pks = []; }
-function nextStep() { cleanupStep(); M.i++; const s = M.def.steps[M.i]; if (!s) return completeMission(); M.s = s; M.t = 0; M.timer = s.time || 0; M.cp = 0; M.hold = 0; M.wave = 0; pager(s.text, 4);
+function nextStep() { cleanupStep(); M.i++; const s = M.def.steps[M.i]; if (!s) return completeMission(); M.s = s; M.t = 0; M.timer = s.time || 0; M.cp = 0; M.hold = 0; M.wave = 0; pager(s.text, 4); M.w0 = wanted; if (s.fragile) { const fv = M.veh && M.veh.alive ? M.veh : player.veh; M.fhp = fv ? fv.hp : 0; } if (s.stealth) pager((s.swap ? '[FORGERY SWAP] ' : '[STEALTH] ') + s.text + ' (An alarm fails the job.)', 4); if (s.fragile) pager('[FRAGILE CARGO] ' + s.text, 4);
   const [px, pz] = ppos(); const at = s.at ? POI[s.at] : null;
   switch (s.t) {
     case 'steal': { const have = player.veh && player.veh.type === s.vtype; if (have) break; if (s.vtype === 'tram') { M.target = vehs.find(v => v.type === 'tram' && v.alive) || (tram = spawnRail('tram', 40)); break; }
@@ -308,7 +310,7 @@ function nextStep() { cleanupStep(); M.i++; const s = M.def.steps[M.i]; if (!s) 
         else M.props.push(addDynProp('crate', x, z, { hp: 60 })); } giveWeapon('molotov', 3); break; }
     case 'smash': { const n = s.n || 5; for (let k = 0; k < n; k++) { const [x, z] = ringPos(at[0], at[1], 5); M.props.push(addDynProp('table', x, z)); } break; }
     case 'collect': { const n = s.n || 4; for (let k = 0; k < n; k++) { const [x, z] = ringPos(at[0], at[1], 22); M.pks.push(addPickup('mission', x, z)); } break; }
-    case 'escort': { const [x, z] = [POIV[s.at][0] + 1.5, POIV[s.at][1] + 1.5]; M.vip = spawnPed('vip', x, z, { mission: true, stand: true }); M.ents.push(M.vip); M.board = false; break; }
+    case 'escort': { const [x, z] = [POIV[s.at][0] + 1.5, POIV[s.at][1] + 1.5]; M.vip = spawnPed('vip', x, z, { mission: true, stand: true }); M.vip.god = true; M.ents.push(M.vip); M.board = false; break; }
     case 'survive': { if (s.lvl) heat = Math.max(heat, LV[s.lvl] + .5); break; }
     case 'race': { M.cps = s.cps.map(c => POIV[c]); break; }
   }
@@ -326,29 +328,29 @@ function stepTarget() { if (!M || !M.s) return null; const s = M.s; switch (s.t)
 function updateMission(dt) { if (!M || !M.s || !player.alive) return; const s = M.s; M.t += dt; const [px, pz] = ppos(); const near = (p, r) => p && d2(p[0], p[1], px, pz) < r * r;
   const timed = s.time && !['survive', 'hold'].includes(s.t); if (timed) { M.timer -= dt; if (M.timer <= 0) return failMission('Out of time!'); }
   switch (s.t) {
-    case 'goto': if ((near(POI[s.at], 6) || near(POIV[s.at], 6)) && (!s.foot || !player.veh)) nextStep(); break;
+    case 'goto': if ((near(POI[s.at], 6) || near(POIV[s.at], 6)) && (!s.foot || !player.veh)) { if (s.fence) { const g = addMoney(s.fence); pager(`Fenced: +${g.toLocaleString()} F`, 2); } nextStep(); } break;
     case 'steal': if (player.veh && player.veh.type === s.vtype) { M.veh = player.veh; nextStep(); } else if (M.target && !M.target.alive) return failMission('The carriage was destroyed!'); break;
-    case 'deliver': if (player.veh && near(M.dtgt || POIV[s.at], 6) && Math.hypot(player.veh.vx, player.veh.vz) < 9) { if (M.veh && player.veh !== M.veh && M.veh.alive) { pager('Wrong carriage! Bring the one you took.', 1); break; } nextStep(); } else if (M.veh && (!M.veh.alive || M.veh.wreck)) return failMission('The cargo is lost!'); break;
+    case 'deliver': if (s.fragile) { const fv = M.veh && M.veh.alive ? M.veh : player.veh; if (fv && M.fhp && fv.hp < M.fhp - 30) return failMission('The cargo is damaged! Fragile means fragile.'); } if (player.veh && near(M.dtgt || POIV[s.at], 6) && Math.hypot(player.veh.vx, player.veh.vz) < 9) { if (M.veh && player.veh !== M.veh && M.veh.alive) { pager('Wrong carriage! Bring the one you took.', 1); break; } nextStep(); } else if (M.veh && (!M.veh.alive || M.veh.wreck)) return failMission('The cargo is lost!'); break;
     case 'kill': if (M.ents.every(p => !p.alive)) nextStep(); break;
-    case 'destroy': if (M.vehs.every(v => !v.alive || v.wreck) && M.props.every(p => !p.alive)) nextStep(); break;
+    case 'destroy': if (M.vehs.every(v => !v.alive || v.wreck || v.burn) && M.props.every(p => !p.alive)) nextStep(); break;
     case 'smash': if (M.props.every(p => !p.alive)) { addMoney(500); nextStep(); } break;
-    case 'collect': if (M.pks.every(p => !p.alive)) nextStep(); break;
+    case 'collect': if (s.stealth && wanted > M.w0) return failMission('Alarm bells! You were seen. The job is blown.'); if (M.pks.every(p => !p.alive)) nextStep(); break;
     case 'escort': { const v = M.vip; if (!v.alive) return failMission('Your passenger is dead!');
       if (!M.board) { if (player.veh && d2(v.x, v.z, px, pz) < 64 && Math.hypot(player.veh.vx, player.veh.vz) < 4) { M.board = true; M.bveh = player.veh; v.mesh.visible = false; v.inVeh = player.veh; v.stand = true; pager('Passenger aboard. Drive!', 2); } else if (player.veh && d2(v.x, v.z, px, pz) < 400) v.follow = [px, pz]; }
-      else { v.x = M.bveh.x; v.z = M.bveh.z; if (!M.bveh.alive || M.bveh.burn) { M.vip.hp = 0; M.vip.alive = false; return failMission('Your passenger is dead!'); }
+      else { v.x = M.bveh.x; v.z = M.bveh.z; if (!M.bveh.alive || M.bveh.burn) { if (s.real) { v.mesh.visible = true; v.inVeh = null; v.stand = false; v.flee = 6; return failMission('Your passenger escaped the burning carriage, shaken and unwilling to ride with you again!'); } M.vip.hp = 0; M.vip.alive = false; return failMission('Your passenger is dead!'); }
         if (player.veh === M.bveh && near(POIV[s.to], 6) && Math.hypot(player.veh.vx, player.veh.vz) < 9) { v.mesh.visible = true; v.x += 3; v.inVeh = null; v.stand = false; v.alive = true; addMoney(300); M.ents = M.ents.filter(e => e !== v); v.flee = 3; nextStep(); } } break; }
     case 'survive': { if (s.lose) { if (wanted === 0) nextStep(); } else { M.timer -= dt; if (wanted < s.lvl) heat = Math.max(heat, LV[s.lvl] + .5); if (M.timer <= 0) { heat = s.next0 ? 0 : heat; nextStep(); } } break; }
     case 'race': if (!player.veh) { if (M.t > 1) pager('Get back in a carriage!', .5); } else if (near(M.cps[M.cp], 7)) { M.cp++; SFX.pager(); if (M.cp >= M.cps.length) nextStep(); } break;
     case 'hold': { const p = POI[s.at]; if (near(p, 14)) { M.hold += dt; M.wave -= dt; if (M.wave < 0) { M.wave = 6; for (let k = 0; k < 2; k++) { const [x, z] = ringPos(p[0], p[1], 26); M.ents.push(spawnPed('gang', x, z, { mission: true, hostile: true, armed: s.armed && k === 0, col: FCOL.velvet })); } } if (M.hold >= s.time) nextStep(); } else if (M.t > 1) pager('Get back to the position!', .5); break; }
   } }
-function completeMission() { const d = M.def; const first = !done[d.id]; done[d.id] = true; const got = addMoney(d.reward); if (d.fac !== 'side') { respect[d.fac] = Math.min(100, respect[d.fac] + d.respect); const r = FACTIONS[d.fac].rival; if (respect[r] !== undefined) respect[r] -= Math.round(d.respect / 2); }
+function completeMission() { const d = M.def; const first = !done[d.id]; done[d.id] = true; if (d.loot && !gallery.includes(d.loot)) { gallery.push(d.loot); setTimeout(() => pager('Added to the safehouse gallery: ' + d.loot, 4), 4200); } const got = addMoney(d.reward); if (d.fac !== 'side') { respect[d.fac] = Math.min(100, respect[d.fac] + d.respect); const r = FACTIONS[d.fac].rival; if (respect[r] !== undefined) respect[r] -= Math.round(d.respect / 2); }
   if (first) mult = Math.min(8, mult + (d.n % 5 === 0 || d.fac === 'side' && d.n % 7 === 0 ? 1 : 0)); big('MISSION COMPLETE', 3); pager(`+${got.toLocaleString()} F  ·  Respect ${d.fac !== 'side' ? facName(d.fac) + ' ' + respect[d.fac] : '+'}  ·  ×${mult}`, 4); SFX.bell();
   M.s = null; cleanupStep(); stats.completed++; M = null; save(); }
 let lastFail = ''; function failMission(why) { if (!M) return; lastFail = M.def.id + ':' + (M.s && M.s.t) + ':' + why; big('MISSION FAILED', 3); pager(why, 3); cleanupStep(); M.vehs.forEach(v => v.mission = false); M = null; stats.failed++; }
 const stats = { completed: 0, failed: 0 };
 // ================= SAVE =================
-function save() { try { localStorage.setItem('gtaParis1880', JSON.stringify({ money, mult, respect, done, ammo: player.ammo, gameTime })); } catch (e) { } }
-function load() { try { const s = JSON.parse(localStorage.getItem('gtaParis1880')); if (!s) return false; money = s.money; mult = s.mult; respect = s.respect; done = s.done; player.ammo = s.ammo; player.ammo.fists = 1e9; gameTime = s.gameTime; return true; } catch (e) { return false; } }
+function save() { try { localStorage.setItem('gtaParis1880', JSON.stringify({ money, mult, respect, done, gallery, ammo: player.ammo, gameTime })); } catch (e) { } }
+function load() { try { const s = JSON.parse(localStorage.getItem('gtaParis1880')); if (!s) return false; money = s.money; mult = s.mult; respect = s.respect; done = s.done; gallery = s.gallery || []; player.ammo = s.ammo; player.ammo.fists = 1e9; gameTime = s.gameTime; return true; } catch (e) { return false; } }
 // ================= WORLD SIM =================
 let tram = spawnRail('tram', TRAM.len * .3); tram.sp = 8;
 let train = spawnRail('train', 0); train.sp = 0; train.stopT = 4;
@@ -453,15 +455,18 @@ addEventListener('keydown', e => { if (e.code === 'KeyM' && state === 'play') ma
 // ================= MENUS =================
 let state = 'title', paused = false, nearPhone = null, phoneCD = 0, holyCD = 0, holeCD = 0;
 const $ = id => document.getElementById(id);
-function startGame(cont) { audio(); if (!cont) { localStorage.removeItem('gtaParis1880'); money = 0; mult = 1; done = {}; respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }; player.ammo = { fists: 1e9 }; giveWeapon('brick', 4); } else load();
+function startGame(cont) { audio(); if (!cont) { localStorage.removeItem('gtaParis1880'); money = 0; mult = 1; done = {}; gallery = []; respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }; player.ammo = { fists: 1e9 }; giveWeapon('brick', 4); } else load();
   $('title').classList.add('hidden'); state = 'play'; pager('Paris, 1880. Fresh off the night train with nothing but a watchmaker\'s hands. Find a magneto phone (glowing rings) — Maza\'s Apaches at Les Halles are hiring.', 7); }
 $('bPlay').onclick = () => startGame(false); $('bCont').onclick = () => startGame(true); if (!localStorage.getItem('gtaParis1880')) $('bCont').style.display = 'none';
 function setPause(on) { paused = on; $('pause').classList.toggle('hidden', !on); if (on) buildMenu(); }
+$('bGal').onclick = () => { $('mlist').innerHTML = '<h4>Safehouse Gallery — rescued paintings, scores, instruments &amp; evidence</h4>' + (gallery.length ? gallery.map(g => `<div>🖼 ${g}</div>`).join('') : '<div>Empty, for now. Heists marked ◆ fill these walls.</div>'); };
+$('bCodex').onclick = () => { $('mlist').innerHTML = '<h4>Dramatis Personae</h4>' + DRAMATIS.map(d => `<div style="text-align:left;margin:4px 0"><b>${d.name}</b>${d.real ? ' <small>[historical]</small>' : ''}: ${d.role}</div>`).join('') + '<p><small>Historical figures appear as themselves, respectfully; all villains and crimes are fictional.</small></p>'; };
 $('bRes').onclick = () => setPause(false); $('bSave').onclick = () => { save(); $('bSave').textContent = 'SAVED ✓'; setTimeout(() => $('bSave').textContent = 'SAVE', 1200); };
 $('bGfx').onclick = () => { $('pause').classList.add('hidden'); G.openSettings(() => $('pause').classList.remove('hidden')); };
 $('bSnd').onclick = () => { snd = !snd; $('bSnd').textContent = 'SOUND: ' + (snd ? 'ON' : 'OFF'); }; $('bAbort').onclick = () => { if (M) failMission('Mission abandoned.'); setPause(false); };
 function buildMenu() { const nd = Object.keys(done).length; $('pstats').innerHTML = `₣ ${money.toLocaleString('fr-FR')} · ×${mult} · Missions ${nd}/${MISSIONS.length} · Respect: ` + Object.entries(respect).map(([k, v]) => `${k} ${v}`).join(' · ');
-  let h = ''; for (const f of ['apache', 'avant', 'velvet', 'crimson', 'side']) { h += `<h4>${facName(f)}</h4>`; for (const m of byFac[f]) { const avail = done[m.id] || m === nextFor(f); h += `<div class="${done[m.id] ? 'done' : ''}">${avail ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : '🔒 '}${m.n}. ${m.title}${done[m.id] ? ' ✓' : ''}</div>`; } }
+  let h = ''; const nx = nextStory(); CHAPTERS.forEach((c, ci) => { h += `<h4>${c.act} · ${c.season} · ${c.title}</h4>`; for (const m of STORYM.filter(m => m.chapter === ci)) { const avail = done[m.id] || m === nx; h += `<div class="${done[m.id] ? 'done' : ''}">${avail ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : '🔒 '}${m.n}. ${m.heist ? '◆ ' : ''}${m.title} <small>(${facName(m.fac)})</small>${done[m.id] ? ' ✓' : ''}</div>`; } });
+  h += `<h4>${facName('side')}</h4>`; for (const m of byFac.side) { const avail = done[m.id] || m === nextFor('side'); h += `<div class="${done[m.id] ? 'done' : ''}">${avail ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : '🔒 '}${m.n}. ${m.title}${done[m.id] ? ' ✓' : ''}</div>`; }
   $('mlist').innerHTML = h; $('mlist').querySelectorAll('button').forEach(b => b.onclick = () => { const m = MISSIONS.find(x => x.id === b.dataset.m); if (M) failMission('Abandoned.'); setPause(false); startMission(m); }); }
 // ================= MAIN LOOP =================
 let last = performance.now(), simT = 0, dbgPause = false;
@@ -469,7 +474,7 @@ function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn
   for (const p of [...peds]) pedAI(p, dt); updateVehs(dt); updateProjs(dt); updateWanted(dt); updateMission(dt); populate(dt); updateSky(dt); updateFx(dt);
   // phones
   phoneCD -= dt; holyCD -= dt; holeCD -= dt; nearPhone = null; if (!player.veh) for (const p of PHONES) if (d2(p.x, p.z, player.x, player.z) < 9) nearPhone = p;
-  if (nearPhone && !M && phoneCD < 0 && player.alive) { phoneCD = 3; const m = nextFor(nearPhone.fac); SFX.bell(); if (m) startMission(m); else pager('Nothing more for you today. (Replay jobs from the pause menu.)', 3); }
+  if (nearPhone && !M && phoneCD < 0 && player.alive) { phoneCD = 3; const m = nextFor(nearPhone.fac); SFX.bell(); if (m) startMission(m); else { const ns = nearPhone.fac !== 'side' && nextStory(); pager(ns ? `Not now. ${FACTIONS[ns.fac].who} is waiting for you (${FACTIONS[ns.fac].name}).` : 'Nothing more for you today. (Replay jobs from the pause menu.)', 3); } }
   // Notre-Dame confessional (west door) drops one level
   const nd = POI.notredame; if (!player.veh && wanted > 0 && holyCD < 0 && d2(nd[0], nd[1], player.x, player.z) < 16) { holyCD = 20; heat = wanted > 1 ? LV[wanted - 1] + .1 : 0; addMoney(-300, true); pager('Confessional, Notre-Dame: "Mea culpa." -1 head, 300 F in the alms box.', 3); SFX.bell(); }
   // catacomb manholes: travel underground, lose up to 2 heads
@@ -483,7 +488,7 @@ function frame(now) { requestAnimationFrame(frame); const dt = Math.min(.05, (no
 addEventListener('resize', G.resize); G.resize(); camPos.set(player.x, 0, player.z);
 requestAnimationFrame(frame);
 // ================= DEBUG / TEST API =================
-window.GAME = { THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV, get M() { return M; }, get wanted() { return wanted; }, get money() { return money; }, get heat() { return heat; }, set heat(v) { heat = v; }, get done() { return done; }, stats, get lastFail() { return lastFail; }, WEAP,
+window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV, get M() { return M; }, get wanted() { return wanted; }, get money() { return money; }, get heat() { return heat; }, set heat(v) { heat = v; }, get done() { return done; }, stats, get lastFail() { return lastFail; }, WEAP,
   start: startGame, startMission: (id) => startMission(MISSIONS.find(m => m.id === id)), fail: failMission, step: (n = 60, dt = 1 / 30, I) => { for (let k = 0; k < n; k++) step(dt, I || readInput()); }, pause: (b) => dbgPause = b,
   enter: enterExit, fire: (a) => { if (a !== undefined) player.a = a; player.cd = 0; return fireWeapon(player.veh ? player.veh.x : player.x, player.veh ? player.veh.z : player.z, player.a); },
   give: giveWeapon, sel: (id) => player.w = WI[id], target: stepTarget, setTime: (h) => gameTime = h, setRain: (r) => { rain = rainTarget = r; },
@@ -502,7 +507,7 @@ GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 
     case 'kill': for (let r = 0; r < 40 && M && M.s === s; r++) { const p = M.ents.find(e => e.alive); if (!p) { tick(1); break; } killAt(p.x, p.z); } break;
     case 'destroy': case 'smash': for (let r = 0; r < 60 && M && M.s === s; r++) { const v = M.vehs.find(x => x.alive && !x.wreck && !x.burn); const p = M.props.find(x => x.alive); if (v) { killAt(v.x, v.z + v.d.wid / 2 + .2); damageVeh(v, 0); } else if (p) killAt(p.x, p.z); else tick(10); } break;
     case 'collect': for (const pk of [...M.pks]) if (pk.alive) { if (player.veh) enterExitForce(); player.x = pk.x; player.z = pk.z; tick(1); } break;
-    case 'escort': { if (player.veh && player.veh.d.rail) enterExitForce(); ensureVeh(); const v = M.vip; const q0 = snapWalk(Math.floor(v.x / T), Math.floor(v.z / T), true); gotoVeh(q0[0], q0[1]); tick(5); if (M && M.board) { const q = POIV[s.to]; gotoVeh(q[0], q[1]); tick(3); } break; }
+    case 'escort': { if (player.veh && !M.board) enterExitForce(); if (!M.board && player.veh) { player.veh.driver = null; player.veh = null; player.mesh.visible = true; } ensureVeh(); const v = M.vip; const q0 = snapWalk(Math.floor(v.x / T), Math.floor(v.z / T), true); gotoVeh(q0[0], q0[1]); tick(5); if (M && M.board) { const q = POIV[s.to]; gotoVeh(q[0], q[1]); tick(3); } break; }
     case 'survive': if (s.lose) { heat = 0; tick(3); } else { tick(Math.ceil((M.timer + .5) * 30)); } break;
     case 'hold': { const p = POI[s.at]; if (player.veh) enterExitForce(); player.x = p[0]; player.z = p[1]; tick(Math.ceil((s.time + 1) * 30)); break; }
   } player.god = g0; return s.t; };

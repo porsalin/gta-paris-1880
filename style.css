@@ -10,3 +10,8 @@ button{font:bold 18px "Courier New",monospace;background:#2a2016;color:#f4c430;b
 button:active{background:#f4c430;color:#000}.help{font-size:12px;color:#a99;margin-top:14px;line-height:1.6}
 #mlist{text-align:left;font-size:12px;columns:2;column-gap:20px;margin-top:10px}#mlist div{break-inside:avoid;padding:2px 0;border-bottom:1px solid #332}
 #mlist .done{color:#7c7}#mlist button{font-size:11px;padding:1px 6px;margin:0 6px 0 0;border-width:1px}#mlist h4{margin:6px 0 2px;color:#f4c430}
+
+#card{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(rgba(20,14,8,.92),rgba(0,0,0,.97));color:#e8d8b0;font-family:Georgia,serif;transition:opacity .9s;pointer-events:none;text-align:center}
+#card .ca{font-size:22px;letter-spacing:.5em;color:#b89a5a}#card .cs{font-size:15px;letter-spacing:.3em;margin:6px 0 18px;color:#a08c6a}
+#card .ct{font-size:64px;font-style:italic;border-top:1px solid #6a5634;border-bottom:1px solid #6a5634;padding:8px 40px}#card .cx{max-width:620px;margin-top:20px;font-size:17px;line-height:1.5;color:#cbbf9f}
+#mlist{max-height:52vh;overflow-y:auto;text-align:left;padding-right:8px}#mlist h4{color:#d8b870;margin:10px 0 4px}
