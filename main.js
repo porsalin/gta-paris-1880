@@ -384,7 +384,7 @@ function updateProjs(dt) { for (let k = projs.length - 1; k >= 0; k--) { const p
 const fires = [];
 function updateFx(dt) { for (let k = fx.length - 1; k >= 0; k--) { const f = fx[k]; f.t -= dt; if (f.grow) { const s = f.m.scale.x + f.grow * dt; f.m.scale.set(s, 1, s); } if (f.t <= 0) { scene.remove(f.m);  fx.splice(k, 1); } } }
 function updateVehs(dt) { for (const v of [...vehs]) { if (!v.alive) continue; v.t += dt;
-    if (v.burn) { v.burn -= dt; FX.fire(v.x + (rnd() - .5) * 2, v.z + (rnd() - .5) * 2, 1.2); if (v.burn <= 0) { v.burn = 0; v.wreck = true; v.hp = 0; v.mesh.traverse(o => { if (o.isMesh && o.material !== LAMPMAT) o.material = charMat; if (o.material === LAMPMAT) o.visible = false; }); v.hs.forEach(h => h.visible = false); explode(v.x, v.z, 5, 100); if (v.police) crime(3); if (player.veh === v) { hurtPlayer(80); enterExitForce(); } v.vx = v.vz = 0; } }
+    if (v.burn) { v.burn -= dt; FX.fire(v.x + (rnd() - .5) * 2, v.z + (rnd() - .5) * 2, 1.2); if (v.burn <= 0) { v.burn = 0; v.wreck = true; v.hp = 0; v.mesh.traverse(o => { if (o.isMesh && o.material !== LAMPMAT && !o.userData.blob) o.material = charMat; if (o.material === LAMPMAT) o.visible = false; }); v.hs.forEach(h => h.visible = false); explode(v.x, v.z, 5, 100); if (v.police) crime(3); if (player.veh === v) { hurtPlayer(80); enterExitForce(); } v.vx = v.vz = 0; } }
     if (v === player.veh) continue;
     if (v.railAuto) railAuto(v, dt); else if (v.police && v.driver && !v.wreck) policeAI(v, dt); else if (v.traffic && v.driver && !v.wreck) trafficAI(v, dt); else if (v.wreck || v.parked || !v.driver) { if (!v.d.rail) driveVeh(v, 0, 0, dt); else driveRail(v, 0, dt); }
     if (v.traffic && v.driver && Math.hypot(v.vx, v.vz) < .5) { v.stk = (v.stk || 0) + dt; if (v.stk > 6) { v.panic = false; v.a += 1.57; v.stk = 0; } } } }
@@ -398,7 +398,12 @@ function updateSky(dt) { gameTime = (gameTime + dt / 25) % 24; const h = gameTim
 let camH = 40, camOverride = 0; const camPos = new THREE.Vector3(); const TILT = .3;
 function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = camOverride || (44 + sp * 1.3); camH += (tgt - camH) * Math.min(1, dt * 1.5); if (camOverride) camH = camOverride;
   const lx = v ? v.vx * .5 : 0, lz = v ? v.vz * .5 : 0; const tx = player.x + lx, tz = player.z + lz; camPos.x += (tx - camPos.x) * Math.min(1, dt * 5); camPos.z += (tz - camPos.z) * Math.min(1, dt * 5);
-  const sx = camShake > 0 ? (rnd() - .5) * camShake * 2 : 0; camShake = Math.max(0, camShake - dt); camera.position.set(camPos.x + sx, camH, camPos.z + camH * TILT + sx); camera.lookAt(camPos.x + sx, 0, camPos.z + sx); }
+  const sx = camShake > 0 ? (rnd() - .5) * camShake * 2 : 0; camShake = Math.max(0, camShake - dt); const hy = G.hillH(camPos.x, camPos.z);
+  if (G.VIEW.chase) { const px = v ? v.x : player.x, pz = v ? v.z : player.z, ta = v ? v.a : player.a; let da = ta - chaseA; da = Math.atan2(Math.sin(da), Math.cos(da)); chaseA += da * Math.min(1, dt * (v ? 3 : 2.2)); const ph = G.hillH(px, pz), D = 13 + sp * .35;
+    camera.up.set(0, 1, 0); camera.position.set(px - Math.cos(chaseA) * D + sx, ph + 6.5 + sp * .08, pz - Math.sin(chaseA) * D + sx); camera.lookAt(px + Math.cos(chaseA) * 9, ph + 1.6, pz + Math.sin(chaseA) * 9); return; }
+  camera.up.set(0, 0, -1); camera.position.set(camPos.x + sx, camH + hy, camPos.z + camH * TILT + sx); camera.lookAt(camPos.x + sx, hy, camPos.z + sx); }
+let chaseA = 0;
+addEventListener('keydown', e => { if (e.code === 'KeyC' && state === 'play') { G.VIEW.chase = !G.VIEW.chase; chaseA = player.veh ? player.veh.a : player.a; pager(G.VIEW.chase ? 'Chase camera (C to return to the classic view)' : 'Classic overhead camera', 2); } });
 // ================= MESH SYNC =================
 let lastSync = 0;
 function animOf(o, P, dt, punch, dead) { const sp = Math.hypot(o.x - o.lx, o.z - o.lz) / Math.max(dt, 1e-3); o.lx = o.x; o.lz = o.z; animPed(P, Math.min(sp, 14), dt, punch, dead); }
@@ -494,7 +499,7 @@ window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, THREE, pl
   give: giveWeapon, sel: (id) => player.w = WI[id], target: stepTarget, setTime: (h) => gameTime = h, setRain: (r) => { rain = rainTarget = r; },
   tp(x, z) { if (player.veh && player.veh.d.rail) { const v = player.veh; v.s = pathNear(v.rp, x, z); v.sp = 0; driveRail(v, 0, 0); x = v.x; z = v.z; } else if (player.veh) { player.veh.x = x; player.veh.z = z; player.veh.vx = player.veh.vz = 0; } player.x = x; player.z = z; camPos.set(x, 0, z); },
   drive: (thr, steer, n = 30) => { for (let k = 0; k < n; k++) { driveVeh(player.veh, thr, steer, 1 / 30); player.x = player.veh.x; player.z = player.veh.z; step(1 / 30, { mx: 0, my: 0, thr: 0, steer: 0 }); } },
-  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
+  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, chase: (b) => { G.VIEW.chase = !!b; chaseA = player.veh ? player.veh.a : player.a; }, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
 // autopilot: performs the current mission step through normal game actions (used by automated tests)
 GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 = { mx: 0, my: 0, thr: 0, steer: 0 }; const tick = (n = 5) => GAME.step(n, 1 / 30, I0); const g0 = player.god; player.god = true; player.hp = 100; if (!player.alive) respawn('WASTED');
   const gotoVeh = (x, z) => { GAME.tp(x, z); tick(3); };

@@ -2,13 +2,13 @@
 import * as THREE from './vendor/three.module.js';
 const C = new THREE.Color();
 // --- tiny vertex-coloured geometry builder ---
-export class GB { constructor() { this.p = []; this.n = []; this.c = []; }
-  add(geo, col, m) { const g = geo.index ? geo.toNonIndexed() : geo; if (m) g.applyMatrix4(m); g.computeVertexNormals(); const P = g.attributes.position.array, Nn = g.attributes.normal.array; C.set(col);
+export class GB { static smooth = true; constructor() { this.p = []; this.n = []; this.c = []; }
+  add(geo, col, m) { const hadN = !!geo.attributes.normal; const g = geo.index ? geo.toNonIndexed() : geo; if (m) g.applyMatrix4(m); if (!hadN || !GB.smooth) g.computeVertexNormals(); const P = g.attributes.position.array, Nn = g.attributes.normal.array; C.set(col);
     const cols = Array.isArray(col) ? null : [C.r, C.g, C.b];
     for (let k = 0; k < P.length; k += 3) { this.p.push(P[k], P[k + 1], P[k + 2]); this.n.push(Nn[k], Nn[k + 1], Nn[k + 2]); this.c.push(...cols); } return this; }
   box(w, h, d, x, y, z, col, rx = 0, ry = 0, rz = 0) { return this.add(new THREE.BoxGeometry(w, h, d), col, M(x, y, z, rx, ry, rz)); }
   cyl(rt, rb, h, x, y, z, col, seg = 8, rx = 0, ry = 0, rz = 0) { return this.add(new THREE.CylinderGeometry(rt, rb, h, seg), col, M(x, y, z, rx, ry, rz)); }
-  sph(r, x, y, z, col, sx = 1, sy = 1, sz = 1, seg = 6) { const m = M(x, y, z); m.scale(new THREE.Vector3(sx, sy, sz)); return this.add(new THREE.SphereGeometry(r, seg, Math.max(3, seg - 2)), col, m); }
+  sph(r, x, y, z, col, sx = 1, sy = 1, sz = 1, seg = 6) { const m = M(x, y, z); m.scale(new THREE.Vector3(sx, sy, sz)); seg = Math.round(seg * 1.4); return this.add(new THREE.SphereGeometry(r, seg, Math.max(3, seg - 2)), col, m); }
   geo() { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3)); g.computeBoundingSphere(); return g; } }
 const _q = new THREE.Quaternion(), _e = new THREE.Euler();
 export function M(x, y, z, rx = 0, ry = 0, rz = 0) { return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), new THREE.Vector3(1, 1, 1)); }
@@ -16,16 +16,20 @@ export const VC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness
 const VCw = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x2a2420 }); // charred
 export const charMat = VCw;
 const lampOn = new THREE.MeshBasicMaterial({ color: 0xffd890 }); export const LAMPMAT = lampOn;
+const BLOBT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.62)'); gr.addColorStop(.55, 'rgba(0,0,0,.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+export const BLOBM = new THREE.MeshBasicMaterial({ map: BLOBT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, toneMapped: false });
+const BLOBG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+export function blob(g, sx, sz, x = 0) { const m = new THREE.Mesh(BLOBG, BLOBM); m.scale.set(sx, 1, sz); m.position.set(x, .035, 0); m.renderOrder = -1; m.userData.blob = 1; g.add(m); return m; }
 function mk(gb, mat = VC) { const m = new THREE.Mesh(gb.geo(), mat); m.castShadow = true; return m; }
 const GC = new Map(); function cached(key, f) { if (!GC.has(key)) GC.set(key, f()); return GC.get(key); }
 // ================= PEDESTRIANS =================
 // look: {coat, trou, hat:'top'|'bowler'|'kepi'|'cap'|'bonnet'|'none'|'helmet'|'beret', hatc, skin, dress, stripes, long, apron, scarf}
 export const LOOKS = {
-  bourgeois: () => ({ coat: pick(['#22222a', '#3a2e28', '#2a3038', '#1c1c1c']), trou: pick(['#2a2a30', '#5a5450', '#3a3430']), hat: 'top', hatc: '#151515', long: true }),
-  clerk: () => ({ coat: pick(['#4a4038', '#3a3a44', '#5a4a3a']), trou: '#3a3530', hat: 'bowler', hatc: pick(['#222', '#3a2a1a']) }),
+  bourgeois: () => ({ coat: pick(['#22222a', '#3a2e28', '#2a3038', '#1c1c1c']), trou: pick(['#2a2a30', '#5a5450', '#3a3430']), hat: 'top', hatc: '#151515', long: true, cane: Math.random() < .5, watch: Math.random() < .5 }),
+  clerk: () => ({ coat: pick(['#4a4038', '#3a3a44', '#5a4a3a']), trou: '#3a3530', hat: 'bowler', hatc: pick(['#222', '#3a2a1a']), news: Math.random() < .3, cane: Math.random() < .2 }),
   worker: () => ({ coat: pick(['#3a5a8a', '#2e4a72', '#5a4a3a', '#6a6050']), trou: pick(['#4a4038', '#2e3a5a']), hat: 'cap', hatc: pick(['#3a3a3a', '#4a3a2a']), apron: Math.random() < .3 }),
-  lady: () => ({ coat: pick(['#7a2a3a', '#2a4a6a', '#4a2a5a', '#6a5a3a', '#2a5a4a', '#8a6a7a', '#c8b8a0']), trou: '#000', hat: 'bonnet', hatc: pick(['#e8d8c0', '#3a2a2a', '#a04060', '#f0f0e0']), dress: true }),
-  maid: () => ({ coat: '#2a2a2a', trou: '#000', hat: 'bonnet', hatc: '#f4f0e8', dress: true, apron: true }),
+  lady: () => ({ parasol: Math.random() < .35 ? pick(['#f4ece0', '#e8c8d0', '#c8d8e8', '#3a2a3a', '#f0e0a0']) : null, coat: pick(['#7a2a3a', '#2a4a6a', '#4a2a5a', '#6a5a3a', '#2a5a4a', '#8a6a7a', '#c8b8a0']), trou: '#000', hat: 'bonnet', hatc: pick(['#e8d8c0', '#3a2a2a', '#a04060', '#f0f0e0']), dress: true }),
+  maid: () => ({ coat: '#2a2a2a', trou: '#000', hat: 'bonnet', hatc: '#f4f0e8', dress: true, apron: true, basket: Math.random() < .6 }),
   artist: () => ({ coat: pick(['#5a3a2a', '#3a4a2a', '#2a2a3a']), trou: '#4a3a2a', hat: 'beret', hatc: pick(['#1a1a1a', '#5a1a1a', '#1a2a4a']), scarf: pick(['#c03020', '#d0a020', '#3060a0']) }),
   apache: () => ({ coat: '#f0f0f0', stripes: '#1a2a5a', trou: '#2a2a2a', hat: 'cap', hatc: '#2a2a2a', scarf: '#b01818' }),
   cop: () => ({ coat: '#1a2448', trou: '#1a2040', hat: 'kepi', hatc: '#1a2040', belt: '#d4b040', long: true }),
@@ -84,6 +88,11 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('p' + key, ()
     case 'bonnet': b.sph(.15, -.04, 1.52, 0, hc, 1, 1, 1.05, 10); cylE(b, .2, .22, .04, .05, 1.55, 0, hc, .7, 1, 12, -.5);
       for (const s of [-1, 1]) b.box(.02, .18, .035, .05, 1.36, s * .1, '#a03050'); b.sph(.045, -.01, 1.66, .08, '#c84060', 1, 1, 1, 5); b.sph(.04, -.05, 1.65, -.04, '#f0e0a0', 1, 1, 1, 5); b.sph(.035, -.02, 1.68, .02, '#5a8a4a', 1, .6, 1, 5); break;
     default: break; }
+  if (L.parasol) { b.cyl(.008, .008, 1.0, .1, 1.35, .26, '#3a2a1a', 4, 0, 0, -.12); b.add(new THREE.ConeGeometry(.42, .16, 12, 1, true), L.parasol, M(.16, 1.88, .26, 0, 0, -.12)); b.sph(.02, .16, 1.97, .26, '#c8a040'); }
+  if (L.cane) { b.cyl(.012, .012, .9, .18, .45, .3, '#1a1410', 5, 0, 0, .12); b.sph(.025, .13, .91, .3, '#c8a040', 1, 1, 1, 4); }
+  if (L.basket) { cylE(b, .12, .1, .14, .1, .7, .3, '#8a6a3a', 1, 1, 8); b.sph(.05, .1, .78, .28, '#c8a050', 1, .6, 1, 5); b.sph(.04, .13, .79, .33, '#5a8a3a', 1, .6, 1, 5); }
+  if (L.news) b.box(.16, .22, .03, .18, .95, .29, '#ece4d0', 0, 0, .2);
+  if (L.watch) b.box(.01, .012, .12, .13, .98, .04, '#d8b040', .3, 0, 0);
   const body = shade(b.geo(), .0, 1.2, .7);
   const lg = new GB(); if (L.dress) { lg.cyl(.04, .045, .3, 0, -.4, 0, '#2a2020', 6); } else { lg.cyl(.075, .062, .5, 0, -.25, 0, L.trou, 8); lg.cyl(.064, .064, .04, 0, -.48, 0, dk(L.trou, .8), 8); }
   lg.box(.2, .07, .1, .035, -.535, 0, '#16100c'); lg.sph(.055, .12, -.53, 0, '#1e1610', 1.2, .6, .9, 6);
@@ -99,6 +108,7 @@ export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(
   const arms = [-1, 1].map(s => { const m = new THREE.Mesh(G.arm, VC); m.position.set(0, 1.18, s * .27); m.castShadow = true; rig.add(m); return m; });
   let horse = null; if (mounted) { horse = makeHorse('#2a1a12'); g.add(horse.g); rig.position.set(-.1, 1.05, 0); legs.forEach(l => { l.rotation.z = 1.3; l.rotation.x = l.position.z > 0 ? -.35 : .35; }); }
   if (L.player) { const ring = new THREE.Mesh(new THREE.RingGeometry(.55, .7, 24), new THREE.MeshBasicMaterial({ color: 0xffd040, transparent: true, opacity: .55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .05; g.add(ring); }
+  if (mounted) blob(g, 2.6, 1.1); else blob(g, .9, .8);
   g.scale.setScalar(1.35); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
 // state: sp (units/s), dt, punch, aim
 export function animPed(P, sp, dt, punch, dead) {
@@ -128,9 +138,13 @@ function horseGeos(col) { return cached('h' + col, () => { const b = new GB(), d
   return { body: shade(b.geo(), .8, 1.6, .7), leg: shade(lg.geo(), -.8, 0, .7) }; }); }
 export function makeHorse(col) { col = col || HC[Math.floor(Math.random() * HC.length)]; const G = horseGeos(col), g = new THREE.Group(), body = new THREE.Mesh(G.body, VC); body.castShadow = true; g.add(body);
   const legs = [[.5, .15], [.5, -.15], [-.5, .15], [-.5, -.15]].map(([x, z]) => { const m = new THREE.Mesh(G.leg, VC); m.position.set(x, .9, z); m.castShadow = true; g.add(m); return m; }); return { g, body, legs, ph: Math.random() * 6, dead: false }; }
-export function animHorse(H, sp, dt) { if (H.dead) return; H.ph += dt * Math.min(18, 2 + sp * .9); const gal = Math.min(1, sp / 6), am = .15 + .55 * gal;
-  const off = sp > 9 ? [0, .4, 1.6, 2.0] : [0, Math.PI, Math.PI * .5, Math.PI * 1.5];
-  H.legs.forEach((l, k) => l.rotation.z = Math.sin(H.ph + off[k]) * am * (sp > .3 ? 1 : 0)); H.body.position.y = sp > 9 ? Math.sin(H.ph * 2) * .06 : 0; H.g.rotation.z = sp > 9 ? Math.sin(H.ph) * .04 : 0; }
+const GAIT = { walk: [0, Math.PI, Math.PI * 1.5, Math.PI * .5], trot: [0, Math.PI, Math.PI, 0], canter: [0, .7, .7, 1.6], gallop: [0, .45, 1.7, 2.2] };
+export function animHorse(H, sp, dt) { if (H.dead) return; const moving = sp > .3; H.ph += dt * (moving ? Math.min(16, 4 + sp * .75) : 0); H.t = (H.t || 0) + dt;
+  const g = sp < 3.5 ? 'walk' : sp < 7 ? 'trot' : sp < 10 ? 'canter' : 'gallop'; H.gw = H.gw || { ...GAIT }; const off = GAIT[g], am = { walk: .3, trot: .45, canter: .6, gallop: .75 }[g];
+  H.off = H.off || off.slice(); for (let k = 0; k < 4; k++) H.off[k] += (off[k] - H.off[k]) * Math.min(1, dt * 6);
+  H.legs.forEach((l, k) => { const s = Math.sin(H.ph + H.off[k]); l.rotation.z = moving ? s * am * (k < 2 ? 1 : .85) : 0; l.position.y = .9 + (moving ? Math.max(0, Math.cos(H.ph + H.off[k])) * am * .1 : 0); });
+  const bob = g === 'trot' ? Math.abs(Math.sin(H.ph)) * .05 : g === 'walk' ? Math.sin(H.ph * 2) * .015 : Math.sin(H.ph) * .07;
+  H.body.position.y = moving ? bob : Math.sin(H.t * 1.3) * .006; H.body.rotation.z = moving ? (g === 'canter' || g === 'gallop' ? Math.sin(H.ph + .6) * .06 : Math.sin(H.ph * 2) * .015) : Math.sin(H.t * .4) * .01; H.g.rotation.z = 0; }
 export function killHorse(H) { if (H.dead) return; H.dead = true; H.g.rotation.x = Math.PI / 2; H.g.position.y = .3; H.legs.forEach(l => l.rotation.z = .4); }
 // ================= WHEELS =================
 const spokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#2a1c10'; g.beginPath(); g.arc(32, 32, 31, 0, 7); g.fill(); g.fillStyle = '#c8a050'; g.beginPath(); g.arc(32, 32, 26, 0, 7); g.fill(); g.clearRect(0, 0, 0, 0);
@@ -198,5 +212,5 @@ export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), ou
   const nh = d.horses; for (let k = 0; k < nh; k++) { const H = makeHorse(type === 'police' ? '#1a1410' : null); const z = nh === 1 ? 0 : nh === 3 ? (k - 1) * .75 : (k ? .42 : -.42);
     H.g.position.set(h2 + 1.1, 0, z); H.g.scale.setScalar(.95); g.add(H.g); out.horses.push(H); }
   if (nh) { const ss = new GB(); ss.box(1.6, .08, W * .7, h2 + .5, 1.1, 0, '#3a2814'); ss.box(.08, .08, W * .7, h2 + .2, 1.1, 0, '#3a2814'); const sm = mk(ss); g.add(sm); }
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return out; }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; }); blob(g, L * 1.05, W * 1.35); if (out.horses.length) blob(g, 3, W * 1.2, h2 + 1.1); g.traverse(o => { if (o.userData.blob) o.castShadow = false; }); return out; }
 export function animVeh(V, sp, dt, signed) { for (const w of V.wheels) w.g.rotation.z -= (signed ?? sp) * dt / w.r; for (const H of V.horses) animHorse(H, sp, dt); }
