@@ -395,15 +395,11 @@ function updateSky(dt) { gameTime = (gameTime + dt / 25) % 24; const h = gameTim
   weatherT -= dt; if (weatherT < 0) { weatherT = 60 + rnd() * 90; rainTarget = rnd() < .35 ? 1 : 0; if (rainTarget) pager('Rain! The pavé turns to glass.', 2); } rain += (rainTarget - rain) * dt * .3;
   G.setEnv(daylight, rain, h); LAMPMAT.color.setScalar(.45 + .55 * (1 - daylight)); }
 // ================= CAMERA =================
-let camH = 40, camOverride = 0; const camPos = new THREE.Vector3(); const TILT = .3;
+let camH = 40, camOverride = 0; const camPos = new THREE.Vector3(); const TILT = .34;
 function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = camOverride || (44 + sp * 1.3); camH += (tgt - camH) * Math.min(1, dt * 1.5); if (camOverride) camH = camOverride;
   const lx = v ? v.vx * .5 : 0, lz = v ? v.vz * .5 : 0; const tx = player.x + lx, tz = player.z + lz; camPos.x += (tx - camPos.x) * Math.min(1, dt * 5); camPos.z += (tz - camPos.z) * Math.min(1, dt * 5);
   const sx = camShake > 0 ? (rnd() - .5) * camShake * 2 : 0; camShake = Math.max(0, camShake - dt); const hy = G.hillH(camPos.x, camPos.z);
-  if (G.VIEW.chase) { const px = v ? v.x : player.x, pz = v ? v.z : player.z, ta = v ? v.a : player.a; let da = ta - chaseA; da = Math.atan2(Math.sin(da), Math.cos(da)); chaseA += da * Math.min(1, dt * (v ? 3 : 2.2)); const ph = G.hillH(px, pz), D = 13 + sp * .35;
-    camera.up.set(0, 1, 0); camera.position.set(px - Math.cos(chaseA) * D + sx, ph + 6.5 + sp * .08, pz - Math.sin(chaseA) * D + sx); camera.lookAt(px + Math.cos(chaseA) * 9, ph + 1.6, pz + Math.sin(chaseA) * 9); return; }
   camera.up.set(0, 0, -1); camera.position.set(camPos.x + sx, camH + hy, camPos.z + camH * TILT + sx); camera.lookAt(camPos.x + sx, hy, camPos.z + sx); }
-let chaseA = 0;
-addEventListener('keydown', e => { if (e.code === 'KeyC' && state === 'play') { G.VIEW.chase = !G.VIEW.chase; chaseA = player.veh ? player.veh.a : player.a; pager(G.VIEW.chase ? 'Chase camera (C to return to the classic view)' : 'Classic overhead camera', 2); } });
 // ================= MESH SYNC =================
 let lastSync = 0;
 function animOf(o, P, dt, punch, dead) { const sp = Math.hypot(o.x - o.lx, o.z - o.lz) / Math.max(dt, 1e-3); o.lx = o.x; o.lz = o.z; animPed(P, Math.min(sp, 14), dt, punch, dead); }
@@ -411,7 +407,7 @@ function syncMeshes(t) { const dt = Math.min(.1, Math.max(0, t - lastSync)); las
   for (const p of peds) { if (p.inVeh) { p.mesh.visible = false; continue; } const far = d2(p.x, p.z, cx, cz) > 90 * 90; p.mesh.visible = !far; if (far) continue; p.mesh.position.set(p.x, 0, p.z); p.mesh.rotation.y = -p.a; const P = p.mesh.userData.P; if (P) animOf(p, P, dt, false, !p.alive); }
   for (const v of vehs) { v.mesh.position.set(v.x, 0, v.z); v.mesh.rotation.y = -v.a; const far = d2(v.x, v.z, cx, cz) > 110 * 110; v.mesh.visible = !far; if (far) continue;
     const fwd = v.d.rail ? (v.sp || 0) : (v.vx * Math.cos(v.a) + v.vz * Math.sin(v.a)); if (!v.wreck) animVeh(v.V, v.horseDead ? 0 : Math.abs(fwd), dt, fwd); }
-  player.mesh.position.set(player.x, 0, player.z); player.mesh.rotation.y = -player.a; animOf(player, player.mesh.userData.P, dt, player.punch > 0, !player.alive);
+  player.mesh.position.set(player.x, 0, player.z); player.mesh.rotation.y = -player.a; player.mesh.userData.P.aim = !WEAP[player.w].melee && !WEAP[player.w].throw && player.alive; animOf(player, player.mesh.userData.P, dt, player.punch > 0, !player.alive);
   for (const pk of pickups) if (pk.alive) { pk.m.rotation.y = t * 2; pk.m.position.y = 1 + Math.sin(t * 4) * .2; }
   for (const pk of pickups) if (!pk.alive && pk.rt !== undefined) { pk.rt -= 1 / 60; if (pk.rt <= 0) { pk.alive = true; pk.m.visible = true; delete pk.rt; } }
   phoneRings.forEach((r, k) => { r.visible = !M; r.scale.setScalar(1 + Math.sin(t * 4) * .15); });
@@ -499,7 +495,7 @@ window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, THREE, pl
   give: giveWeapon, sel: (id) => player.w = WI[id], target: stepTarget, setTime: (h) => gameTime = h, setRain: (r) => { rain = rainTarget = r; },
   tp(x, z) { if (player.veh && player.veh.d.rail) { const v = player.veh; v.s = pathNear(v.rp, x, z); v.sp = 0; driveRail(v, 0, 0); x = v.x; z = v.z; } else if (player.veh) { player.veh.x = x; player.veh.z = z; player.veh.vx = player.veh.vz = 0; } player.x = x; player.z = z; camPos.set(x, 0, z); },
   drive: (thr, steer, n = 30) => { for (let k = 0; k < n; k++) { driveVeh(player.veh, thr, steer, 1 / 30); player.x = player.veh.x; player.z = player.veh.z; step(1 / 30, { mx: 0, my: 0, thr: 0, steer: 0 }); } },
-  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, chase: (b) => { G.VIEW.chase = !!b; chaseA = player.veh ? player.veh.a : player.a; }, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
+  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
 // autopilot: performs the current mission step through normal game actions (used by automated tests)
 GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 = { mx: 0, my: 0, thr: 0, steer: 0 }; const tick = (n = 5) => GAME.step(n, 1 / 30, I0); const g0 = player.god; player.god = true; player.hp = 100; if (!player.alive) respawn('WASTED');
   const gotoVeh = (x, z) => { GAME.tp(x, z); tick(3); };

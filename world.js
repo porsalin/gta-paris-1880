@@ -10,6 +10,10 @@ export const kind = new Uint8Array(NX * NZ), surf = new Uint8Array(NX * NZ), dis
 for (let i = 0; i < NX * NZ; i++) { kind[i] = MP[i * 4]; surf[i] = MP[i * 4 + 1]; dist[i] = MP[i * 4 + 2]; depth[i] = DP[i * 4]; }
 export const DN = ['Montmartre', 'Grands Boulevards & Opéra', 'Les Halles & the Marais', 'Gares & Rail Yards', 'La Seine', 'Île de la Cité & Île Saint-Louis', 'Quartier Latin', 'Champs-Élysées & Concorde', 'Faubourg Saint-Germain & Invalides', 'Belleville & La Villette', 'Bastille & Faubourg Saint-Antoine', 'Montparnasse & Denfert', 'Passy & Trocadéro', 'Batignolles & Monceau'];
 export const LM = WJ.landmarks, LABELS = WJ.labels, FLAGGED = WJ.flagged;
+// Place de l'Étoile: the raster fills the centre with building blocks; open it into a true circular place (paved island + ring road)
+export const ETOILE = LM.arc ? { x: LM.arc[1], z: LM.arc[2], ri: 15, ro: 27 } : null;
+if (ETOILE) { const ci = ETOILE.x / T, cj = ETOILE.z / T, R = ETOILE.ro / T + 1; for (let j = Math.floor(cj - R); j <= cj + R; j++) for (let i = Math.floor(ci - R); i <= ci + R; i++) { if (i < 0 || j < 0 || i >= NX || j >= NZ) continue; const d = Math.hypot(i + .5 - ci, j + .5 - cj) * T, t = j * NX + i;
+  if (d < ETOILE.ri) { kind[t] = K.SIDE; surf[t] = S.FLAG; } else if (d < ETOILE.ro) { kind[t] = K.ROAD; surf[t] = S.PAVE; } } }
 export const ti = (i, j) => j * NX + i;
 export const inb = (i, j) => i >= 0 && j >= 0 && i < NX && j < NZ;
 export const kij = (i, j) => inb(i, j) ? kind[ti(i, j)] : K.BLD;
