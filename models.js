@@ -179,6 +179,8 @@ function horseGeos(col) { return cached('h' + col, () => { const b = new GB(), d
   b.box(.42, .05, .6, .05, 1.42, 0, LE); b.box(.06, .52, .62, .02, 1.17, 0, LE); b.sph(.035, .05, 1.48, 0, BR, 1, 1, 1, 4); // saddle pad + girth + terret
   for (const s of [-1, 1]) { b.box(1.3, .04, .02, .0, 1.3, s * .255, LE, 0, 0, .04); b.box(.03, .03, .4, 1.2, 1.62, s * .0, LE); } // traces & noseband
   b.box(.04, .3, .58, -.55, 1.14, 0, LE, 0, 0, -.2); // breeching
+  { const hi = new THREE.Color(col).lerp(new THREE.Color('#e8d8c0'), .22).getStyle(); b.sph(.3, -.05, 1.33, 0, hi, 1.9, .18, .42, 10); b.sph(.18, -.55, 1.32, 0, hi, 1.1, .2, .7, 8); } // sunlit back & croup read from above
+  b.box(.5, .025, .66, .05, 1.455, 0, '#5a1a1a'); b.box(.52, .03, .03, .05, 1.47, .33, BR); b.box(.52, .03, .03, .05, 1.47, -.33, BR); b.box(.85, .03, .045, -.45, 1.4, 0, LE, 0, 0, .08); // saddle cloth with brass edge, crupper strap
   const lg = new GB(); lg.cyl(.085, .065, .42, 0, -.18, 0, col, 7); lg.cyl(.042, .04, .32, 0, -.54, 0, col, 6); lg.sph(.055, 0, -.7, 0, (col.length && col.charCodeAt(2) % 3 === 0) ? '#e8e0d0' : mu, 1, 1, 1, 6); lg.sph(.05, 0, -.36, 0, col, 1.1, .8, 1, 6); lg.cyl(.065, .075, .1, 0, -.76, 0, '#1a1410', 7);
   return { body: shade(b.geo(), .8, 1.6, .7), leg: shade(lg.geo(), -.8, 0, .7) }; }); }
 export function makeHorse(col) { col = col || HC[Math.floor(Math.random() * HC.length)]; const G = horseGeos(col), g = new THREE.Group(), body = new THREE.Mesh(G.body, VC); body.castShadow = true; g.add(body);

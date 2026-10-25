@@ -40,7 +40,10 @@ function lookFor(type, col) { if (type === 'civ') return LOOKS[CIVL[Math.floor(r
 function mkPedMesh(look, mounted) { const P = makePed(look, mounted); scene.add(P.g); P.g.userData.P = P; return P.g; }
 function spawnPed(type, x, z, o = {}) { const d = PEDT[type];
   const p = Object.assign({ type, x, z, a: rnd() * 6.28, hp: d.hp, spd: d.spd, alive: true, t: 0, cd: rnd(), wander: rnd() * 6.28, flee: 0, mounted: !!d.mounted }, o);
-  if (!o.inVeh) p.mesh = mkPedMesh(lookFor(type, o.col), p.mounted); else p.mesh = new THREE.Group(); p.lx = x; p.lz = z; peds.push(p); return p; }
+  if (!o.inVeh) p.mesh = mkPedMesh(lookFor(o.look || type, o.col), p.mounted); else p.mesh = new THREE.Group(); p.lx = x; p.lz = z; peds.push(p); return p; }
+// named story figures: pick their look from the step's speaker / escorted name (looks only; ped type and logic unchanged)
+const NAMED = { Henri: 'vautrin', Vautrin: 'vautrin', Maza: 'maza', Lucie: 'lucie', Vaneau: 'vaneau' };
+function whoLook(s, k = 0) { if (s.t === 'eaves') { const sp = [...new Set((s.say || []).map(l => l.split(':')[0].trim()))]; return NAMED[sp[k]]; } const m = /^(?:Escort|Drive|Walk|Get|Bring|Collect) (\w+)/.exec(s.text || ''); return m ? NAMED[m[1]] : undefined; }
 function removePed(p) { scene.remove(p.mesh); if (p.mesh.userData.P) p.mesh.userData.P.g.traverse(()=>{}); const i = peds.indexOf(p); if (i >= 0) peds.splice(i, 1); }
 const VT = {
   brougham: { len: 4.2, wid: 2.2, horses: 2, spd: 23, acc: 15, hp: 110, body: '#1a1a1a', roof: '#3a2a2a', turn: 2.4 },
@@ -322,11 +325,11 @@ function nextStep() { cleanupStep(); M.i++; while (M.def.steps[M.i] && !stepOK(M
         else M.props.push(addDynProp('crate', x, z, { hp: 60 })); } giveWeapon('molotov', 3); break; }
     case 'smash': { const n = s.n || 5; for (let k = 0; k < n; k++) { const [x, z] = ringPos(at[0], at[1], 5); M.props.push(addDynProp('table', x, z)); } break; }
     case 'collect': { const n = s.n || 4; for (let k = 0; k < n; k++) { const [x, z] = ringPos(at[0], at[1], 22); M.pks.push(addPickup('mission', x, z)); } break; }
-    case 'escort': { const [x, z] = [POIV[s.at][0] + 1.5, POIV[s.at][1] + 1.5]; M.vip = spawnPed('vip', x, z, { mission: true, stand: true }); M.vip.god = true; M.ents.push(M.vip); M.board = false; break; }
+    case 'escort': { const [x, z] = [POIV[s.at][0] + 1.5, POIV[s.at][1] + 1.5]; M.vip = spawnPed('vip', x, z, { mission: true, stand: true, look: whoLook(s) }); M.vip.god = true; M.ents.push(M.vip); M.board = false; break; }
     case 'survive': { if (s.lvl) heat = Math.max(heat, LV[s.lvl] + .5); break; }
     case 'race': { M.cps = s.cps.map(c => POIV[c]); break; }
     case 'tail': { const a = POI[s.at], b = POI[s.to]; M.mark = spawnPed('vip', a[0], a[1], { mission: true, stand: true, col: s.col }); M.mark.god = true; M.ents.push(M.mark); M.path = roadPath(a[0], a[1], b[0], b[1]); M.pi = 1; break; }
-    case 'eaves': { const a = POI[s.at]; for (let k = 0; k < 2; k++) { const p = spawnPed('vip', a[0] + (k ? 1.4 : -1.4), a[1], { mission: true, stand: true }); p.god = true; p.a = k ? Math.PI : 0; M.ents.push(p); } M.prog = 0; break; }
+    case 'eaves': { const a = POI[s.at]; for (let k = 0; k < 2; k++) { const p = spawnPed('vip', a[0] + (k ? 1.4 : -1.4), a[1], { mission: true, stand: true, look: whoLook(s, k) }); p.god = true; p.a = k ? Math.PI : 0; M.ents.push(p); } M.prog = 0; break; }
     case 'choice': break;
     case 'sneak': { const a = POI[s.at], n = s.n || 3; M.cones = []; M.guards = []; for (let k = 0; k < n; k++) { const ang = k / n * 6.28, rr = 9 + (k % 2) * 5; let [x, z] = [a[0] + Math.cos(ang) * rr, a[1] + Math.sin(ang) * rr]; if (pedBlock(x, z)) [x, z] = ringPos(a[0], a[1], 14); const g = spawnPed('gang', x, z, { mission: true, stand: true, col: FCOL.velvet }); g.a = ang + Math.PI; g.sweep = (k % 2 ? 1 : -1) * (.35 + k * .07); g.a0 = g.a; M.ents.push(g); M.guards.push(g); M.cones.push(coneMesh(s.r || 9)); } break; }
   }
