@@ -69,7 +69,7 @@ export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(
   const arms = [-1, 1].map(s => { const m = new THREE.Mesh(G.arm, VC); m.position.set(0, 1.18, s * .27); m.castShadow = true; rig.add(m); return m; });
   let horse = null; if (mounted) { horse = makeHorse('#2a1a12'); g.add(horse.g); rig.position.set(-.1, 1.05, 0); legs.forEach(l => { l.rotation.z = 1.3; l.rotation.x = l.position.z > 0 ? -.35 : .35; }); }
   if (L.player) { const ring = new THREE.Mesh(new THREE.RingGeometry(.55, .7, 24), new THREE.MeshBasicMaterial({ color: 0xffd040, transparent: true, opacity: .55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .05; g.add(ring); }
-  g.scale.setScalar(1.15); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
+  g.scale.setScalar(1.35); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
 // state: sp (units/s), dt, punch, aim
 export function animPed(P, sp, dt, punch, dead) {
   if (dead) { if (!P.dead) { P.dead = true; P.rig.rotation.z = Math.PI / 2; P.rig.position.y = P.horse ? .2 : .25; P.rig.position.x = P.horse ? 1.2 : -.3; P.legs.forEach(l => l.rotation.z = 0); if (P.horse) killHorse(P.horse); } return; }

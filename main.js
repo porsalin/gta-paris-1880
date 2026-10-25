@@ -393,8 +393,8 @@ function updateSky(dt) { gameTime = (gameTime + dt / 25) % 24; const h = gameTim
   weatherT -= dt; if (weatherT < 0) { weatherT = 60 + rnd() * 90; rainTarget = rnd() < .35 ? 1 : 0; if (rainTarget) pager('Rain! The pavé turns to glass.', 2); } rain += (rainTarget - rain) * dt * .3;
   G.setEnv(daylight, rain, h); LAMPMAT.color.setScalar(.45 + .55 * (1 - daylight)); }
 // ================= CAMERA =================
-let camH = 40; const camPos = new THREE.Vector3(); const TILT = .3;
-function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = (44 + sp * 1.3); camH += (tgt - camH) * Math.min(1, dt * 1.5);
+let camH = 40, camOverride = 0; const camPos = new THREE.Vector3(); const TILT = .3;
+function updateCam(dt) { const v = player.veh; const sp = v ? Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0) : 0; const tgt = camOverride || (44 + sp * 1.3); camH += (tgt - camH) * Math.min(1, dt * 1.5); if (camOverride) camH = camOverride;
   const lx = v ? v.vx * .5 : 0, lz = v ? v.vz * .5 : 0; const tx = player.x + lx, tz = player.z + lz; camPos.x += (tx - camPos.x) * Math.min(1, dt * 5); camPos.z += (tz - camPos.z) * Math.min(1, dt * 5);
   const sx = camShake > 0 ? (rnd() - .5) * camShake * 2 : 0; camShake = Math.max(0, camShake - dt); camera.position.set(camPos.x + sx, camH, camPos.z + camH * TILT + sx); camera.lookAt(camPos.x + sx, 0, camPos.z + sx); }
 // ================= MESH SYNC =================
@@ -443,7 +443,7 @@ function drawHUD(dt) { const dpr = hud.width / innerWidth, Wd = hud.width, H = h
 let mapOpen = false;
 function drawFullMap() { const w = innerWidth, h = innerHeight, mc = G.mapCanvas(); const sc = Math.min((w - 40) / NX, (h - 70) / NZ), ox = (w - NX * sc) / 2, oy = 46; hx.fillStyle = 'rgba(10,8,6,.92)'; hx.fillRect(0, 0, w, h); hx.imageSmoothingEnabled = true; hx.drawImage(mc, ox, oy, NX * sc, NZ * sc); hx.strokeStyle = '#f4c430'; hx.strokeRect(ox, oy, NX * sc, NZ * sc);
   const P = (x, z) => [ox + x / T * sc, oy + z / T * sc]; txt('PARIS 1880 — Plan de la Ville  (M to close)', w / 2, 30, 18, '#f4c430', 'center');
-  hx.save(); for (const [n, x, z, a] of LABELS) { const [sx, sy] = P(x, z); hx.save(); hx.translate(sx, sy); hx.rotate(a || 0); hx.font = 'italic 10px Georgia,serif'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(30,24,16,.9)'; hx.fillText(n, 1, 1); hx.fillStyle = '#f0e6cc'; hx.fillText(n, 0, 0); hx.restore(); }
+  hx.save(); for (const [n, x, z, a] of LABELS) { if (x < 0 || z < 0 || x > WX || z > WZ) continue; const [sx, sy] = P(x, z); hx.save(); hx.translate(sx, sy); hx.rotate(a || 0); hx.font = 'italic 10px Georgia,serif'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(30,24,16,.9)'; hx.fillText(n, 1, 1); hx.fillStyle = '#f0e6cc'; hx.fillText(n, 0, 0); hx.restore(); }
   for (const k in LM) { const L = LM[k]; const [sx, sy] = P(L[1], L[2]); hx.fillStyle = '#e8b040'; hx.beginPath(); hx.arc(sx, sy, 2.5, 0, 7); hx.fill(); hx.font = 'bold 10px "Courier New",monospace'; hx.textAlign = 'left'; hx.fillStyle = '#000'; hx.fillText(L[0], sx + 5, sy + 4); hx.fillStyle = '#ffe6a0'; hx.fillText(L[0], sx + 4, sy + 3); }
   if (!M) for (const p of PHONES) { const [sx, sy] = P(p.x, p.z); hx.fillStyle = p.fac === 'side' ? '#fc0' : '#f3c'; hx.fillRect(sx - 4, sy - 4, 8, 8); }
   const tg = stepTarget(); if (tg) { const [sx, sy] = P(tg[0], tg[1]); hx.strokeStyle = '#ff0'; hx.lineWidth = 2; hx.beginPath(); hx.arc(sx, sy, 7, 0, 7); hx.stroke(); }
@@ -489,7 +489,7 @@ window.GAME = { THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV,
   give: giveWeapon, sel: (id) => player.w = WI[id], target: stepTarget, setTime: (h) => gameTime = h, setRain: (r) => { rain = rainTarget = r; },
   tp(x, z) { if (player.veh && player.veh.d.rail) { const v = player.veh; v.s = pathNear(v.rp, x, z); v.sp = 0; driveRail(v, 0, 0); x = v.x; z = v.z; } else if (player.veh) { player.veh.x = x; player.veh.z = z; player.veh.vx = player.veh.vz = 0; } player.x = x; player.z = z; camPos.set(x, 0, z); },
   drive: (thr, steer, n = 30) => { for (let k = 0; k < n; k++) { driveVeh(player.veh, thr, steer, 1 / 30); player.x = player.veh.x; player.z = player.veh.z; step(1 / 30, { mx: 0, my: 0, thr: 0, steer: 0 }); } },
-  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, get tram() { return tram; }, get train() { return train; } };
+  spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
 // autopilot: performs the current mission step through normal game actions (used by automated tests)
 GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 = { mx: 0, my: 0, thr: 0, steer: 0 }; const tick = (n = 5) => GAME.step(n, 1 / 30, I0); const g0 = player.god; player.god = true; player.hp = 100; if (!player.alive) respawn('WASTED');
   const gotoVeh = (x, z) => { GAME.tp(x, z); tick(3); };
