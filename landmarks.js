@@ -60,7 +60,7 @@ function cvTex(n, f) { const c = document.createElement('canvas'); c.width = c.h
 function setTex(c, r) { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(r * 4, r); t.colorSpace = THREE.SRGBColorSpace; return t; }
 function mats(L_, ctx) { const std = ctx.stdM; M = { stone: L_.stone, stoneD: L_.stoneD, gothic: L_.gothic, slate: L_.slate, copper: L_.copper, gold: L_.gold, iron: L_.iron, soot: L_.soot, wood: L_.wood, sail: L_.sail, brick: L_.brick, zinc: L_.zinc, water: L_.water, red: L_.red,
     lead: std({ color: 0x5c646e, roughness: .55, metalness: .25 }), cornice: std({ color: 0xe6dcc4 }), marble: std({ color: 0xc89a90 }), bronze: std({ color: 0x4a5a48, roughness: .5, metalness: .5 }),
-    chateau: std({ color: 0xf2eee4 }), scaff: std({ color: 0x9a7a52, roughness: .95 }), yard: std({ color: 0xb8ac94, roughness: 1 }), paving: std({ color: 0xbcb2a0, roughness: .95 }), bstone: std({ color: 0xe4dac4, roughness: .9 }), bcap: std({ color: 0xf2ead8, roughness: .85 }), ironP: std({ color: 0x6f7f7a, roughness: .6, metalness: .3 }),
+    chateau: std({ color: 0xf2eee4 }), scaff: std({ color: 0x9a7a52, roughness: .95 }), yard: std({ color: 0xb8ac94, roughness: 1 }), paving: std({ color: 0xbcb2a0, roughness: .95 }), bstone: std({ color: 0xe4dac4, roughness: .9 }), bcap: std({ color: 0xf2ead8, roughness: .85 }), ironB: std({ color: 0x2c3432, roughness: .8, metalness: .12, envMapIntensity: .4 }), ironP: std({ color: 0x6f7f7a, roughness: .6, metalness: .3 }),
     cobble: () => M._cb || (M._cb = std({ map: setTex(cvTex(64, (g, n) => { g.fillStyle = '#8e877a'; g.fillRect(0, 0, n, n); for (let y = 0; y < n; y += 4) for (let x = (y / 4 % 2) * 2; x < n; x += 4) { const v = 138 + Math.random() * 34 | 0; g.fillStyle = `rgb(${v + 12},${v + 6},${v - 6})`; g.fillRect(x + .5, y + .5, 3, 3); } }), 6), roughness: 1 })),
     flagM: () => M._fl || (M._fl = std({ map: setTex(cvTex(64, (g, n) => { g.fillStyle = '#a39a88'; g.fillRect(0, 0, n, n); for (let y = 0; y < n; y += 16) for (let x = (y / 16 % 2) * 10; x < n; x += 20) { const v = 172 + Math.random() * 22 | 0; g.fillStyle = `rgb(${v},${v - 6},${v - 18})`; g.fillRect(x + 1, y + 1, 18, 14); } }), 3), roughness: .95 })),
     kerb: () => M._kb || (M._kb = std({ color: 0x3a342c, roughness: 1 })),
@@ -231,10 +231,10 @@ const deckOf = k => { const d = BJ[k]; return d ? { x: d.x, z: d.z, ux: d.ux, uz
 function bridge(b, c, kind_, n, o2 = {}, key) { const o = deckOf(key); if (!o) return; const a = angOf(o), L = o.L, W = o.W, iron = kind_ === 'iron', foot = kind_ === 'foot';
   if (key) (window.__brEnds ||= {})[key] = [at(o, -1, 0), at(o, 1, 0)];
   const P = (s, t) => at(o, s, t * 2 / W), P3 = (s, t, y) => at3(o, s, t * 2 / W, y); // s along the span (-1..1), t metres-free offset across in units from the axis
-  const body = foot ? M.ironP : M.bstone, rail = iron || foot ? M.ironP : M.bstone, cap = iron || foot ? M.ironP : M.bcap, ph = iron || foot ? .7 : .95, pw = iron || foot ? .16 : .5;
+  const body = foot ? M.ironP : iron ? M.ironB : M.bstone, rail = iron ? M.ironB : foot ? M.ironP : M.bstone, cap = iron ? M.ironB : foot ? M.ironP : M.bcap, ph = iron || foot ? .7 : .95, pw = iron || foot ? .16 : .5;
   const hw = W / 2, Le = L + .8; // deck runs .4 past each quay wall line onto the painted approach
   // body: one clean pale slab, string course just under the parapets
-  b.box(L, 1.25, W + .3, ...P3(0, 0, -1.3), body, a); if (!foot) b.box(L, .22, W + .55, ...P3(0, 0, -.27), cap, a);
+  b.box(L, 1.25, W + .3, ...P3(0, 0, -1.3), body, a); if (!foot) b.box(L, .22, W + .55, ...P3(0, 0, -.27), cap, a); if (iron) for (const t of [-1, 1]) b.box(L, .3, .8, ...P3(0, t * (W / 2 + .3), -.05), M.ironB, a); /* dark cast-iron fascia girder along each deck edge */
   // roadway: light setts between granite kerbs, flagged footways (footbridges: a plank deck)
   if (foot) b.box(Le, .05, W - 2 * pw, ...P3(0, 0, 0), M.wood, a);
   else { const rw = hw * .55 * 2, sw = hw - pw - rw / 2; b.box(Le, .05, rw, ...P3(0, 0, 0), M.cobble(Le / 4, rw / 4), a);
@@ -245,10 +245,10 @@ function bridge(b, c, kind_, n, o2 = {}, key) { const o = deckOf(key); if (!o) r
     for (const s of [-1, 1]) { const e = P(s * (1 - .45 / L), t * (hw - pw / 2)); b.box(.9, ph + .35, .9, e[0], 0, e[1], cap, a); b.box(1.05, .12, 1.05, e[0], ph + .35, e[1], M.bcap, a); } }
   // arches, piers with pointed cutwaters both sides (upstream and downstream), cutwater caps as small refuges on the stone bridges
   const nar = n || Math.max(1, Math.round(L / 22)), sl = L / nar, pd = foot ? .6 : Math.min(2.6, sl * .17), nose = foot ? .8 : Math.min(2.2, pd * 1.1), ox = hw + .15;
-  for (const t of [-1, 1]) for (let k = 0; k < nar; k++) { const u0 = -1 + 2 * k / nar; for (let r = 1; r < 12; r++) { const u = u0 + 2 / nar * r / 12, h = Math.sin(PI * r / 12); b.box(sl / 12 + .04, .24, .25, ...P3(u, t * (ox + .02), -1.9 + h * 1.25), iron || foot ? M.ironP : M.bcap, a); } }
+  for (const t of [-1, 1]) for (let k = 0; k < nar; k++) { const u0 = -1 + 2 * k / nar; for (let r = 1; r < 12; r++) { const u = u0 + 2 / nar * r / 12, h = Math.sin(PI * r / 12); b.box(sl / 12 + .04, .24, .25, ...P3(u, t * (ox + .02), -1.9 + h * 1.25), iron ? M.ironB : foot ? M.ironP : M.bcap, a); } }
   for (let k = 1; k < nar; k++) { const s = -1 + 2 * k / nar; b.box(pd * 2, 2.2, W + .3, ...P3(s, 0, -3.4), body, a);
     for (const t of [-1, 1]) { const A = P(s - pd / L, t * ox), B2 = P(s + pd / L, t * ox), C2 = P(s, t * (ox + nose)); b.prism([{ o: [A, B2, C2], h: [] }], -3.4, 3.0, body);
-      const A2 = P(s - pd * .75 / L, t * ox), B3 = P(s + pd * .75 / L, t * ox), C3 = P(s, t * (ox + nose * .8)); b.prism([{ o: [A2, B3, C3], h: [] }], -.4, .26, foot ? M.ironP : M.bcap); } }
+      const A2 = P(s - pd * .75 / L, t * ox), B3 = P(s + pd * .75 / L, t * ox), C3 = P(s, t * (ox + nose * .8)); b.prism([{ o: [A2, B3, C3], h: [] }], -.4, .26, iron ? M.ironB : foot ? M.ironP : M.bcap); } }
   if (o2.lamps !== false) for (let k = 0; k <= nar; k += (nar > 4 ? 2 : 1)) for (const t of [-1, 1]) { const q = P(-1 + 2 * k / nar, t * (hw - pw / 2)); if (k === 0 || k === nar) continue; b.cyl(.09, .14, 3.2, q[0], ph, q[1], M.iron, 6).box(.36, .4, .36, q[0], ph + 3.2, q[1], M.gas); }
   if (o2.extra) o2.extra(b, o, a); }
 const BR = { // key: [label, lat, lon, construction, arches]

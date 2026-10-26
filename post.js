@@ -18,7 +18,7 @@ const COMP = mat(`uniform sampler2D t; uniform sampler2D bl; uniform sampler2D a
   void main(){ vec4 c4=texture2D(t,vUv); vec3 c=c4.rgb;
     if (ssr > .5 && c4.a < .5) { // Seine: screen-space reflection of the far quay and its facades
       float k=0.; for(int i=1;i<=28;i++){ float o=float(i)*.0055; vec2 u=vUv+vec2(0.,o); if(u.y>1.) break; if(texture2D(t,u).a>.5){ k=o; break; } }
-      if (k > 0.) { vec2 ru=vUv+vec2(sin(vUv.y*260.+time*1.7)*.0025+sin(vUv.x*90.-time)*.0012, k*1.55); vec4 rc=texture2D(t,clamp(ru,0.,1.)); if(rc.a>.5) c=mix(c, rc.rgb*vec3(.62,.7,.74)+c*.12, .62*smoothstep(.16,.0,k)*smoothstep(1.,.97,ru.y)); } }
+      if (k > 0.) { vec2 ru=vUv+vec2(sin(vUv.y*260.+time*1.7)*.0025+sin(vUv.x*90.-time)*.0012, k*1.55); vec4 rc=texture2D(t,clamp(ru,0.,1.)); float lw=dot(c,vec3(.3,.5,.2)), lr=dot(rc.rgb,vec3(.3,.5,.2)); if(rc.a>.5) c=mix(c, rc.rgb*vec3(.62,.7,.74)+c*.12, .62*smoothstep(.16,.0,k)*smoothstep(1.,.97,ru.y)*smoothstep(lw*1.05,lw*1.6,lr)); /* only pale facades mirror; dark trees/shadows no longer smear tall smudges over the river */ } }
     if (ts > .001) { float f=smoothstep(.28,.5,abs(vUv.y-.5))+smoothstep(.4,.5,abs(vUv.x-.5))*.5; c=mix(c, texture2D(lo,vUv).rgb, clamp(f*ts,0.,1.)); }
     if (aoOn > .5) { float a=0.; a+=texture2D(ao,vUv+aoPx*vec2(-1.,-1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(1.,-1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(-1.,1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(1.,1.)).r; c*=a*.25; }
     vec3 b=texture2D(bl,vUv).rgb; c+=b*bs;
@@ -93,6 +93,7 @@ export function postSize(r, samples) { const v = r.getDrawingBufferSize(new THRE
   for (const k of ['rt', 'a', 'b', 'ao', 'c', 'd', 'p', 'f']) if (POST[k]) { POST[k].dispose(); POST[k] = null; }
   POST.rt = mkRT(w, h, samples, POST.ssao); if (POST.ssao) { POST.ao = mkRT(Math.max(1, w >> 1), Math.max(1, h >> 1)); COMP.uniforms.aoPx.value.set(1 / (w >> 1), 1 / (h >> 1)); } const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); POST.p = mkRT(w, h); POST.f = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false }); FXAA.uniforms.px.value.set(1 / w, 1 / h); POST.a = mkRT(bw, bh); POST.b = mkRT(bw, bh); POST.c = mkRT(bw, bh); POST.d = mkRT(bw, bh);
   BRIGHT.uniforms.px.value.set(1 / w, 1 / h); }
+const _sd = new THREE.Vector3();
 function pass(r, m, target) { quad.material = m; r.setRenderTarget(target); r.render(qs, qc); }
 export function postRender(r, scene, camera, t) { const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping;
   r.setRenderTarget(POST.rt); r.render(scene, camera);
@@ -100,7 +101,7 @@ export function postRender(r, scene, camera, t) { const tm = r.toneMapping; r.to
     for (let k = 0; k < 2; k++) { BLUR.uniforms.t.value = POST.a.texture; BLUR.uniforms.dir.value.set((1 + k) / POST.a.width, 0); pass(r, BLUR, POST.b);
       BLUR.uniforms.t.value = POST.b.texture; BLUR.uniforms.dir.value.set(0, (1 + k) / POST.a.height); pass(r, BLUR, POST.a); } }
   const tsOn = POST.fx >= 2; if (tsOn) { COPY.uniforms.t.value = POST.rt.texture; pass(r, COPY, POST.c); for (let k = 0; k < 2; k++) { BLUR.uniforms.t.value = POST.c.texture; BLUR.uniforms.dir.value.set((1 + k) / POST.c.width, 0); pass(r, BLUR, POST.d); BLUR.uniforms.t.value = POST.d.texture; BLUR.uniforms.dir.value.set(0, (1 + k) / POST.c.height); pass(r, BLUR, POST.c); } COMP.uniforms.lo.value = POST.c.texture; }
-  COMP.uniforms.ts.value = tsOn ? .65 : 0; COMP.uniforms.ssr.value = POST.fx >= 1 ? 1 : 0;
+  COMP.uniforms.ts.value = tsOn ? .65 : 0; camera.getWorldDirection(_sd); COMP.uniforms.ssr.value = POST.fx >= 1 && _sd.y > -.8 ? 1 : 0; /* screen-space mirror only reads right at low angles; from steep/overhead views it smeared trees into tall dark smudges on the water */
   const aoOn = !!(POST.ssao && POST.ao && POST.rt.depthTexture); if (aoOn) { SSAO.uniforms.dT.value = POST.rt.depthTexture; SSAO.uniforms.pInv.value.copy(camera.projectionMatrixInverse); pass(r, SSAO, POST.ao); COMP.uniforms.ao.value = POST.ao.texture; } COMP.uniforms.aoOn.value = aoOn ? 1 : 0;
   COMP.uniforms.t.value = POST.rt.texture; COMP.uniforms.bl.value = POST.a.texture; COMP.uniforms.bs.value = POST.bloom ? POST.bs ?? .9 : 0; COMP.uniforms.time.value = t % 100;
   if (POST.paint > 0 && POST.p) { pass(r, COMP, POST.p); PAINT.uniforms.t.value = POST.p.texture; PAINT.uniforms.px.value.set(1 / POST.p.width, 1 / POST.p.height); PAINT.uniforms.q.value = POST.paint; PAINT.uniforms.night.value = COMP.uniforms.night.value; PAINT.uniforms.time.value = t % 1000; if (POST.aa !== false && POST.f) { pass(r, PAINT, POST.f); FXAA.uniforms.t.value = POST.f.texture; pass(r, FXAA, null); } else pass(r, PAINT, null); }

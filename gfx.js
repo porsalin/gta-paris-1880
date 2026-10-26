@@ -697,6 +697,12 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
     for (const sg of [-1, 1]) { const ex = b.x + b.ux * sg * b.L / 2, ez = b.z + b.uz * sg * b.L / 2, fx = ex + b.ux * sg * D, fz = ez + b.uz * sg * D;
       const trap = (w0, w1, st) => { g.fillStyle = typeof st === 'string' && GP[st] ? wp(st, Math.atan2(b.uz, b.ux)) : st; g.beginPath(); g.moveTo(ex - b.ux * sg * .4 + nx * w0, ez - b.uz * sg * .4 + nz * w0); g.lineTo(fx + nx * w1, fz + nz * w1); g.lineTo(fx - nx * w1, fz - nz * w1); g.lineTo(ex - b.ux * sg * .4 - nx * w0, ez - b.uz * sg * .4 - nz * w0); g.closePath(); g.fill(); };
       const hw = b.W / 2, rw = foot ? 0 : hw * .55; trap(hw + .1, hw + 1.8, 'flag'); if (!foot) { trap(rw + .14, rw + 1.4, '#3a342c'); trap(rw, rw + 1.25, 'pave'); } } }
+  { /* Pont Neuf across the island tip: the two decks are one bridge, so the roadway runs on between them as one straight band (flagged footways, kerbs, setts) over the terre-plein instead of a shapeless cobbled wedge */
+    const A = BRJ.pontneufb, B = BRJ.pontneufs; if (A && B) { const ends = o => [-1, 1].map(s => [o.x + o.ux * s * o.L / 2, o.z + o.uz * s * o.L / 2]); let best = null;
+      for (const p of ends(A)) for (const q of ends(B)) { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (!best || d < best[0]) best = [d, p, q]; }
+      const [, p, q] = best, dx = q[0] - p[0], dz = q[1] - p[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, hw = Math.max(A.W, B.W) / 2;
+      const band = (w, st) => { g.fillStyle = typeof st === 'string' && GP[st] ? wp(st, Math.atan2(dz, dx)) : st; g.beginPath(); g.moveTo(p[0] + nx * w, p[1] + nz * w); g.lineTo(q[0] + nx * w, q[1] + nz * w); g.lineTo(q[0] - nx * w, q[1] - nz * w); g.lineTo(p[0] - nx * w, p[1] - nz * w); g.closePath(); g.fill(); };
+      band(hw + 3.5, 'flag'); band(hw * .55 + .14, '#3a342c'); band(hw * .55, 'pave'); } }
   { /* final river cut after every road and pavement stroke: the OSM quay roads never spill past the quay wall line */ const m = smooth(t => kind[t] === K.WATER || kind[t] === K.BRIDGE, 16); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
   g.setTransform(1, 0, 0, 1, 0, 0);
   // Place de l'Étoile: true circles for the ring road and the Arc's island, with radiating paving
@@ -905,7 +911,7 @@ WATERM.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, WU);
       #include <opaque_fragment>
       if (uMark > .5) gl_FragColor.a = .2;`); };
 WATERM.customProgramCacheKey = () => 'seine3';
-const water = new THREE.Mesh(new THREE.PlaneGeometry(WX, WZ).rotateX(-Math.PI / 2), WATERM); water.position.set(WX / 2, -.9, WZ / 2); water.receiveShadow = true; scene.add(water);
+const water = new THREE.Mesh(new THREE.PlaneGeometry(WX, WZ).rotateX(-Math.PI / 2), WATERM); water.position.set(WX / 2, -.9, WZ / 2); water.receiveShadow = false; /* no tree/building shadow smudges on the river */ scene.add(water);
 // ================= DYNAMIC PROPS =================
 const DG = { crate: gbGeo(b => b.box(1, 1, 1, 0, .5, 0, '#8a6a40').box(1.02, .1, 1.02, 0, .2, 0, '#5a4028').box(1.02, .1, 1.02, 0, .8, 0, '#5a4028')),
   table: gbGeo(b => b.cyl(.45, .45, .05, 0, .75, 0, '#d8d0c0', 10).cyl(.04, .06, .75, 0, .37, 0, IRON).box(.4, .05, .4, .65, .45, 0, '#6a4a2a').box(.05, .4, .4, .85, .65, 0, '#6a4a2a').box(.4, .05, .4, -.65, .45, 0, '#6a4a2a').box(.05, .4, .4, -.85, .65, 0, '#6a4a2a')),

@@ -50,6 +50,7 @@ for k, c in enumerate(cs):
     if len(c) < 30: continue
     p = c[:, 0, :].astype(np.float64); n = len(p); s = min(SIG * 2, n / 8)
     q = np.stack([gaussian_filter1d(p[:, 0], s, mode='wrap'), gaussian_filter1d(p[:, 1], s, mode='wrap')], 1)
+    q = cv2.approxPolyDP(q.astype(np.float32).reshape(-1, 1, 2), 0.9, True).reshape(-1, 2).astype(np.float64)  # dressed-stone quays: straight runs between few vertices
     hole = hier[0][k][3] >= 0
     if hole and np.min(np.hypot(p[:, 0] - 259, p[:, 1] - 883)) < 70: continue  # the Ile aux Cygnes dyke is a 1-tile sliver: leave it under water so the Passy viaduct reads as one span
     polys.append((hole, q))
