@@ -94,3 +94,6 @@ Each entry has a real OpenStreetMap position. Most also have a real OSM footprin
 - The Tuileries ruins, already gone (demolished 1883).
 
 Districts (Belleville, Marais, Latin Quarter and so on) belong to the city-layout worker and are not covered here.
+
+## Seine bridges (1890)
+Pont Neuf (both arms), Carrousel, Royal, Solférino (iron), Concorde, Invalides, Alma (Zouave), Iéna, Change, Notre-Dame, Arcole (iron), Saint-Michel, Petit-Pont, Double, Louis-Philippe, Saint-Louis, Marie, Tournelle, Sully, Austerlitz, Bercy, Passy; Pont des Arts as iron footbridge. Pont Alexandre III omitted (1896-1900).
