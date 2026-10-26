@@ -25,7 +25,8 @@ const lampOn = new THREE.MeshBasicMaterial({ color: 0xffd890 }); export const LA
 const BLOBT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.62)'); gr.addColorStop(.55, 'rgba(0,0,0,.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 export const BLOBM = new THREE.MeshBasicMaterial({ map: BLOBT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, toneMapped: false });
 const BLOBG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-export function blob(g, sx, sz, x = 0) { const m = new THREE.Mesh(BLOBG, BLOBM); m.scale.set(sx, 1, sz); m.position.set(x, .035, 0); m.renderOrder = -1; m.userData.blob = 1; g.add(m); return m; }
+export function blob(g, sx, sz, x = 0) { return null; // v12: fake blob shadows removed — real shadow maps (sun + lamp spots) do this now
+   const m = new THREE.Mesh(BLOBG, BLOBM); m.scale.set(sx, 1, sz); m.position.set(x, .035, 0); m.renderOrder = -1; m.userData.blob = 1; g.add(m); return m; }
 function mk(gb, mat = VC) { const m = new THREE.Mesh(gb.geo(), mat); m.castShadow = true; return m; }
 const GC = new Map(); function cached(key, f) { if (!GC.has(key)) GC.set(key, f()); return GC.get(key); }
 // ================= PEDESTRIANS =================
@@ -138,6 +139,10 @@ PEDM.onBeforeCompile = sh => { sh.uniforms.uRim = PEDU.rim; sh.fragmentShader = 
 const OUTM = new THREE.MeshBasicMaterial({ color: 0x120c08, side: THREE.BackSide });
 OUTM.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * .022;'); };
 export const PEDCFG = { outline: false };
+// x-ray silhouette: drawn only where the figure is hidden behind roofs / trees (depth GREATER), so occluders stay solid
+export const XRAYM = new THREE.MeshBasicMaterial({ color: 0xf2c46a, transparent: true, opacity: .42, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false });
+export const XRAYN = new THREE.MeshBasicMaterial({ color: 0xc8d8f0, transparent: true, opacity: .28, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false });
+export function addXray(root, mat = XRAYM) { const L = []; (root.isMesh ? [root] : []).concat([]).forEach(o => { if (o.isMesh && !o.userData.blob && !o.userData.xr && o.material !== RINGM) L.push(o); }); for (const o of L) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xr = 1; x.userData.blob = 1; x.renderOrder = 20; x.castShadow = false; x.raycast = () => {}; o.add(x); } }
 const RINGT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(255,210,90,0)'); gr.addColorStop(.62, 'rgba(255,214,100,.12)'); gr.addColorStop(.8, 'rgba(255,224,130,.75)'); gr.addColorStop(.88, 'rgba(255,200,80,.35)'); gr.addColorStop(1, 'rgba(255,190,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 export const RINGM = new THREE.MeshBasicMaterial({ map: RINGT, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
 export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
@@ -147,6 +152,7 @@ export function makePed(L, mounted) { const G = pedGeos(L), g = new THREE.Group(
   let horse = null; if (mounted) { horse = makeHorse('#2a1a12'); g.add(horse.g); rig.position.set(-.1, 1.05, 0); legs.forEach(l => { l.rotation.z = 1.3; l.rotation.x = l.position.z > 0 ? -.35 : .35; }); }
   if (L.player) { const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), RINGM); ring.rotation.x = -Math.PI / 2; ring.position.y = .05; ring.userData.blob = 1; ring.renderOrder = -1; g.add(ring); g.userData.ring = ring; }
   if (mounted) blob(g, 2.6, 1.1); else blob(g, .9, .8);
+  if (L.player) addXray(body, XRAYM); else if (L.boss || L.named) addXray(body, XRAYN); // torso+head only: no self-occlusion speckle from limbs
   g.scale.set(1.12, 1.3, 1.12); return { g, rig, legs, arms, horse, ph: 0, dead: false }; }
 // state: sp (units/s), dt, punch, aim
 export function animPed(P, sp, dt, punch, dead) {

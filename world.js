@@ -72,17 +72,40 @@ export function setPropM(p) { if (hooks.prop) hooks.prop(p); }
 function nearSame(type, x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if (p.type === type && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
 function nearAny(x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if ((p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L);
+// 1889 Exposition footprints (Tour Eiffel, Galerie des Machines) are kept clear of trees / street furniture
+const CLEAR = []; if (LM.trocadero && LM.ecolemil) { const tx = LM.trocadero[1], tz = LM.trocadero[2], ex = LM.ecolemil[1], ez = LM.ecolemil[2], ux = ex - tx, uz = ez - tz, ul = Math.hypot(ux, uz);
+  CLEAR.push({ x: tx + ux * .31, z: tz + uz * .31, a: ux / ul, b: uz / ul, hu: 23, hv: 23 }, { x: tx + ux * .80, z: tz + uz * .80, a: ux / ul, b: uz / ul, hu: 25, hv: 68 }); }
+export function inClear(x, z) { for (const c of CLEAR) { const dx = x - c.x, dz = z - c.z, u = dx * c.a + dz * c.b, v = -dx * c.b + dz * c.a; if (Math.abs(u) < c.hu && Math.abs(v) < c.hv) return true; } return false; }
+// ---- street lamps: laid out along the vector street centrelines, a fixed 0.6 units inside the kerb, at regular spacing ----
+// grands boulevards (class 4): electric arc lamps (1890) both sides every 14; avenues (3): both sides every 16; rues (2,1): alternating every 20/22.
+// Each street starts with a lamp at a fixed spot just past its junctions. Ruelles / bridges / pavement-less lanes get none.
+export const LAMP_RULE = { off: .6, sp: { 4: 14, 3: 16, 2: 20, 1: 22 } };
+const VJ = await fetch('map/vec.json').then(r => r.json());
+export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
+  for (const [c, br, sf, P] of VJ.roads) for (const e of [0, P.length - 2]) { const k = key(P[e], P[e + 1]); const n = nodes.get(k) || nodes.set(k, { n: 0, w: 0 }).get(k); n.n++; n.w = Math.max(n.w, (W[c] ?? 1) * T); }
+  const grid = new Map(), gk = (x, z) => Math.floor(x / 6) * 100000 + Math.floor(z / 6);
+  const near = (x, z, r) => { const a = Math.floor(x / 6), b = Math.floor(z / 6), n = Math.ceil(r / 6); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) for (const q of grid.get(i * 100000 + j) || []) if ((q.x - x) ** 2 + (q.z - z) ** 2 < r * r) return true; return false; };
+  const roads = VJ.roads.map((r, k) => [r, k]).sort((A, B) => B[0][0] - A[0][0] || A[1] - B[1]); // big streets first, deterministic
+  for (const [[c, br, sf, P]] of roads) { const sp = LAMP_RULE.sp[c]; if (!sp || br) continue; const w = (W[c] ?? 1) * T, off = w / 2 + LAMP_RULE.off, both = c >= 3;
+    let L = 0; const seg = []; for (let k = 0; k + 3 < P.length; k += 2) { const l = Math.hypot(P[k + 2] - P[k], P[k + 3] - P[k + 1]); seg.push(l); L += l; }
+    const n0 = nodes.get(key(P[0], P[1])), n1 = nodes.get(key(P[P.length - 2], P[P.length - 1]));
+    const s0 = n0 && n0.n >= 3 ? n0.w / 2 + 2.5 : sp / 2, s1 = L - (n1 && n1.n >= 3 ? n1.w / 2 + 2.5 : sp / 2); if (s1 < s0) continue;
+    let idx = 0; for (let d = s0; d <= s1 + .01; d += sp, idx++) { let acc = 0, k = 0; while (k < seg.length - 1 && acc + seg[k] < d) { acc += seg[k]; k++; } const f = Math.min(1, (d - acc) / (seg[k] || 1));
+      const ax = P[2 * k], az = P[2 * k + 1], bx = P[2 * k + 2], bz = P[2 * k + 3], dx = (bx - ax) / (seg[k] || 1), dz = (bz - az) / (seg[k] || 1), x0 = ax + (bx - ax) * f, z0 = az + (bz - az) * f;
+      for (const sd of both ? [1, -1] : [idx % 2 ? -1 : 1]) { const x = x0 - dz * off * sd, z = z0 + dx * off * sd, kk = kij(Math.floor(x / T), Math.floor(z / T));
+        if (kk !== K.SIDE || near(x, z, sp * .55)) continue; const q = { x, z, arc: c === 4, ry: Math.atan2(-dx * sd, dz * sd) }; out.push(q); (grid.get(gk(x, z)) || grid.set(gk(x, z), []).get(gk(x, z))).push(q); } } }
+  return out; })();
+const LAMPC = new Map(); for (const q of LAMPS) { const k = Math.floor(q.x / CHU) * 1000 + Math.floor(q.z / CHU); (LAMPC.get(k) || LAMPC.set(k, []).get(k)).push(q); }
+export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
   for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if (k !== K.SIDE && k !== K.PARK) continue;
     const d = dist[t], h = hash(i, j, 1), x = (i + .5) * T, z = (j + .5) * T; let road = null, water = false, bld = false;
     for (const [di, dj] of N4) { const kk = kij(i + di, j + dj); if ((kk === K.ROAD || kk === K.BRIDGE) && !road) road = [di, dj]; if (kk === K.WATER) water = true; if (kk === K.BLD) bld = true; }
+    if (inClear(x, z)) continue; if (nearSame('lamp', x, z, 1.7)) continue;
     const put = (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; };
-    // fountains: only in the middle of open paved squares (every tile within 2 is pavement / parvis)
-    if (k === K.SIDE && hash(i, j, 77) < .05 && !nearSame('fountain', x, z, 70)) { let ok = true; for (let b = -2; b <= 2 && ok; b++) for (let a = -2; a <= 2; a++) if (kij(i + a, j + b) !== K.SIDE) { ok = false; break; } if (ok && !nearAny(x, z, 5.2)) { put('fountain', x, z); continue; } }
+    // v12: fountain / stall placement now belongs to zoning.js (city-layout worker); the fountain model stays in gfx.js
     if (nearSame('fountain', x, z, 5.2)) continue;
     if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }
     if (road) { const rs = surf[ti(i + road[0], j + road[1])], boul = rs === S.MAC; const lx = x + road[0] * .7, lz = z + road[1] * .7;
-      if (h < .3 && !nearSame('lamp', x, z, boul ? 11 : 12)) { put('lamp', lx, lz, { arc: boul && (d === 1 || d === 7), ry: Math.atan2(road[1], road[0]) }); continue; }
       if (boul && !bld && h > .6 && !nearSame('tree', x, z, 4.8)) { put('tree', x + road[0] * .3, z + road[1] * .3, { s: .9 + hash(i, j, 4) * .4 }); continue; }
       if (boul && h > .55 && h < .6 && !nearSame('tree', x, z, 4.8) && !bld) { put('tree', x, z, { s: 1 }); continue; } }
     if (water && h > .55 && !nearSame('tree', x, z, 5.5)) { put('tree', x, z, { s: 1.05 }); continue; }
