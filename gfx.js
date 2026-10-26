@@ -75,6 +75,10 @@ GP.yard = cv(128, 128, g => { g.fillStyle = '#5a544c'; g.fillRect(0, 0, 128, 128
 GP.parvis = cv(128, 128, g => { noise(g, 128, 128, [176, 168, 150], 10, 2); g.strokeStyle = 'rgba(90,80,70,.4)'; for (let k = 0; k <= 128; k += 16) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 128); g.moveTo(0, k); g.lineTo(128, k); g.stroke(); } });
 GP.stair = cv(128, 128, g => { for (let y = 0; y < 128; y += 8) { g.fillStyle = sh([170, 162, 150], (rnd() - .5) * 10); g.fillRect(0, y, 128, 6); g.fillStyle = '#5a544c'; g.fillRect(0, y + 6, 128, 2); } });
 GP.rail = cv(128, 128, g => { noise(g, 128, 128, [86, 80, 74], 30, 2); g.fillStyle = 'rgba(70,46,24,.85)'; for (let y = 2; y < 128; y += 10) g.fillRect(0, y, 128, 4); });
+GP.track = cv(128, 128, g => { noise(g, 128, 128, [104, 98, 90], 34, 2); /* v15 ballast + sleepers + steel; 128 px = 4 world units across, one track centred on the pattern edge (y=0) */
+  for (let n = 0; n < 220; n++) { g.fillStyle = `rgba(${n % 3 ? 60 : 150},${n % 3 ? 56 : 144},${n % 3 ? 52 : 136},.5)`; g.fillRect((n * 37) % 128, (n * 59) % 128, 2, 2); }
+  for (let x = 4; x < 128; x += 21.33) { g.fillStyle = 'rgba(64,44,28,.95)'; g.fillRect(x, 0, 8, 42); g.fillRect(x, 86, 8, 42); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x + 7, 0, 2, 42); g.fillRect(x + 7, 86, 2, 42); }
+  for (const y of [23, 105]) { g.fillStyle = '#3a3836'; g.fillRect(0, y - 2, 128, 5); g.fillStyle = '#9a9894'; g.fillRect(0, y - 1, 128, 2); } });
 // Impressionist texture pass: re-lay every canvas as short, overlapping dabs of the colour beneath them, wrapping at the edges
 // so tiles still repeat. Gives brushwork in the world itself (it rotates and scales with the scene) instead of a screen overlay.
 function paintify(c, w0 = 3, dens = .9, a = .55) { const g = c.getContext('2d'), W = c.width, H = c.height, src = g.getImageData(0, 0, W, H).data; const n = Math.round(W * H / (w0 * w0 * 3) * dens); g.lineCap = 'round';
@@ -424,7 +428,8 @@ function flowerCart(B, W) { B.box(W, 0, .45, 0, 1.4, .35, .8, WOOD, WHT, GDUV(1)
 function cafeSet(B, W, u, w) { B.box(W, u, 0, w, .07, .72, .07, IRONC); B.box(W, u, 0, w, .32, .03, .32, IRONC); B.box(W, u, .72, w, .58, .04, .58, MARBLE);
   for (const s of [-1, 1]) { B.box(W, u + s * .48, 0, w, .05, .44, .3, IRONC); B.box(W, u + s * .48, .44, w, .34, .05, .34, WICKER); B.box(W, u + s * .64, .44, w, .05, .45, .34, WICKER); } }
 const FS = 1.5; // Haussmann storey scale: 3.6 m storeys against ~1.8 m people
-function detailGeo(det, cx, cz) { const B = new QB(); const lvl = Q.det | 0; if (!lvl) return B;
+const RDK = (i, j) => { const k = kij(i, j); return k === K.ROAD || k === K.BRIDGE; }, cornerT = (i, j) => { let h = false, v = false; for (let r = 1; r <= 2; r++) { if (RDK(i + r, j) || RDK(i - r, j)) h = true; if (RDK(i, j + r) || RDK(i, j - r)) v = true; } return h && v; }; /* v15: street-name plaques only at street corners */
+function detailGeo(det, cx, cz) { const B = new QB(), PLQB = new Set(); const lvl = Q.det | 0; if (!lvl) return B;
   for (const [ax, az, bx, bz, h, st, nx, nz, ua, ub, oi, oj, bi, bj] of det) { const L = Math.hypot(bx - ax, bz - az), W = B.frame((ax + bx) / 2, (az + bz) / 2, nx, nz), mid = (ua + ub) / 2;
     // window sills and lintels (stone), Haussmann wrought-iron balconies on the 2nd and 5th floors
     if (lvl >= 2) { const fl = st === 2 ? 3 : 7; for (let f = 0; f < fl; f++) { const y0 = (1.6 + f * 1.2) * FS, wh = (f === 0 && st === 0 ? .86 : .7) * FS; if (y0 + .3 + wh > h) break;
@@ -433,9 +438,10 @@ function detailGeo(det, cx, cz) { const B = new QB(); const lvl = Q.det | 0; if 
     else B.box(W, 0, 1.6 * FS, .05, L, .08, .12, STONE2);
     // v14 street graphics: enamel name plaque at the street corner, bill posters on old fronts, painted advertisements high on plain walls
     if (lvl >= 1 && gclass(oi, oj) === 4) { const hp = hash(bi, bj, 81);
-      if (hash(oi >> 2, oj >> 2, 82) < .5 && L > 3) { const u = -(ua - mid) - .25; B.q(W(u - .55, 3.55, .07), W(u + .55, 3.55, .07), W(u + .55, 4.05, .07), W(u - .55, 4.05, .07), PLUV(Math.floor(hash(oi >> 3, oj >> 3, 83) * 4))); }
-      if ((st === 1 || st === 2 || st === 3) && hp < .35 && L > 3) { const n = 1 + Math.floor(hash(bi, bj, 84) * 3), u0 = (hash(bi, bj, 85) - .5) * (L - 2.5); for (let k = 0; k < n; k++) { const u = u0 + (k - (n - 1) / 2) * .78; B.q(W(u - .36, .55, .06), W(u + .36, .55, .06), W(u + .36, 1.95, .06), W(u - .36, 1.95, .06), PSUV(Math.floor(hash(bi + k, bj, 86) * 8))); } }
-      else if (st !== 0 && hp > .9 && L > 7 && h > 9) { const aw = Math.min(L * .8, 9), ah = aw * .37, y1 = h - 1.2; B.q(W(-aw / 2, y1 - ah, .05), W(aw / 2, y1 - ah, .05), W(aw / 2, y1, .05), W(-aw / 2, y1, .05), ADUV(Math.floor(hash(bi, bj, 87) * 4)), [.92, .9, .86]); } }
+      if (ua < .4 && L > 2 && cornerT(oi, oj) && hash(bi, bj, 82) < .8 && !PLQB.has(bi * 65536 + bj) && PLQB.add(bi * 65536 + bj)) { const u = -(ua - mid) - .25; B.q(W(u - .55, 3.55, .07), W(u + .55, 3.55, .07), W(u + .55, 4.05, .07), W(u - .55, 4.05, .07), PLUV(Math.floor(hash(oi >> 3, oj >> 3, 83) * 4))); }
+      const zk0 = hooks.shop ? hooks.shop(bi, bj, oi, oj) : null, shop0 = !(zk0 === -1 || (zk0 == null && hash(bi, bj, 61) > (st === 2 ? .45 : .7))); /* v15: posters go on blank (non-shop) ground floors, any style */
+      if (!shop0 && hp < (st === 0 ? .5 : .6) && L > 2) { const n = 1 + Math.floor(hash(bi, bj, 84) * 3), u0 = (hash(bi, bj, 85) - .5) * (L - 2.5); for (let k = 0; k < n; k++) { const u = u0 + (k - (n - 1) / 2) * .78; B.q(W(u - .36, .55, .06), W(u + .36, .55, .06), W(u + .36, 1.95, .06), W(u - .36, 1.95, .06), PSUV(Math.floor(hash(bi + k, bj, 86) * 8))); } }
+      else if (st !== 0 && hp > .78 && L > 5 && h > 8) { const aw = Math.min(L * .8, 9), ah = aw * .37, y1 = h - 1.2; B.q(W(-aw / 2, y1 - ah, .05), W(aw / 2, y1 - ah, .05), W(aw / 2, y1, .05), W(-aw / 2, y1, .05), ADUV(Math.floor(hash(bi, bj, 87) * 4)), [.92, .9, .86]); } }
     // ground-floor shopfronts on the pavement side
     if (gclass(oi, oj) !== 4) continue; const zk = hooks.shop ? hooks.shop(bi, bj, oi, oj) : null; if (zk === -1 || (zk == null && hash(bi, bj, 61) > (st === 2 ? .45 : .7))) continue; const k = zk ?? Math.floor(hash(bi >> 1, bj >> 1, 62) * 8); // ground-floor use from zoning.js
     B.q(W(-L * .46, 2.46, .05), W(L * .46, 2.46, .05), W(L * .46, 2.9, .05), W(-L * .46, 2.9, .05), SGUV(k)); B.box(W, 0, 2.4, .04, L * .96, .05, .06, GILT);
@@ -648,7 +654,13 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
   const WALK = new Set([K.SIDE, K.ROAD, K.BRIDGE, K.STAIR]);
   layer(t => WALK.has(kind[t]), 'flag'); yield; layer(t => skipT[t] > 0, 'parvis'); yield; layer(t => kind[t] === K.PARK, 'grass', 10); yield;
   { const m = smooth(t => kind[t] === K.WATER, 9); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
-  yield; for (const o of VCH.rail) seg(o, 3 * T, 'rail', Math.PI / 2);
+  yield; { /* v15: railway yards (zoning 'railway' land + rail tiles) as ballast with parallel tracks, aligned to the nearest main line */ const ZN = globalThis.__ZN, ZR = ZN && ZN.Z.railway;
+    const m = smooth((t, i, j) => kind[t] === K.RAIL || (ZR != null && ZN.zoneTile(i, j) === ZR && !WALK.has(kind[t]) && kind[t] !== K.BLD && kind[t] !== K.WATER && kind[t] !== K.PARK), 4);
+    if (m) { let best = null, bl = 0; for (const o of near(VRAIL, vx - 80, vz - 80, vx + CHU + 80, vz + CHU + 80)) for (let k = 0; k + 3 < o.p.length; k += 2) { const l = Math.hypot(o.p[k + 2] - o.p[k], o.p[k + 3] - o.p[k + 1]); if (l > bl) { bl = l; best = [o.p[k], o.p[k + 1], o.p[k + 2], o.p[k + 3]]; } }
+      const ang = best ? Math.atan2(best[3] - best[1], best[2] - best[0]) : Math.PI / 2, lc = SMC[2]; lc.width = lc.height = CPX; const lg = lc.getContext('2d', CTX2D); lg.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs);
+      const pt = lg.createPattern(GP.track, 'repeat'); pt.setTransform(new DOMMatrix().translate(best ? best[0] : 0, best ? best[1] : 0).rotate(ang * 57.29578).scale(4.4 / 128)); lg.fillStyle = pt; lg.fillRect(vx, vz, CHU, CHU);
+      lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = 'destination-in'; lg.drawImage(m, 0, 0, CPX, CPX); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(lc, 0, 0); WT(); } }
+  for (const o of VCH.rail) { g.lineWidth = 4.4; for (let k = 0; k + 3 < o.p.length; k += 2) { const ax = o.p[k], az = o.p[k + 1], bx = o.p[k + 2], bz = o.p[k + 3], p = g.createPattern(GP.track, 'repeat'); p.setTransform(new DOMMatrix().translate(ax, az).rotate(Math.atan2(bz - az, bx - ax) * 57.29578).scale(4.4 / 128)); g.strokeStyle = p; g.beginPath(); g.moveTo(ax, az); g.lineTo(bx, bz); g.stroke(); } }
   const RD = VCH.roads.filter(r => !r.br), BR = VCH.roads.filter(r => r.br), JC = VCH.junc, jf = j => j.n >= 3 ? .62 : .5;
   for (const r of RD) if (r.c === -2) seg(r, r.w, 'gravel');
   for (const r of RD) if (r.c >= 0) seg(r, r.pw, 'flag');
