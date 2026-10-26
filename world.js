@@ -64,7 +64,7 @@ export function bldH(i, j) { if (!inb(i, j)) return 0; const t = ti(i, j); if (k
 export const isYard = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && !skipT[ti(i, j)] && bldH(i, j) === 0;
 // ---- props (data, generated lazily per chunk) ----
 export const PD = { lamp: { r: .3, hp: 25 }, tree: { r: .6, hp: 200 }, morris: { r: .9, hp: 80 }, wallace: { r: .7, hp: 120 }, trough: { r: .8, hp: 60 }, pissoir: { r: .9, hp: 90 }, bench: { r: .5, hp: 40 }, kiosk: { r: 1, hp: 120 },
-  crate: { r: .7, hp: 50 }, table: { r: .6, hp: 30 }, barricade: { r: 1.2, hp: 300 }, phone: { r: .4, hp: 1e9 }, manhole: { r: 0, hp: 1e9 }, solid: { r: 1, hp: 1e9 }, fountain: { r: 2.4, hp: 1e9 } };
+  crate: { r: .7, hp: 50 }, table: { r: .6, hp: 30 }, barricade: { r: 1.2, hp: 300 }, phone: { r: .4, hp: 1e9 }, manhole: { r: 0, hp: 1e9 }, solid: { r: 1, hp: 1e9 }, fountain: { r: 2.4, hp: 1e9 }, omnibus: { r: .5, hp: 120 } };
 const propGrid = new Map(); export const chunkProps = new Map(); export const dynProps = [];
 const gk = (x, z) => Math.floor(x / 8) * 10000 + Math.floor(z / 8);
 export function addProp(type, x, z, extra) { const p = Object.assign({ type, x, z, r: PD[type].r, hp: PD[type].hp, alive: true }, extra || {}); const k = gk(x, z); if (!propGrid.has(k)) propGrid.set(k, []); propGrid.get(k).push(p); return p; }
@@ -81,6 +81,7 @@ export function inClear(x, z) { for (const c of CLEAR) { const dx = x - c.x, dz 
 // Each street starts with a lamp at a fixed spot just past its junctions. Ruelles / bridges / pavement-less lanes get none.
 export const LAMP_RULE = { off: .6, sp: { 4: 14, 3: 16, 2: 20, 1: 22 } };
 const VJ = await fetch('map/vec.json').then(r => r.json());
+export const OMNI = []; // v14
 export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
   for (const [c, br, sf, P] of VJ.roads) for (const e of [0, P.length - 2]) { const k = key(P[e], P[e + 1]); const n = nodes.get(k) || nodes.set(k, { n: 0, w: 0 }).get(k); n.n++; n.w = Math.max(n.w, (W[c] ?? 1) * T); }
   const grid = new Map(), gk = (x, z) => Math.floor(x / 6) * 100000 + Math.floor(z / 6);
@@ -93,10 +94,11 @@ export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key =
     let idx = 0; for (let d = s0; d <= s1 + .01; d += sp, idx++) { let acc = 0, k = 0; while (k < seg.length - 1 && acc + seg[k] < d) { acc += seg[k]; k++; } const f = Math.min(1, (d - acc) / (seg[k] || 1));
       const ax = P[2 * k], az = P[2 * k + 1], bx = P[2 * k + 2], bz = P[2 * k + 3], dx = (bx - ax) / (seg[k] || 1), dz = (bz - az) / (seg[k] || 1), x0 = ax + (bx - ax) * f, z0 = az + (bz - az) * f;
       for (const sd of both ? [1, -1] : [idx % 2 ? -1 : 1]) { const x = x0 - dz * off * sd, z = z0 + dx * off * sd, kk = kij(Math.floor(x / T), Math.floor(z / T));
-        if (kk !== K.SIDE || near(x, z, sp * .55)) continue; const q = { x, z, arc: c === 4, ry: Math.atan2(-dx * sd, dz * sd) }; out.push(q); (grid.get(gk(x, z)) || grid.set(gk(x, z), []).get(gk(x, z))).push(q); } } }
+        if (kk !== K.SIDE || near(x, z, sp * .55)) continue; const q = { x, z, arc: c === 4, ry: Math.atan2(-dx * sd, dz * sd) }; out.push(q);
+        if (c >= 3 && hash(Math.round(x), Math.round(z), 131) < .09) { const ox = x0 - dz * (off + .2) * sd + dx * 2.6, oz = z0 + dx * (off + .2) * sd + dz * 2.6; if (kij(Math.floor(ox / T), Math.floor(oz / T)) === K.SIDE && !OMNI.some(o => (o.x - ox) ** 2 + (o.z - oz) ** 2 < 80 * 80)) OMNI.push({ x: ox, z: oz, ry: Math.atan2(dz * sd, dx * sd) }); } /* v14 omnibus stops: on the vector pavement just behind the kerb, a few metres past a lamp */ (grid.get(gk(x, z)) || grid.set(gk(x, z), []).get(gk(x, z))).push(q); } } }
   return out; })();
 const LAMPC = new Map(); for (const q of LAMPS) { const k = Math.floor(q.x / CHU) * 1000 + Math.floor(q.z / CHU); (LAMPC.get(k) || LAMPC.set(k, []).get(k)).push(q); }
-export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
+export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of OMNI) if (Math.floor(q.x / CHU) === cx && Math.floor(q.z / CHU) === cz) L.push(addProp('omnibus', q.x, q.z, { ry: q.ry })); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
   if (hooks.zoneProps) hooks.zoneProps(cx, cz, (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; }, nearAny); // zoning.js: fountains, market stalls, bouquinistes, bandstands
   for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if (k !== K.SIDE && k !== K.PARK) continue;
     const d = dist[t], h = hash(i, j, 1), x = (i + .5) * T, z = (j + .5) * T; let road = null, water = false, bld = false;
@@ -112,8 +114,8 @@ export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps
     if (water && h > .55 && !nearSame('tree', x, z, 5.5)) { put('tree', x, z, { s: 1.05 }); continue; }
     if (h > .9955 && !nearSame('morris', x, z, 30)) put('morris', x, z); else if (h > .991 && h <= .9955 && d !== 0 && !nearSame('wallace', x, z, 40)) put('wallace', x, z);
     else if (h > .987 && h <= .991 && (d === 0 || d === 9 || d === 3 || d === 11) && !nearSame('trough', x, z, 30)) put('trough', x, z);
-    else if (h > .983 && h <= .987 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('kiosk', x, z, 40)) put('kiosk', x, z);
-    else if (h > .979 && h <= .983 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('pissoir', x, z, 40)) put('pissoir', x, z);
+    else if (k === K.SIDE && h > .983 && h <= .987 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('kiosk', x, z, 26)) put('kiosk', x, z);
+    else if (k === K.SIDE && h > .979 && h <= .983 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('pissoir', x, z, 26)) put('pissoir', x, z);
     else if (h > .97 && h <= .979 && road && surf[ti(i + road[0], j + road[1])] === S.MAC) put('bench', x, z, { ry: Math.atan2(road[1], road[0]) }); }
   return L; }
 export function propsNear(x, z) { const out = []; const a = Math.floor(x / 8), b = Math.floor(z / 8);
