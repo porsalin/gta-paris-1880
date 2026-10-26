@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import { FACTIONS, MISSIONS, CHAPTERS, DRAMATIS } from './missions.js';
-import { K, S, SURF, NX, NZ, T, WX, WZ, kind, surf, dist, DN, LM, LABELS, FLAGGED, tileAt, kAt, pedBlock, vehBlock, snapWalk, POI, POIV, GN, GE, ADJ, nodesIn, nearestNode, edgePts, edgeOther, TRAM, TRAIN, pathAt, pathNear, propsNear, addDynProp, setPropM, dynProps } from './world.js';
+import { K, S, SURF, NX, NZ, T, WX, WZ, kind, surf, dist, DN, LM, LABELS, FLAGGED, tileAt, kAt, pedBlock, vehBlock, snapWalk, POI, POIV, GN, GE, ADJ, nodesIn, nearestNode, edgePts, edgeOther, TRAM, TRAIN, pathAt, pathNear, propsNear, addDynProp, setPropM, dynProps, skipT } from './world.js';
 import * as G from './gfx.js';
 import * as LIFE from './life.js';
 import { LOOKS, gangLook, makePed, animPed, killHorse, makeVeh, animVeh, charMat, LAMPMAT } from './models.js';
@@ -16,7 +16,8 @@ function audio() { if (AC) return; try { AC = new (window.AudioContext || window
 function tone(f, d, type = 'square', v = .1, f2, when = 0) { if (!AC || !snd) return; const t = AC.currentTime + when, o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g); g.connect(master); o.start(t); o.stop(t + d + .02); }
 let nbuf; function noise(d, v = .3, fq = 1200, when = 0) { if (!AC || !snd) return; if (!nbuf) { nbuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const a = nbuf.getChannelData(0); for (let i = 0; i < a.length; i++) a[i] = Math.random() * 2 - 1; }
   const t = AC.currentTime + when, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nbuf; f.type = 'lowpass'; f.frequency.value = fq; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + d + .02); }
-const SFX = { shot: () => { noise(.18, .5, 2500); tone(120, .1, 'square', .1, 50); }, shotgun: () => { noise(.35, .7, 1500); }, rifle: () => { noise(.12, .5, 4000); tone(300, .08, 'square', .06, 80); },
+const SFX = { pop: () => { noise(.1, .35, 3200); tone(260, .05, 'square', .05, 90); }, lebel: () => { noise(.09, .55, 5000); tone(420, .05, 'square', .07, 120); }, click: () => { tone(2200, .02, 'square', .04); tone(1400, .03, 'square', .03, 0, .03); },
+  putt: (f = 1) => { tone(55 * f, .06, 'sawtooth', .05, 40 * f); noise(.04, .08, 500); }, pedal: () => tone(900 + Math.random() * 200, .02, 'triangle', .015), shot: () => { noise(.18, .5, 2500); tone(120, .1, 'square', .1, 50); }, shotgun: () => { noise(.35, .7, 1500); }, rifle: () => { noise(.12, .5, 4000); tone(300, .08, 'square', .06, 80); },
   boom: () => { noise(1.2, .9, 400); tone(60, .8, 'sine', .4, 25); }, whistle: () => { tone(2600, .5, 'sine', .12); tone(2750, .25, 'sine', .08, 0, .12); }, hit: () => noise(.08, .3, 800), hoof: () => { tone(180 + Math.random() * 40, .05, 'triangle', .07); },
   pager: () => { tone(1800, .08, 'square', .05); tone(1800, .08, 'square', .05, 0, .12); }, crash: () => { noise(.4, .6, 900); }, cash: () => { tone(1320, .08, 'square', .06); tone(1760, .15, 'square', .06, 0, .08); }, swing: () => noise(.1, .15, 3000), bell: () => { tone(523, 1.2, 'sine', .15); tone(784, 1.2, 'sine', .08); } };
 // cabaret tune (cancan-ish) — simple sequencer
@@ -53,9 +54,17 @@ const VT = {
   gig: { len: 2.8, wid: 1.8, horses: 1, spd: 21, acc: 17, hp: 55, body: '#7a5a30', roof: '#a08050', turn: 3.2 },
   omnibus: { len: 6.5, wid: 2.6, horses: 3, spd: 15, acc: 7, hp: 420, body: '#c8b060', roof: '#3a5a3a', turn: 1.5 },
   police: { len: 4.2, wid: 2.2, horses: 2, spd: 27, acc: 18, hp: 160, body: '#0a0a1e', roof: '#1e2a5a', turn: 2.6 },
+  // 1890: two-wheelers and the first petrol carriages (ride = rider sits on top, visible; motor = petrol engine)
+  bicycle: { len: 1.8, wid: .7, horses: 0, spd: 17, acc: 13, hp: 25, body: '#1a1a1a', roof: '#6a4a2a', turn: 3.6, ride: 'pedal', n: 'Safety Bicycle' },
+  pennyfarthing: { len: 1.9, wid: .8, horses: 0, spd: 20, acc: 8, hp: 18, body: '#1a1a1a', roof: '#5a3a1a', turn: 2.1, ride: 'pedal', n: 'Penny-Farthing' },
+  velocipede: { len: 1.9, wid: .8, horses: 0, spd: 11, acc: 8, hp: 25, body: '#6a4a2a', roof: '#3a2a1a', turn: 2.8, ride: 'pedal', n: 'Michaux Velocipede' },
+  panhard: { len: 3.1, wid: 1.6, horses: 0, spd: 19, acc: 6, hp: 130, body: '#4a1a1a', roof: '#1a1a1a', turn: 1.8, motor: 1, n: 'Panhard et Levassor' },
+  peugeot: { len: 2.7, wid: 1.4, horses: 0, spd: 17, acc: 6.5, hp: 90, body: '#1a3a2a', roof: '#c8a040', turn: 2.1, motor: 1, n: 'Peugeot Type 2 (prototype)' },
+  benz: { len: 2.7, wid: 1.4, horses: 0, spd: 13, acc: 4.5, hp: 70, body: '#1a1a1a', roof: '#3a2a1a', turn: 1.7, motor: 1, n: 'Benz Patent-Motorwagen' },
   tram: { len: 7, wid: 2.6, horses: 0, spd: 12, acc: 4, hp: 900, body: '#3a5a3a', roof: '#aa3a1a', turn: 0, rail: 'tram' },
   train: { len: 8, wid: 2.6, horses: 0, spd: 22, acc: 5, hp: 5000, body: '#1a1a1a', roof: '#4a1a1a', turn: 0, rail: 'train' },
 };
+function registerVehicle(type, def, inTraffic = 0) { VT[type] = def; for (let k = 0; k < inTraffic; k++) TRAFFIC_T.push(type); }
 function spawnVeh(type, x, z, a, o = {}) { const d = VT[type], V = makeVeh(type, d), g = V.g;
   const v = Object.assign({ type, x, z, a, vx: 0, vz: 0, av: 0, hp: d.hp, horseHp: d.horses ? 60 * d.horses : 1e9, alive: true, driver: null, mesh: g, V, body: V.body, hs: V.horses.map(h => h.g), d, burn: 0, t: 0, wreck: false, lx: x, lz: z }, o);
   scene.add(g); vehs.push(v); return v; }
@@ -63,22 +72,40 @@ function spawnRail(type, s, o = {}) { const P = type === 'tram' ? TRAM : TRAIN; 
 function removeVeh(v) { scene.remove(v.mesh); const i = vehs.indexOf(v); if (i >= 0) vehs.splice(i, 1); }
 // ================= PLAYER =================
 const START = [POI.chien[0] + 8, POI.chien[1] + 6]; { const s = snapWalk(Math.floor(START[0] / T), Math.floor(START[1] / T), false); START[0] = s[0]; START[1] = s[1]; }
-const player = { x: START[0], z: START[1], a: 0, hp: 100, alive: true, veh: null, w: 0, ammo: { fists: 1e9 }, cd: 0, punch: 0, walkT: 0, inv: 0, god: false };
+const player = { x: START[0], z: START[1], a: 0, hp: 100, alive: true, veh: null, w: 0, ammo: { fists: 1e9 }, mag: {}, rel: 0, kick: 0, cd: 0, punch: 0, walkT: 0, inv: 0, god: false };
 player.mesh = mkPedMesh(LOOKS.player(), false); player.lx = player.x; player.lz = player.z;
+// ================= ARMS OF PARIS, 1890 =================
+// Period arms only, all manually operated (no repeaters faster than a hand can cock, no automatic fire). Fields:
+// mag = rounds held, rate = s between shots (cocking / double-action pull), rel = reload s (per round if one:true), spr = base cone (rad),
+// eff = effective range (beyond it the cone widens and damage falls), smoke = black-powder cloud size (0 = smokeless), mis = misfire chance,
+// kick = recoil (adds to the cone for the next shots + camera shake), stop = stopping power (stagger/knock-back).
 const WEAP = [
-  { id: 'fists', n: 'Fists', melee: true, dmg: 12, rate: .35, rng: 1.6 },
-  { id: 'brick', n: 'Cobblestone', throw: 'brick', dmg: 40, rate: .6, pick: 6 },
-  { id: 'swordcane', n: 'Sword-Cane', melee: true, dmg: 35, rate: .4, rng: 2.2, pick: 1e9 },
-  { id: 'revolver', n: 'Lefaucheux Revolver', dmg: 30, rate: .3, rng: 40, pick: 30, snd: 'shot' },
-  { id: 'shotgun', n: 'Double-Barrel Shotgun', dmg: 22, rate: .9, rng: 18, pellets: 6, spread: .35, pick: 16, snd: 'shotgun' },
-  { id: 'winchester', n: 'Winchester 1873', dmg: 34, rate: .16, rng: 55, pick: 45, snd: 'rifle' },
+  { id: 'fists', n: 'Savate', melee: true, dmg: 12, rate: .45, rng: 1.9, note: 'French boxing: kicks and open-hand blows' },
+  { id: 'cosh', n: 'Cosh (casse-tête)', melee: true, dmg: 22, rate: .7, rng: 1.7, pick: 1e9, stun: 1 },
+  { id: 'knife', n: 'Clasp Knife', melee: true, dmg: 30, rate: .5, rng: 1.5, pick: 1e9 },
+  { id: 'swordcane', n: 'Sword-Cane', melee: true, dmg: 38, rate: .55, rng: 2.3, pick: 1e9 },
+  { id: 'brick', n: 'Cobblestone', throw: 'brick', dmg: 40, rate: .7, pick: 6 },
+  { id: 'apache', n: 'Apache Revolver-Knife', dmg: 18, rate: .8, mag: 6, rel: 1.3, one: true, rng: 9, eff: 4, spr: .2, smoke: .8, mis: .12, kick: .12, stop: .3, snd: 'pop', pin: true, meleeDmg: 26, pick: 18, note: 'Pinfire pepperbox: no barrel to speak of, a folding blade and knuckle-duster' },
+  { id: 'pinfire', n: 'Lefaucheux Pinfire', dmg: 24, rate: .75, mag: 6, rel: 1.1, one: true, rng: 34, eff: 15, spr: .07, smoke: 1.3, mis: .06, kick: .18, stop: .5, snd: 'shot', pin: true, pick: 24, note: '12 mm pinfire, single-action: cock the hammer every shot' },
+  { id: 'velodog', n: 'Velo-Dog', dmg: 14, rate: .5, mag: 5, rel: .9, one: true, rng: 22, eff: 8, spr: .08, smoke: .7, mis: .02, kick: .07, stop: .2, snd: 'pop', pick: 25, note: '5.5 mm pocket revolver for cyclists set upon by dogs' },
+  { id: 'derringer', n: 'Remington Derringer', dmg: 28, rate: .45, mag: 2, rel: 2.4, rng: 16, eff: 6, spr: .1, smoke: 1.1, mis: .03, kick: .25, stop: .6, snd: 'shot', pick: 12, note: '.41 rimfire over-under, two shots then a slow reload' },
+  { id: 'revolver', n: 'Mle 1873 Revolver', dmg: 32, rate: .55, mag: 6, rel: .75, one: true, rng: 40, eff: 18, spr: .05, smoke: 1.4, mis: .01, kick: .2, stop: .7, snd: 'shot', pick: 24, note: '11 mm army revolver, loaded one chamber at a time through the gate' },
+  { id: 'mle1892', n: 'Mle 1892 Revolver (prototype)', dmg: 26, rate: .42, mag: 6, rel: 2.2, rng: 42, eff: 20, spr: .04, smoke: .25, mis: .01, kick: .14, stop: .55, snd: 'pop', pick: 18, rare: true, note: '8 mm smokeless, swing-out cylinder: a trial piece from Saint-Étienne' },
+  { id: 'shotgun', n: 'Double-Barrel Shotgun', dmg: 20, rate: .3, mag: 2, rel: 2.3, rng: 20, eff: 10, spr: .32, pellets: 8, smoke: 2.2, mis: .01, kick: .5, stop: 1, snd: 'shotgun', pick: 16, note: 'Hammer side-by-side, 12 bore black powder' },
+  { id: 'gras', n: 'Gras Mle 1874 Rifle', dmg: 70, rate: .2, mag: 1, rel: 1.9, rng: 70, eff: 45, spr: .015, smoke: 2, mis: .01, kick: .45, stop: 1, snd: 'rifle', pick: 12, note: '11 mm single-shot bolt-action, black powder' },
+  { id: 'lebel', n: 'Lebel Mle 1886 Rifle', dmg: 62, rate: 1.1, mag: 8, rel: .55, one: true, rng: 80, eff: 55, spr: .01, smoke: .15, mis: 0, kick: .35, stop: 1, snd: 'lebel', pick: 16, note: '8 mm smokeless, 8-round tube magazine fed one cartridge at a time; work the bolt between shots' },
   { id: 'dynamite', n: 'Dynamite', throw: 'dynamite', rate: 1, pick: 5 },
-  { id: 'molotov', n: 'Absinthe Molotov', throw: 'molotov', rate: .8, pick: 6 },
+  { id: 'molotov', n: 'Petrol Bottle', throw: 'molotov', rate: .8, pick: 6 },
 ];
-const WI = Object.fromEntries(WEAP.map((w, i) => [w.id, i]));
-function giveWeapon(id, n) { player.ammo[id] = Math.min(999999, (player.ammo[id] || 0) + (n || WEAP[WI[id]].pick)); }
-function haveW(i) { return (player.ammo[WEAP[i].id] || 0) > 0; }
-function cycleW(d) { for (let k = 1; k <= WEAP.length; k++) { const i = (player.w + d * k + WEAP.length * 3) % WEAP.length; if (haveW(i)) { player.w = i; return; } } }
+const WI = Object.fromEntries(WEAP.map((w, i) => [w.id, i])); WI.winchester = WI.lebel; WI.rifle = WI.lebel; // old save / mission ids
+const WALIAS = { winchester: 'lebel', rifle: 'lebel' };
+function giveWeapon(id, n) { id = WALIAS[id] || id; const w = WEAP[WI[id]]; player.ammo[id] = Math.min(999999, (player.ammo[id] || 0) + (n || w.pick)); if (w.mag && player.mag[id] === undefined) { const k = Math.min(w.mag, player.ammo[id]); player.mag[id] = k; player.ammo[id] -= k; if (player.ammo[id] <= 0 && k > 0) player.ammo[id] = 0; } }
+function haveW(i) { const w = WEAP[i]; return (player.ammo[w.id] || 0) > 0 || (w.mag && (player.mag[w.id] || 0) > 0); }
+function cycleW(d) { player.rel = 0; for (let k = 1; k <= WEAP.length; k++) { const i = (player.w + d * k + WEAP.length * 3) % WEAP.length; if (haveW(i)) { player.w = i; return; } } }
+function startReload() { const w = WEAP[player.w]; if (!w.mag || player.rel > 0) return; if ((player.mag[w.id] || 0) >= w.mag || !(player.ammo[w.id] > 0)) return; player.rel = w.one ? w.rel : w.rel; SFX.click(); }
+function tickReload(dt) { const w = WEAP[player.w]; if (!w.mag || player.rel <= 0) return; player.rel -= dt; if (player.rel > 0) return; const id = w.id;
+  if (w.one) { if (player.ammo[id] > 0) { player.mag[id] = (player.mag[id] || 0) + 1; player.ammo[id]--; SFX.click(); } if (player.mag[id] < w.mag && player.ammo[id] > 0) player.rel = w.rel; else player.rel = 0; }
+  else { const k = Math.min(w.mag - (player.mag[id] || 0), player.ammo[id]); player.mag[id] = (player.mag[id] || 0) + k; player.ammo[id] -= k; player.rel = 0; SFX.click(); } }
 let money = 0, mult = 1, respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }, done = {}, choices = {}, gallery = [], heat = 0, wanted = 0, sightT = 0;
 let gameTime = 20.5, rain = 0, rainTarget = 0, weatherT = 60;
 const pagerQ = []; let pagerT = 0, pagerMsg = '', bigMsg = '', bigT = 0, districtMsg = '', districtT = 0, lastDistrict = -1;
@@ -92,16 +119,34 @@ const keys = {}; const pressed = {};
 addEventListener('keydown', e => { audio(); if (!keys[e.code]) pressed[e.code] = true; keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
 let gpPrev = {};
-function readInput() { const I = { mx: 0, my: 0, fire: false, enter: false, prev: false, next: false, pause: false, stick: false, thr: 0, steer: 0 };
-  const L = keys.KeyA || keys.ArrowLeft, R = keys.KeyD || keys.ArrowRight, U = keys.KeyW || keys.ArrowUp, D = keys.KeyS || keys.ArrowDown;
-  I.mx = (R ? 1 : 0) - (L ? 1 : 0); I.my = (D ? 1 : 0) - (U ? 1 : 0); I.thr = (U ? 1 : 0) - (D ? 1 : 0); I.steer = I.mx;
-  I.fire = keys.Space || keys.ControlLeft || keys.ControlRight; I.enter = pressed.KeyF || pressed.Enter; I.prev = pressed.KeyQ; I.next = pressed.KeyE; I.pause = pressed.Escape || pressed.KeyP;
+// ---- mouse: the cursor is a point on the street; hold/click left to walk or drive toward it, right to aim/brake ----
+const mouse = { sx: 0, sy: 0, wx: 0, wz: 0, L: false, R: false, clickL: false, clickR: false, wheel: 0, on: false };
+const _rc = new THREE.Raycaster(), _pl0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _hv = new THREE.Vector3(), _nv = new THREE.Vector2();
+addEventListener('mousemove', e => { mouse.sx = e.clientX; mouse.sy = e.clientY; mouse.on = true; });
+addEventListener('mousedown', e => { if (state !== 'play' || paused || e.target.closest && e.target.closest('button,#menu,#gfxSet,.panel')) return; audio(); if (e.button === 0) { mouse.L = true; mouse.clickL = true; } if (e.button === 2) { mouse.R = true; mouse.clickR = true; } });
+addEventListener('mouseup', e => { if (e.button === 0) mouse.L = false; if (e.button === 2) mouse.R = false; });
+addEventListener('contextmenu', e => { if (state === 'play') e.preventDefault(); });
+addEventListener('wheel', e => { if (state === 'play') mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
+addEventListener('blur', () => { mouse.L = mouse.R = false; for (const k in keys) keys[k] = false; });
+function mouseWorld() { _nv.set(mouse.sx / innerWidth * 2 - 1, -(mouse.sy / innerHeight) * 2 + 1); _rc.setFromCamera(_nv, camera); if (_rc.ray.intersectPlane(_pl0, _hv) && isFinite(_hv.x)) { mouse.wx = _hv.x; mouse.wz = _hv.z; } }
+function readInput() { const I = { mx: 0, my: 0, fire: false, enter: false, prev: false, next: false, pause: false, stick: false, thr: 0, steer: 0, mouse: false, run: false, aim: false, reload: false, click: false, hand: false };
+  mouseWorld(); I.mouse = mouse.on; I.run = !!(keys.ShiftLeft || keys.ShiftRight || keys.Space); I.aim = mouse.R; I.click = mouse.clickL; I.hand = !!keys.Space; I.shift = !!(keys.ShiftLeft || keys.ShiftRight);
+  // on foot: right = aim, left (while aiming) = fire. In a vehicle: left = drive toward the cursor, right = brake / reverse, Ctrl = shoot toward the cursor
+  I.fire = (mouse.R && mouse.clickL) || keys.ControlLeft || keys.ControlRight; I.enter = pressed.KeyF || pressed.Enter; I.prev = pressed.KeyQ || mouse.wheel < 0; I.next = pressed.KeyE || mouse.wheel > 0; I.pause = pressed.Escape || pressed.KeyP; I.reload = pressed.KeyR;
+  mouse.wheel = 0; mouse.clickL = false; mouse.clickR = false;
   const gps = navigator.getGamepads ? navigator.getGamepads() : []; for (const gp of gps) { if (!gp) continue; const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0; const b = i => gp.buttons[i] && gp.buttons[i].pressed;
-    if (Math.hypot(ax, ay) > .25) { I.mx = ax; I.my = ay; I.stick = true; } if (b(0) || b(7)) I.fire = true;
-    if (b(14)) { I.mx = -1; } if (b(15)) I.mx = 1; if (b(12)) I.my = -1; if (b(13)) I.my = 1;
+    if (Math.hypot(ax, ay) > .25) { I.mx = ax; I.my = ay; I.stick = true; } if (b(0) || b(7)) I.fire = true; if (b(6)) I.aim = true; if (b(10) || b(2)) I.run = true;
+    if (b(14)) { I.mx = -1; I.stick = true; } if (b(15)) { I.mx = 1; I.stick = true; } if (b(12)) { I.my = -1; I.stick = true; } if (b(13)) { I.my = 1; I.stick = true; }
     const e = (i, k) => { if (b(i) && !gpPrev[i]) I[k] = true; }; e(3, 'enter'); e(1, 'enter'); e(4, 'prev'); e(5, 'next'); e(9, 'pause'); gpPrev = Object.fromEntries(gp.buttons.map((x, i) => [i, x.pressed])); break; }
   for (const k in pressed) pressed[k] = false; return I; }
 // ================= HELPERS =================
+// Collision against what is drawn: the signed building field the block meshes are contoured from (G.bldAt), sampled around
+// a body radius, plus water/out-of-map from the grid. Falls back to the tile grid where a chunk's field is not built yet.
+const RING8 = [[1, 0], [.707, .707], [0, 1], [-.707, .707], [-1, 0], [-.707, -.707], [0, -1], [.707, -.707]];
+function bldHit(x, z) { const t = tileAt(x, z); if (t < 0) return true; if (kind[t] === K.BLD && skipT[t]) return true; /* landmark footprints: the landmark model covers the tile */ const f = G.bldAt(x, z); if (f === null) return kind[t] === K.BLD; return f > -.02; }
+function solidPt(x, z, veh) { const k = kAt(x, z); if (k === K.WATER || (veh && k === K.STAIR)) return true; if (x < 1 || z < 1 || x > WX - 1 || z > WZ - 1) return true; return bldHit(x, z); }
+function solidBody(x, z, r, veh) { if (solidPt(x, z, veh)) return true; for (const [c, s] of RING8) if (solidPt(x + c * r, z + s * r, veh)) return true; return false; }
+function propHit(x, z, r) { for (const p of propsNear(x, z)) if (p.r > 0 && p.alive !== false && d2(p.x, p.z, x, z) < (p.r + r) ** 2) return p; return null; }
 const ang = (a) => { while (a > Math.PI) a -= 6.2832; while (a < -Math.PI) a += 6.2832; return a; };
 const d2 = (a, b, x, z) => (a - x) ** 2 + (b - z) ** 2;
 const ppos = () => player.veh ? [player.veh.x, player.veh.z] : [player.x, player.z];
@@ -126,31 +171,36 @@ function damageProp(p, dmg) { if (!p.alive || p.hp > 1e8) return; p.hp -= dmg; i
 function hurtPlayer(d) { if (player.god === true || !player.alive) return; player.hp -= d; flash = .25; if (player.hp <= 0) die('WASTED'); }
 let flash = 0, camShake = 0;
 // hitscan from (x,z) dir a; returns end point
-function hitscan(x, z, a, rng, dmg, src, ignore) { const dx = Math.cos(a), dz = Math.sin(a); let ex = x, ez = z;
-  for (let s = .5; s < rng; s += .5) { ex = x + dx * s; ez = z + dz * s; if (pedBlock(ex, ez) && kAt(ex, ez) === K.BLD) { FX.sparks(ex, ez, 4, 3, 1.3); FX.dust(ex, ez, 1); break; }
-    for (const p of peds) if (p.alive && !p.inVeh && p !== ignore && Math.abs(p.x - ex) < .8 && Math.abs(p.z - ez) < .8) { damagePed(p, dmg, src); FX.blood(ex, ez, 5); return [ex, ez]; }
+function hitscan(x, z, a, rng, dmg0, src, ignore, w) { const dx = Math.cos(a), dz = Math.sin(a); let ex = x, ez = z, dmg = dmg0;
+  for (let s = .5; s < rng; s += .5) { ex = x + dx * s; ez = z + dz * s; if (w && w.eff && s > w.eff) dmg = dmg0 * Math.max(.25, 1 - (s - w.eff) / (rng - w.eff) * .75); 
+    for (const p of peds) if (p.alive && !p.inVeh && p !== ignore && Math.abs(p.x - ex) < .8 && Math.abs(p.z - ez) < .8) { damagePed(p, dmg, src); FX.blood(ex, ez, 5); if (w && w.stop && p.alive) { const nx = p.x + dx * w.stop * .6, nz = p.z + dz * w.stop * .6; if (!pedBlock(nx, nz)) { p.x = nx; p.z = nz; } p.stag = w.stop * .8; } return [ex, ez]; } if (pedBlock(ex, ez) && kAt(ex, ez) === K.BLD) { FX.sparks(ex, ez, 4, 3, 1.3); FX.dust(ex, ez, 1); break; }
     for (const v of vehs) { if (!v.alive || v === ignore) continue; const lx = (ex - v.x) * Math.cos(v.a) + (ez - v.z) * Math.sin(v.a), lz = -(ex - v.x) * Math.sin(v.a) + (ez - v.z) * Math.cos(v.a);
       const front = v.d.horses ? v.d.len / 2 + 2.4 + (v.d.horses === 3 ? 2.8 : 0) : 0; const hb = lx > v.d.len / 2 ? .7 : .2; if (Math.abs(lz) < v.d.wid / 2 + hb && lx > -v.d.len / 2 && lx < v.d.len / 2 + front) { damageVeh(v, dmg, lx > v.d.len / 2, src); if (v === player.veh) hurtPlayer(dmg * .15); return [ex, ez]; } }
     if (src !== 'player' && !player.veh && player !== ignore && Math.abs(player.x - ex) < .7 && Math.abs(player.z - ez) < .7) { hurtPlayer(dmg); return [ex, ez]; }
     for (const p of propsNear(ex, ez)) if (p.r > 0 && d2(p.x, p.z, ex, ez) < p.r * p.r) { damageProp(p, dmg); return [ex, ez]; } }
   return [ex, ez]; }
-function fireWeapon(x, z, a, src = 'player', ignore) { const w = WEAP[player.w]; if (player.cd > 0) return false; player.cd = w.rate;
+function fireWeapon(x, z, a, src = 'player', ignore) { const w = WEAP[player.w]; if (player.cd > 0) return false; if (w.mag) { if (player.rel > 0 && !(w.one && (player.mag[w.id] || 0) > 0)) return false; player.rel = 0; if (!(player.mag[w.id] > 0)) { player.cd = .35; SFX.click(); startReload(); return false; } } player.cd = w.rate;
   if (w.melee) { SFX.swing(); const hx_ = x + Math.cos(a) * w.rng * .7, hz = z + Math.sin(a) * w.rng * .7; let hit = false;
     for (const p of peds) if (p.alive && d2(p.x, p.z, hx_, hz) < (w.rng * .8) ** 2) { damagePed(p, w.dmg, src); hit = true; if (p.type === 'cop' || p.type === 'gend') crime(2); else crime(.4); break; }
     if (!hit) for (const p of propsNear(hx_, hz)) if (d2(p.x, p.z, hx_, hz) < (p.r + 1) ** 2) { damageProp(p, w.dmg); hit = true; break; }
     if (!hit) for (const v of vehs) if (v.alive && v !== player.veh && d2(v.x, v.z, hx_, hz) < 9) { damageVeh(v, w.dmg * .5, false, src); break; }
     player.punch = .2; return true; }
-  if (w.id !== 'fists') { player.ammo[w.id]--; if (player.ammo[w.id] <= 0) { delete player.ammo[w.id]; setTimeout(() => cycleW(1), 0); } }
+  if (w.mag) { if (w.pin && rnd() < w.mis) { SFX.click(); pager('Misfire!', .8); player.cd = w.rate + .4; return true; } else if (rnd() < w.mis) { SFX.click(); pager('Misfire!', .8); player.mag[w.id]--; return true; } player.mag[w.id]--; if (!player.mag[w.id] && !(player.ammo[w.id] > 0)) setTimeout(() => { if (!haveW(player.w)) cycleW(1); }, 0); else if (!player.mag[w.id]) setTimeout(startReload, 250); }
+  else if (!w.melee) { player.ammo[w.id]--; if (player.ammo[w.id] <= 0) { delete player.ammo[w.id]; setTimeout(() => cycleW(1), 0); } }
   if (w.throw) { projs.push({ type: w.throw, x, z, vx: Math.cos(a) * 16, vz: Math.sin(a) * 16, t: w.throw === 'dynamite' ? 1.6 : .7, m: projMesh(w.throw) }); SFX.swing(); return true; }
-  SFX[w.snd](); crime(copsNear(25) ? 1.2 : .3); FX.muzzle(x + Math.cos(a) * .4, z + Math.sin(a) * .4, a, w.id === 'shotgun');
-  for (let k = 0; k < (w.pellets || 1); k++) { const aa = a + (w.spread ? (rnd() - .5) * w.spread : (rnd() - .5) * .04); const e = hitscan(x, z, aa, w.rng, w.dmg, src, ignore || player.veh); tracer(x, z, e[0], e[1]); }
+  SFX[w.snd](); crime(copsNear(25) ? 1.2 : .3); FX.muzzle(x + Math.cos(a) * .4, z + Math.sin(a) * .4, a, w.id === 'shotgun' || w.id === 'gras');
+  if (w.smoke > .5) FX.smoke(x + Math.cos(a) * 1.2, 1.3, z + Math.sin(a) * 1.2, Math.round(2 + w.smoke * 3), .1, 1 + w.smoke); // black powder: a lingering white cloud
+  const cone = (w.spr || .04) + player.kick + (player.veh ? .06 : 0) + (player.runT > 0 ? .05 : 0); player.kick = Math.min(.4, player.kick + (w.kick || 0) * .5); camShake = Math.max(camShake, (w.kick || .1) * .5);
+  for (let k = 0; k < (w.pellets || 1); k++) { const aa = a + (rnd() - .5) * cone * 2; const e = hitscan(x, z, aa, w.rng, w.dmg, src, ignore || player.veh, w); tracer(x, z, e[0], e[1]); }
   for (const p of peds) if (p.alive && p.type === 'civ' && d2(p.x, p.z, x, z) < 400) p.flee = 6;
   return true; }
-function npcShoot(sh, tx, tz, dmg = 8, acc = .15) { const a = Math.atan2(tz - sh.z, tx - sh.x) + (rnd() - .5) * acc * 2; SFX.shot(); FX.muzzle(sh.x, sh.z, a); const e = hitscan(sh.x + Math.cos(a), sh.z + Math.sin(a), a, 40, dmg, 'npc', sh); tracer(sh.x, sh.z, e[0], e[1]);
+function npcShoot(sh, tx, tz, dmg = 8, acc = .15, wid = 'revolver') { const w = WEAP[WI[wid]] || WEAP[WI.revolver]; if (w.pin && rnd() < w.mis) { SFX.click(); return; } const dd = Math.hypot(tx - sh.x, tz - sh.z); acc *= 1 + Math.max(0, dd - (w.eff || 15)) / 15; const a = Math.atan2(tz - sh.z, tx - sh.x) + (rnd() - .5) * acc * 2; (SFX[w.snd] || SFX.shot)(); if (w.smoke > .5) FX.smoke(sh.x + Math.cos(a), 1.3, sh.z + Math.sin(a), 3, .1, 1.5); FX.muzzle(sh.x, sh.z, a); const e = hitscan(sh.x + Math.cos(a), sh.z + Math.sin(a), a, 40, dmg, 'npc', sh); tracer(sh.x, sh.z, e[0], e[1]);
   if (player.veh && d2(e[0], e[1], player.veh.x, player.veh.z) < 30) { } }
 // ================= VEHICLE PHYSICS =================
-function vehCorners(v, x, z, a) { const c = Math.cos(a), s = Math.sin(a), L = v.d.len / 2 + (v.d.horses ? 2.2 : 0), Wd = v.d.wid / 2; const pts = [];
-  for (const [lx, lz] of [[L, Wd], [L, -Wd], [-v.d.len / 2, Wd], [-v.d.len / 2, -Wd], [L, 0], [0, Wd], [0, -Wd]]) pts.push([x + lx * c - lz * s, z + lx * s + lz * c]); return pts; }
+function vehCorners(v, x, z, a) { const c = Math.cos(a), s = Math.sin(a), L = v.d.len / 2 + (v.d.horses ? 2.2 : 0), B = -v.d.len / 2, Wd = v.d.wid / 2, pts = v._pts || (v._pts = []); let n = 0;
+  const P = v._loc || (v._loc = (() => { const q = []; const nx = Math.max(2, Math.ceil((L - B) / 1.2)); for (let k = 0; k <= nx; k++) { const lx = B + (L - B) * k / nx; q.push([lx, Wd], [lx, -Wd]); } q.push([L, 0], [B, 0]); return q; })());
+  for (const [lx, lz] of P) { const p = pts[n] || (pts[n] = [0, 0]); p[0] = x + lx * c - lz * s; p[1] = z + lx * s + lz * c; n++; } pts.length = n; return pts; }
+function vPen(v, x, z, a) { let n = 0; for (const p of vehCorners(v, x, z, a)) if (solidPt(p[0], p[1], true)) n++; return n; }
 function driveVeh(v, thr, steer, dt, handbrake) { const d = v.d; if (d.rail) return driveRail(v, thr, dt);
   const t = tileAt(v.x, v.z), sf = SURF[t >= 0 ? surf[t] : 0]; let grip = sf.grip * (1 - rain * .35), top = d.spd * sf.spd;
   if (v.horseDead || v.wreck) { thr = 0; top = 0; }
@@ -159,15 +209,22 @@ function driveVeh(v, thr, steer, dt, handbrake) { const d = v.d; if (d.rail) ret
   fwd = Math.max(-top * .35, Math.min(top, fwd)); if (Math.abs(thr) < .05) fwd *= (1 - 1.2 * dt);
   if (fwd > top) fwd -= (fwd - top) * 3 * dt;
   lat *= Math.max(0, 1 - (handbrake ? 1.2 : 7 * grip) * dt);
-  const turnK = Math.min(1, Math.abs(fwd) / 6) * Math.sign(fwd || 1);
-  if (v.horseDead) { v.a += v.av * dt; v.av *= (1 - 1.5 * dt); fwd *= (1 - 2 * dt); } else v.a += steer * d.turn * turnK * dt * (1 + (1 - grip) * .4);
+  // horses and drivers can pivot a stopped carriage: a little steering authority even at a standstill when the reins are worked
+  const turnK = Math.max(Math.abs(thr) > .05 ? (d.horses ? .35 : d.ride ? .45 : .2) : 0, Math.min(1, Math.abs(fwd) / 5)) * Math.sign(fwd || thr || 1);
+  const a0 = v.a; if (v.horseDead) { v.a += v.av * dt; v.av *= (1 - 1.5 * dt); fwd *= (1 - 2 * dt); } else v.a += steer * d.turn * turnK * dt * (1 + (1 - grip) * .4);
+  // never rotate the body into a wall (that used to leave a corner inside the block and every later move was rejected: the "stuck carriage")
+  if (v.a !== a0 && !d.rail) { const p1 = vPen(v, v.x, v.z, v.a); if (p1 && p1 > vPen(v, v.x, v.z, a0)) { v.a = a0; v.av = 0; } }
   v.vx = fx_ * fwd - fz * lat; v.vz = fz * fwd + fx_ * lat; moveVeh(v, dt); }
 function moveVeh(v, dt) { const nx = v.x + v.vx * dt, nz = v.z + v.vz * dt; const sp = Math.hypot(v.vx, v.vz);
-  if (vehCorners(v, nx, nz, v.a).some(p => vehBlock(p[0], p[1]))) { if (!vehCorners(v, nx, v.z, v.a).some(p => vehBlock(p[0], p[1]))) { v.x = nx; v.vz *= -.25; } else if (!vehCorners(v, v.x, nz, v.a).some(p => vehBlock(p[0], p[1]))) { v.z = nz; v.vx *= -.25; } else { v.vx *= -.3; v.vz *= -.3; }
+  const p0 = vPen(v, v.x, v.z, v.a), pN = vPen(v, nx, nz, v.a);
+  if (pN && pN >= p0) { // blocked: slide along the wall instead of bouncing to a dead stop; if already embedded, nudge out toward free space
+    const px_ = vPen(v, nx, v.z, v.a), pz_ = vPen(v, v.x, nz, v.a); if ((!px_ || px_ < p0) && Math.abs(v.vx) > .05) { v.x = nx; v.vz *= -.1; } else if ((!pz_ || pz_ < p0) && Math.abs(v.vz) > .05) { v.z = nz; v.vx *= -.1; } else { v.vx *= -.2; v.vz *= -.2; }
+    if (p0) { let best = p0, bx = v.x, bz = v.z; for (const [c, s] of RING8) { const q = vPen(v, v.x + c * .35, v.z + s * .35, v.a); if (q < best) { best = q; bx = v.x + c * .35; bz = v.z + s * .35; } } v.x = bx; v.z = bz; }
+    if (v.d.ride && sp > 9 && v === player.veh) { hurtPlayer(sp * (v.type === 'pennyfarthing' ? 2.5 : 1.2)); pager(v.type === 'pennyfarthing' ? 'A header over the big wheel!' : 'Thrown from the saddle!', 1.5); const vv = v; enterExitForce(); vv.vx = vv.vz = 0; }
     if (sp > 8) { damageVeh(v, sp * 1.2); FX.sparks(v.x + Math.cos(v.a) * v.d.len * .5, v.z + Math.sin(v.a) * v.d.len * .5, 8, 5); if (v === player.veh) { SFX.crash(); camShake = .3; } } return; }
   v.x = Math.max(2, Math.min(WX - 2, nx)); v.z = Math.max(2, Math.min(WZ - 2, nz)); if (sp > 9 && v.d.horses && rnd() < .3) FX.dust(v.x - Math.cos(v.a) * v.d.len * .5, v.z - Math.sin(v.a) * v.d.len * .5, 1);
-  // props
-  for (const p of propsNear(v.x, v.z)) if (p.r > 0 && d2(p.x, p.z, v.x + Math.cos(v.a) * v.d.len * .5, v.z + Math.sin(v.a) * v.d.len * .5) < (p.r + 1.4) ** 2) { if (sp > 6 && p.hp < 400) { damageProp(p, sp * 6); v.vx *= .7; v.vz *= .7; } else { v.vx *= -.3; v.vz *= -.3; v.x -= Math.cos(v.a) * .3; v.z -= Math.sin(v.a) * .3; } }
+  // props: tested at the nose (horses' heads) and both sides of the body, at the real prop radius
+  const nose = v.d.len * .5 + (v.d.horses ? 2 : 0); for (const p of propsNear(v.x, v.z)) if (p.r > 0 && p.alive !== false && (d2(p.x, p.z, v.x + Math.cos(v.a) * nose, v.z + Math.sin(v.a) * nose) < (p.r + v.d.wid * .45) ** 2 || d2(p.x, p.z, v.x, v.z) < (p.r + v.d.wid * .5) ** 2)) { if (sp > 6 && p.hp < 400) { damageProp(p, sp * 6); v.vx *= .7; v.vz *= .7; } else { const ax = v.x - p.x, az = v.z - p.z, al = Math.hypot(ax, az) || 1; v.x += ax / al * .25; v.z += az / al * .25; const vn = (v.vx * ax + v.vz * az) / al; if (vn < 0) { v.vx -= ax / al * vn * 1.2; v.vz -= az / al * vn * 1.2; } } }
   // peds
   if (sp > 3) for (const p of peds) if (p.alive && !p.inVeh && !(p.type === 'vip' && sp < 12) && d2(p.x, p.z, v.x + Math.cos(v.a) * v.d.len * .4, v.z + Math.sin(v.a) * v.d.len * .4) < (v.d.len * .5 + 1) ** 2) { damagePed(p, sp * 4, v === player.veh ? 'player' : 'veh'); if (p.alive) { p.x += v.vx * .1; p.z += v.vz * .1; } }
   // vehicles
@@ -186,42 +243,99 @@ function driveRail(v, thr, dt) { const d = v.d, P = v.rp || (v.rp = d.rail === '
     for (const o of vehs) if (o !== v && o.alive && !o.d.rail && railHit(v, o.x, o.z, 1.2)) { damageVeh(o, asp * 4); const [, lz] = railLocal(v, o.x, o.z), s2 = lz >= 0 ? 1 : -1; o.vx += -Math.sin(v.a) * s2 * 9; o.vz += Math.cos(v.a) * s2 * 9; FX.sparks(o.x, o.z, 8, 5); }
     if (!player.veh && railHit(v, player.x, player.z, .4)) hurtPlayer(200); } }
 // ================= PLAYER CONTROL =================
-function enterExit() { if (player.veh) { const v = player.veh; const s = Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0); if (s > 6) return; player.veh = null; v.driver = null;
+function enterExit(target) { if (player.veh) { const v = player.veh; const s = Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0); if (s > 6) return; player.veh = null; v.driver = null;
     let ex = v.x - Math.sin(v.a) * (v.d.wid / 2 + 1), ez = v.z + Math.cos(v.a) * (v.d.wid / 2 + 1); if (pedBlock(ex, ez)) { ex = v.x + Math.sin(v.a) * (v.d.wid / 2 + 1); ez = v.z - Math.cos(v.a) * (v.d.wid / 2 + 1); }
     player.x = ex; player.z = ez; player.mesh.visible = true; return; }
-  let best = null, bd = 30; for (const v of vehs) { if (!v.alive || v.wreck) continue; const dd = d2(v.x, v.z, player.x, player.z); const rr = (v.d.len / 2 + 2.5) ** 2 + (v.type === 'train' ? 60 : 0); if (dd < rr && dd < bd) { bd = dd; best = v; } }
+  let best = null, bd = 30; if (target && target.alive && !target.wreck) best = target; else for (const v of vehs) { if (!v.alive || v.wreck) continue; const dd = d2(v.x, v.z, player.x, player.z); const rr = (v.d.len / 2 + 2.5) ** 2 + (v.type === 'train' ? 60 : 0); if (dd < rr && dd < bd) { bd = dd; best = v; } }
   if (!best) return; const v = best;
   if (v.driver && typeof v.driver === 'string') { if (v.driver !== 'player') spawnPed(v.driver, v.x - Math.sin(v.a) * 2, v.z + Math.cos(v.a) * 2, {}); v.driver = null; } if (v.driver) { const dr = v.driver; dr.alive = true; dr.x = v.x - Math.sin(v.a) * 2; dr.z = v.z + Math.cos(v.a) * 2; dr.inVeh = null; dr.mesh.visible = true; dr.flee = 8; if (!peds.includes(dr)) peds.push(dr); v.driver = null; SFX.hit();
     if (v.police) { crime(4); } else crime(1); if (dr.type === 'cop') dr.hostile = true; pager(v.police ? 'You pulled a sergent off his own carriage!' : 'Carriage jacked!', 1.5); }
   if (v.traffic) v.traffic = false; v.parked = false; player.veh = v; v.driver = 'player'; player.mesh.visible = false; if (v.hp < 0) v.hp = 1; }
-function updatePlayer(I, dt) { player.cd -= dt; player.punch -= dt;
-  if (I.enter) enterExit(); if (I.prev) cycleW(-1); if (I.next) cycleW(1);
+// ---- hover / interact: what is under the cursor (people, vehicles, registered objects) ----
+// Hooks for the other modules: HOOKS.interact(target, ctx) handlers run first (return true to consume); HOOKS.triggers are
+// world mission/activity starters { id, x, z, r, label?, click?, onEnter?(ctx), onClick?(ctx), when?() }; HOOKS.objects are clickable things { x, z, r, label, onClick(ctx) }.
+const HOOKS = { interact: [], triggers: [], objects: [], update: [], hud: [], map: [], phone: [], where: () => '', known: () => true, welcome: '', clickOwned: true }; let hover = null, pendingI = null;
+function hoverAt(x, z) { let best = null, bd = 1e9; const consider = (o, kind, d, r) => { if (d < r * r && d < bd) { bd = d; best = { kind, o }; } };
+  for (const p of peds) if (p.alive && !p.inVeh && p.mesh && p.mesh.visible) consider(p, 'ped', d2(p.x, p.z, x, z), 1.3);
+  for (const v of vehs) { if (!v.alive || v.wreck || v === player.veh || v.d.rail === 'train') continue; const c = Math.cos(v.a), s_ = Math.sin(v.a), lx = (x - v.x) * c + (z - v.z) * s_, lz = -(x - v.x) * s_ + (z - v.z) * c; if (Math.abs(lx) < v.d.len / 2 + .4 && Math.abs(lz) < v.d.wid / 2 + .4) consider(v, 'veh', d2(v.x, v.z, x, z) * .5, 6); }
+  for (const o of HOOKS.objects) if (!o.when || o.when()) consider(o, 'obj', d2(o.x, o.z, x, z), o.r || 1.5);
+  for (const o of HOOKS.triggers) if (o.click !== false && (!o.when || o.when())) consider(o, 'trig', d2(o.x, o.z, x, z), o.r || 2);
+  for (const p of pickups) if (p.alive) consider(p, 'pick', d2(p.x, p.z, x, z), 1.2);
+  return best; }
+const REACH = { ped: 2.4, veh: 0, obj: 2.6, trig: 2.6, pick: 1.4 };
+function reachOf(h) { return h.kind === 'veh' ? h.o.d.len / 2 + 2.5 : (h.o.reach || REACH[h.kind]); }
+function hx_(h) { return [h.o.x, h.o.z]; }
+function lifeAt(sx, sy, shift) { const f = window.GAME && GAME.interactAt; if (!f) return null; try { return f(sx, sy, !!shift); } catch (e) { console.error(e); return null; } }
+let pendingShift = false;
+function doInteract(h, shift = pendingShift) { pendingShift = false; const ctx = { player, say, pager, startMission: (id) => startMission(typeof id === 'string' ? MISSIONS.find(m => m.id === id) : id), get M() { return M; }, money: () => money, addMoney, giveWeapon };
+  for (const f of HOOKS.interact) { try { if (f(h.o, h.kind, ctx)) return; } catch (e) { console.error(e); } }
+  if (h.kind === 'veh') return enterExit(h.o); if (h.kind === 'pick') { player.dest = [h.o.x, h.o.z]; return; }
+  if ((h.kind === 'obj' || h.kind === 'trig') && h.o.onClick) return h.o.onClick(ctx);
+  if (h.kind === 'ped') { const [sx, sy] = toScreen(h.o.x, h.o.z, 1); if (lifeAt(sx, sy, shift)) return; if (!shift) return pedTalk(h.o); } }
+// default barks (used only when no dialogue module claims the person): stable per person, chosen by type, look and time of day
+const BARKS = { civ: ['Pardon, monsieur — I am late for the omnibus.', 'Have you seen the new tower on the Champ-de-Mars? Monstrous. Marvellous.', 'Mind the gutter, it rained all night.', 'They say the Opéra has a ghost. I say it has creditors.', 'My cousin rides one of those bicycles now. Ridiculous.', 'Bread is up two sous again.', 'Not today, thank you.', 'A motor carriage frightened my horse on the Boulevard!', 'Is it true the Salon refused Monsieur Monet again?', 'You look like a man with a plan. I want no part of it.'],
+  cop: ['Move along.', 'Papers? ... Hm. Move along.', 'Keep your nose clean, citizen.'], gend: ['Stand clear of the horse.', 'The Garde has eyes on this quarter.'], soldier: ['Halt. This street is closed.'], gang: ['You lost, bourgeois?', 'Wrong street, friend.'], vip: ['Not now, I beg you.'], boss: ['You have nerve, I grant you.'] };
+function pedTalk(p) { if (p.hostile || ((p.type === 'cop' || p.type === 'gend') && wanted > 0)) return; const L = BARKS[p.type] || BARKS.civ; if (p.bark === undefined) p.bark = Math.floor(rnd() * L.length); const line = p.lines ? p.lines[(p.talkN = (p.talkN || 0) + 1) % p.lines.length] : L[p.bark]; say((p.name ? p.name + ': ' : '') + line, 3); p.stand = true; p.a = Math.atan2(player.z - p.z, player.x - p.x); p.talkT = 4; }
+function updateTriggers() { if (!player.alive) return; const [px, pz] = ppos(); for (const t of HOOKS.triggers) { if (!t.onEnter || (t.when && !t.when())) continue; const inside = d2(t.x, t.z, px, pz) < (t.r || 2) ** 2; if (inside && !t._in) { try { t.onEnter({ startMission: (id) => startMission(MISSIONS.find(m => m.id === id)), get M() { return M; }, player, say, pager }); } catch (e) { console.error(e); } } t._in = inside; } }
+// Armurerie (gunsmith): period arms for sale; the 1892 prototype only turns up rarely, and only after Act II
+const SHOP = [['velodog', 120], ['derringer', 150], ['pinfire', 180], ['revolver', 320], ['shotgun', 380], ['gras', 450], ['lebel', 900], ['swordcane', 260], ['knife', 40], ['cosh', 25], ['mle1892', 1600]];
+let shopEl = null, shopOpen = false, shopShut = 0; function openShop(name) { if (!shopEl) { shopEl = document.createElement('div'); shopEl.className = 'panel'; shopEl.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(20,16,12,.94);color:#e8dcc0;font:14px Georgia,serif;padding:18px 22px;border:1px solid #a08050;z-index:50;min-width:420px;max-height:80vh;overflow:auto'; document.body.appendChild(shopEl); }
+  const rare = stats.completed >= 25; const rows = SHOP.filter(([id]) => id !== 'mle1892' || rare).map(([id, pr]) => { const w = WEAP[WI[id]]; return `<div data-id="${id}" data-pr="${pr}" style="cursor:pointer;padding:5px 0;border-bottom:1px solid #3a3020"><b>${w.n}</b> — ${pr} F<br><small style="opacity:.75">${w.note || (w.melee ? 'blade / blunt' : '')}${w.mag ? ` · ${w.mag} rds, ${w.one ? 'loads one at a time' : 'reload ' + w.rel + ' s'}` : ''}</small></div>`; }).join('');
+  shopEl.innerHTML = `<div style="font-size:18px;margin-bottom:8px">${name}</div>${rows}<div style="margin-top:10px;opacity:.7">Click to buy (ammunition included) · Esc or click here to leave</div>`; shopEl.style.display = 'block'; shopOpen = true;
+  shopEl.onclick = e => { const r = e.target.closest('[data-id]'); if (!r) { shopEl.style.display = 'none'; shopOpen = false; shopShut = performance.now(); return; } const pr = +r.dataset.pr; if (money < pr) { pager('Not enough francs.', 1.5); return; } addMoney(-pr, true); giveWeapon(r.dataset.id); player.w = WI[r.dataset.id]; SFX.cash(); pager(WEAP[WI[r.dataset.id]].n + ' bought.', 1.5); }; }
+addEventListener('keydown', e => { if (e.code === 'Escape' && shopEl && shopEl.style.display === 'block') { shopEl.style.display = 'none'; shopOpen = false; shopShut = performance.now(); } });
+// the content worker's acts.js owns the Gastinne Renette counter; the engine keeps one more armurerie (period stock) in the faubourg
+for (const [poi, name] of [['bastille', 'Armurerie du Faubourg Saint-Antoine']]) { const p = POI[poi]; if (p) HOOKS.objects.push({ x: p[0] + 3, z: p[1] + 3, r: 1.8, label: name, onClick: () => openShop(name) }); }
+const WALK = 3.4, RUN = 7.2;
+function updatePlayer(I, dt) { player.cd -= dt; player.punch -= dt; player.kick = Math.max(0, player.kick - dt * .6); tickReload(dt);
+  if (I.enter) enterExit(); if (I.prev) cycleW(-1); if (I.next) cycleW(1); if (I.reload) startReload();
   const v = player.veh;
-  if (v) { let thr = I.thr, steer = I.steer;
-    if (I.stick && Math.hypot(I.mx, I.my) > .2) { const ta = Math.atan2(I.my, I.mx), da = ang(ta - v.a); const mag = Math.min(1, Math.hypot(I.mx, I.my));
-      if (Math.abs(da) > 2.4 && Math.hypot(v.vx, v.vz) < 4) { thr = -mag; steer = Math.max(-1, Math.min(1, -ang(ta + Math.PI - v.a) * 2)); } else { thr = Math.abs(da) > 1.9 ? -1 : mag; steer = Math.max(-1, Math.min(1, da * 2.5)); } }
-    driveVeh(v, thr, steer, dt, keys.ShiftLeft); player.x = v.x; player.z = v.z;
-    if (I.fire && !WEAP[player.w].melee && !WEAP[player.w].throw) fireWeapon(v.x + Math.cos(v.a) * (v.d.len / 2 + 3), v.z + Math.sin(v.a) * (v.d.len / 2 + 3), v.a);
-    else if (I.fire && WEAP[player.w].throw) fireWeapon(v.x, v.z, v.a + Math.PI / 2);
+  // hover + click to interact (on foot)
+  hover = I.mouse && !v ? hoverAt(mouse.wx, mouse.wz) : null; if (I.mouse && v) { const h = hoverAt(mouse.wx, mouse.wz); hover = h && h.kind !== 'veh' ? null : null; }
+  if (!v && I.click && !I.aim) { pendingShift = I.shift; if ((!hover || hover.kind === 'obj' && !hover.o.onClick) && lifeAt(mouse.sx, mouse.sy, I.shift)) { /* claimed by a world activity */ } else if (hover) { const [tx, tz] = hx_(hover); if (Math.sqrt(d2(tx, tz, player.x, player.z)) <= reachOf(hover)) { pendingI = null; doInteract(hover); } else { pendingI = hover; player.dest = [tx, tz]; } } else { pendingI = null; player.dest = [mouse.wx, mouse.wz]; } }
+  if (v) { let thr = I.thr, steer = I.steer; let tgt = null;
+    if (I.stick && Math.hypot(I.mx, I.my) > .2) tgt = [Math.atan2(I.my, I.mx), Math.min(1, Math.hypot(I.mx, I.my))];
+    else if (I.mouse && (mouse.L || mouse.R)) { const dx = mouse.wx - v.x, dz = mouse.wz - v.z, dd = Math.hypot(dx, dz); if (mouse.L && dd > 1) tgt = [Math.atan2(dz, dx), Math.min(1, .35 + dd / 14)]; else if (mouse.R) { const fwd = v.vx * Math.cos(v.a) + v.vz * Math.sin(v.a); thr = fwd > .8 ? -1 : -.8; steer = 0; } }
+    if (tgt) { const [ta, mag] = tgt, da = ang(ta - v.a);
+      if (Math.abs(da) > 2.4 && Math.hypot(v.vx, v.vz) < 4) { thr = -mag; steer = Math.max(-1, Math.min(1, -ang(ta + Math.PI - v.a) * 2)); } else { thr = Math.abs(da) > 1.9 ? -1 : mag * (1 - Math.min(.6, Math.abs(da) * .35)); steer = Math.max(-1, Math.min(1, da * 2.5)); } }
+    driveVeh(v, thr, steer, dt, I.hand); player.x = v.x; player.z = v.z;
+    const fa = I.mouse ? Math.atan2(mouse.wz - v.z, mouse.wx - v.x) : v.a; if (I.mouse) player.a = fa;
+    if (I.fire && !WEAP[player.w].melee && !WEAP[player.w].throw && !v.d.ride) fireWeapon(v.x + Math.cos(fa) * 1.5, v.z + Math.sin(fa) * 1.5, fa);
+    else if (I.fire && !WEAP[player.w].melee && !WEAP[player.w].throw && v.d.ride) fireWeapon(v.x + Math.cos(fa) * .8, v.z + Math.sin(fa) * .8, fa);
+    else if (I.fire && WEAP[player.w].throw) fireWeapon(v.x, v.z, fa);
     const sp = Math.hypot(v.vx, v.vz) + Math.abs(v.sp || 0); if (v.d.horses && sp > 10 && rnd() < dt * 6) FX.dust(v.x - Math.cos(v.a) * 2, v.z - Math.sin(v.a) * 2, 1); if (v.d.horses && !v.horseDead) { v.hoof = (v.hoof || 0) - dt * sp * .35; if (v.hoof < 0) { v.hoof = 1; SFX.hoof(); } }
+    vehSound(v, sp, dt);
     if (v.burn) hurtPlayer(dt * 8); return; }
-  const m = Math.hypot(I.mx, I.my); const run = m > .2;
-  if (run) { const a = Math.atan2(I.my, I.mx); player.a = a; const sp = 7 * Math.min(1, m) * (keys.ShiftLeft ? .5 : 1); const nx = player.x + Math.cos(a) * sp * dt, nz = player.z + Math.sin(a) * sp * dt;
-    const blocked = (x, z) => pedBlock(x, z) || propsNear(x, z).some(p => p.r > 0 && d2(p.x, p.z, x, z) < (p.r + .3) ** 2) || vehs.some(o => o.alive && d2(o.x, o.z, x, z) < (o.d.wid * .5 + .4) ** 2);
-    if (!blocked(nx, player.z)) player.x = nx; if (!blocked(player.x, nz)) player.z = nz; player.walkT += dt * sp; }
+  // on foot: stick > held left mouse (steer toward cursor) > click-to-move destination
+  let mx = 0, mz = 0, m = 0; const run = I.run; player.runT = 0;
+  if (I.stick) { mx = I.mx; mz = I.my; m = Math.min(1, Math.hypot(mx, mz)); player.dest = null; }
+  else if (I.mouse && mouse.L && !I.aim && !pendingI) { const dx = mouse.wx - player.x, dz = mouse.wz - player.z, dd = Math.hypot(dx, dz); player.dest = null; if (dd > .6) { mx = dx / dd; mz = dz / dd; m = 1; } }
+  else if (player.dest) { const dx = player.dest[0] - player.x, dz = player.dest[1] - player.z, dd = Math.hypot(dx, dz); const stop = pendingI ? reachOf(pendingI) * .8 : .35; if (dd < stop) { player.dest = null; if (pendingI) { const h = pendingI; pendingI = null; doInteract(h); } } else { mx = dx / dd; mz = dz / dd; m = 1; } }
+  if (I.aim && I.mouse) player.a = Math.atan2(mouse.wz - player.z, mouse.wx - player.x);
+  if (m > .2) { const a = Math.atan2(mz, mx); if (!I.aim) player.a = a; const sp = (run ? RUN : WALK) * (I.aim ? .55 : 1) * Math.min(1, m); if (run) player.runT = 1;
+    const R = .38, ox = player.x, oz = player.z; const stepX = Math.cos(a) * sp * dt, stepZ = Math.sin(a) * sp * dt;
+    const blocked = (x, z) => solidBody(x, z, R, false) || !!propHit(x, z, R) || vehs.some(o => o.alive && o !== player.veh && vehBodyHit(o, x, z, R));
+    if (!blocked(ox + stepX, oz + stepZ)) { player.x = ox + stepX; player.z = oz + stepZ; } else { if (!blocked(ox + stepX, oz)) player.x = ox + stepX; else if (!blocked(ox, oz + stepZ)) player.z = oz + stepZ; else if (player.dest && !pendingI) player.dest = null; }
+    // if we ever start inside something (spawn, teleport), let the body slide out
+    if (solidBody(player.x, player.z, R * .6, false)) for (const [c, s_] of RING8) if (!solidBody(player.x + c * .5, player.z + s_ * .5, R, false)) { player.x += c * .5; player.z += s_ * .5; break; }
+    player.walkT += dt * sp; }
   if (I.fire) fireWeapon(player.x, player.z, player.a);
   // pickups
   for (const pk of pickups) if (pk.alive && d2(pk.x, pk.z, player.x, player.z) < 2.6) collectPickup(pk); }
+function vehBodyHit(o, x, z, r) { const c = Math.cos(o.a), s_ = Math.sin(o.a), lx = (x - o.x) * c + (z - o.z) * s_, lz = -(x - o.x) * s_ + (z - o.z) * c; const front = o.d.len / 2 + (o.d.horses ? 2.2 : 0); return lx < front + r && lx > -o.d.len / 2 - r && Math.abs(lz) < o.d.wid / 2 + r; }
+// engine / pedal sounds
+function vehSound(v, sp, dt) { if (v.d.motor) { v.putt = (v.putt || 0) - dt * (5 + sp * 1.6); if (v.putt < 0) { v.putt = 1; SFX.putt(v.type === 'benz' ? .8 : v.type === 'peugeot' ? 1.1 : 1); } if (sp > 4 && rnd() < dt * 3) FX.smoke(v.x - Math.cos(v.a) * v.d.len * .5, .6, v.z - Math.sin(v.a) * v.d.len * .5, 1, .5, .8); }
+  else if (v.d.ride && sp > 1) { v.ped_ = (v.ped_ || 0) - dt * sp * .5; if (v.ped_ < 0) { v.ped_ = 1; SFX.pedal(); } } }
 // ================= PICKUPS =================
 const PKM = {}; const PKG = new THREE.BoxGeometry(1, .18, 1);
-function pkMat(kind) { if (PKM[kind]) return PKM[kind]; const col = { brick: '#999', swordcane: '#ccc', revolver: '#ddd', shotgun: '#b84', winchester: '#da6', dynamite: '#d22', molotov: '#6c4', health: '#f44', money: '#fd2', mission: '#f0f', armor: '#48f' }[kind] || '#fff';
+function pkMat(kind) { if (PKM[kind]) return PKM[kind]; const col = { brick: '#999', swordcane: '#ccc', revolver: '#ddd', shotgun: '#b84', winchester: '#da6', lebel: '#da6', gras: '#c96', pinfire: '#bbb', velodog: '#eee', derringer: '#cb8', apache: '#a88', mle1892: '#9cf', knife: '#aaa', cosh: '#753', dynamite: '#d22', molotov: '#6c4', health: '#f44', money: '#fd2', mission: '#f0f', armor: '#48f' }[kind] || '#fff';
   return PKM[kind] = spriteMat('pk' + kind, 16, 16, g => { g.fillStyle = '#000'; g.fillRect(1, 1, 14, 14); g.strokeStyle = col; g.lineWidth = 2; g.strokeRect(2, 2, 12, 12); g.fillStyle = col; g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.fillText(kind === 'health' ? '+' : kind === 'money' ? '₣' : kind === 'mission' ? '★' : kind[0].toUpperCase(), 8, 12); }); }
 function addPickup(kind, x, z, o = {}) { const m = new THREE.Mesh(PKG, pkMat(kind)); m.scale.set(1.3, 1.3, 1.3); m.position.set(x, 1, z); scene.add(m); const p = Object.assign({ kind, x, z, m, alive: true }, o); pickups.push(p); return p; }
 function dropPickup(x, z) { addPickup(rnd() < .6 ? 'money' : 'revolver', x, z, { temp: 20 }); }
 function collectPickup(pk) { pk.alive = false; pk.m.visible = false; if (pk.respawn) pk.rt = pk.respawn;
   if (pk.kind === 'health') { player.hp = 100; pager('Vin rouge — health restored', 1.5); } else if (pk.kind === 'money') addMoney(pk.amt || 250); else if (pk.kind === 'mission') { pk.got = true; SFX.cash(); }
   else { giveWeapon(pk.kind); player.w = WI[pk.kind]; pager(WEAP[WI[pk.kind]].n + '!', 1.5); SFX.cash(); } }
-const PK_SPOTS = [['brick', 'tertre'], ['swordcane', 'garnier'], ['revolver', 'chien'], ['revolver', 'procope'], ['shotgun', 'abattoir'], ['shotgun', 'bourse'], ['winchester', 'railyard'], ['winchester', 'sorbonne'], ['dynamite', 'ivry'], ['dynamite', 'catacombs'], ['molotov', 'ratmort'], ['molotov', 'chatnoir'], ['health', 'hoteldieu'], ['health', 'galette'], ['health', 'cafepaix'], ['brick', 'belleville'], ['revolver', 'boulmich'], ['health', 'cellier']];
+const PK_SPOTS = [['brick', 'tertre'], ['swordcane', 'garnier'], ['revolver', 'chien'], ['revolver', 'procope'], ['shotgun', 'abattoir'], ['shotgun', 'bourse'], ['gras', 'railyard'], ['lebel', 'sorbonne'], ['pinfire', 'belleville'], ['velodog', 'garnier'], ['derringer', 'chatnoir'], ['apache', 'ratmort'], ['knife', 'abattoir'], ['cosh', 'boulmich'], ['dynamite', 'ivry'], ['dynamite', 'catacombs'], ['molotov', 'ratmort'], ['molotov', 'chatnoir'], ['health', 'hoteldieu'], ['health', 'galette'], ['health', 'cafepaix'], ['brick', 'belleville'], ['revolver', 'boulmich'], ['health', 'cellier']];
 PK_SPOTS.forEach(([k, poi], i) => { const [x, z] = POI[poi]; const [x2, z2] = snapWalk(Math.floor(x / T) + (i % 3) - 1, Math.floor(z / T) + 2, false); addPickup(k, x2, z2, { respawn: 30 }); });
 // phones & kiosk
 const PHONES = []; for (const f in FACTIONS) { const [x, z] = POI[FACTIONS[f].phone]; const p = addDynProp('phone', x, z); p.fac = f; PHONES.push(p); }
@@ -231,7 +345,7 @@ const phoneRings = PHONES.map(p => { const r = new THREE.Mesh(new THREE.RingGeom
 const objMarker = new THREE.Mesh(new THREE.RingGeometry(2.2, 3, 20), new THREE.MeshBasicMaterial({ color: 0xffe040, transparent: true, opacity: .85, side: THREE.DoubleSide, depthWrite: false })); objMarker.rotation.x = -Math.PI / 2; scene.add(objMarker);
 const objArrow = new THREE.Mesh(new THREE.ConeGeometry(.9, 2, 4), new THREE.MeshBasicMaterial({ color: 0xffe040 })); objArrow.rotation.x = Math.PI; scene.add(objArrow);
 // ================= TRAFFIC =================
-const TRAFFIC_T = ['brougham', 'brougham', 'brougham', 'gig', 'gig', 'phaeton', 'barouche', 'omnibus'];
+const TRAFFIC_T = ['brougham', 'brougham', 'brougham', 'gig', 'gig', 'phaeton', 'barouche', 'omnibus', 'bicycle', 'bicycle', 'pennyfarthing', 'velocipede', 'panhard', 'peugeot', 'benz'];
 function pickEdge(n, from) { const L = (ADJ[n] || []).filter(e => GE[e].c !== 9); if (!L.length) return null; const nb = L.length > 1 ? L.filter(e => edgeOther(e, n) !== from) : L; return nb[Math.floor(rnd() * nb.length)]; }
 function routeOn(v, n, e) { v.node = n; v.edge = e; v.path = edgePts(e, n); v.pi = 1; v.dest = edgeOther(e, n); }
 function spawnTraffic(px, pz) { const cand = nodesIn(px, pz, 130); for (let tries = 0; tries < 8 && cand.length; tries++) { const n = cand[Math.floor(rnd() * cand.length)], [x, z] = GN[n]; const dd = d2(x, z, px, pz); if (dd < 80 * 80 || dd > 130 * 130) continue;
@@ -245,13 +359,15 @@ function trafficAI(v, dt) { if (v.horseDead || v.burn) { driveVeh(v, 0, 0, dt); 
   const fx_ = v.x + Math.cos(v.a) * 6, fz = v.z + Math.sin(v.a) * 6; if (d2(fx_, fz, pp[0], pp[1]) < 12 || vehs.some(o => o !== v && o.alive && d2(o.x, o.z, fx_, fz) < 10) || peds.some(p => p.alive && !p.inVeh && d2(p.x, p.z, fx_, fz) < 4)) thr = -.6;
   if (v.panic) thr = 1; driveVeh(v, thr, Math.max(-1, Math.min(1, da * 2)), dt); }
 // ================= PED AI =================
-function pedAI(p, dt) { if (!p.alive) { p.deadT -= dt; if (p.deadT < 0) removePed(p); return; } p.cd -= dt; p.t += dt; const [px, pz] = ppos(); const dP = Math.sqrt(d2(p.x, p.z, px, pz));
+function pedAI(p, dt) { if (!p.alive) { p.deadT -= dt; if (p.deadT < 0) removePed(p); return; } p.cd -= dt; p.t += dt; if (p.talkT > 0) { p.talkT -= dt; if (p.talkT <= 0 && !p.keepStand) p.stand = false; } if (p.stag > 0) { p.stag -= dt; return; } const [px, pz] = ppos(); const dP = Math.sqrt(d2(p.x, p.z, px, pz));
   let mx = 0, mz = 0, sp = p.spd;
   const lawman = p.type === 'cop' || p.type === 'gend' || p.type === 'soldier';
   const hostile = (lawman && wanted > 0) || p.hostile;
   if (hostile && player.alive) { const a = Math.atan2(pz - p.z, px - p.x); p.a = a;
-    if (p.type === 'soldier') { /* holds the line */ if (p.cd < 0 && dP < 45) { p.cd = 3; npcShoot(p, px, pz, 14, .12); } }
-    else if (p.armed && dP < 28 && dP > 4) { if (p.cd < 0) { p.cd = 1.1 + rnd(); npcShoot(p, player.veh && rnd() < .5 ? player.veh.x + Math.cos(player.veh.a) * player.veh.d.len : px, player.veh ? player.veh.z + Math.sin(player.veh.a) * player.veh.d.len : pz, p.boss ? 12 : 7, .14); } if (dP > 12) { mx = Math.cos(a); mz = Math.sin(a); } }
+    if (p.type === 'soldier') { /* holds the line with the Lebel: bolt-action, smokeless */ if (p.cd < 0 && dP < 50) { p.cd = 2.6 + rnd(); npcShoot(p, px, pz, 16, .08, 'lebel'); } }
+    else if (p.type === 'gend') { /* Garde républicaine: mounted, sabre drawn, rides you down */ if (dP > 2.2) { mx = Math.cos(a); mz = Math.sin(a); } else if (p.cd < 0) { p.cd = 1; SFX.swing(); if (!player.veh) { hurtPlayer(18); FX.blood(px, pz, 3); } else bustT += .5; } }
+    else if (p.type === 'cop' && wanted >= 2 && dP < 26 && dP > 3) { /* sergent de ville: Mle 1873 service revolver once the chase is serious */ if (p.cd < 0) { p.cd = 1.6 + rnd() * .8; npcShoot(p, px, pz, 9, .14, 'revolver'); } if (dP > 10) { mx = Math.cos(a); mz = Math.sin(a); } }
+    else if (p.armed && dP < 28 && dP > 4) { if (p.cd < 0) { p.cd = 1.1 + rnd(); npcShoot(p, player.veh && rnd() < .5 ? player.veh.x + Math.cos(player.veh.a) * player.veh.d.len : px, player.veh ? player.veh.z + Math.sin(player.veh.a) * player.veh.d.len : pz, p.boss ? 12 : 7, .14, p.boss ? 'revolver' : 'pinfire'); } if (dP > 12) { mx = Math.cos(a); mz = Math.sin(a); } }
     else { if (dP > 1.4) { mx = Math.cos(a); mz = Math.sin(a); } else if (p.cd < 0) { p.cd = .8; SFX.swing(); if (lawman && (!player.veh || Math.hypot(player.veh.vx, player.veh.vz) < 2.5)) { bustT += .9; } else if (!player.veh) hurtPlayer(p.type === 'gend' ? 14 : 8); } }
     if (lawman && p.type === 'cop' && p.cd < -3 && dP < 30) { p.cd = 0; SFX.whistle(); }
   } else if (p.flee > 0) { p.flee -= dt; const a = Math.atan2(p.z - pz, p.x - px); mx = Math.cos(a); mz = Math.sin(a); sp *= 2.2; }
@@ -390,8 +506,8 @@ function load() { try { const s = JSON.parse(localStorage.getItem('gtaParis1880'
 // ================= WORLD SIM =================
 let tram = spawnRail('tram', TRAM.len * .3); tram.sp = 8;
 let train = spawnRail('train', 0); train.sp = 0; train.stopT = 4;
-const PARKED = [['phaeton', 'garnier'], ['brougham', 'chien'], ['gig', 'tertre'], ['barouche', 'elysee'], ['omnibus', 'boulmich'], ['brougham', 'procope'], ['phaeton', 'bourse'], ['gig', 'bateau']];
-PARKED.forEach(([t, p]) => { const [x, z] = POIV[p]; spawnVeh(t, x + 2, z, 0, { parked: true, home: true }); });
+const PARKED = [['phaeton', 'garnier'], ['brougham', 'chien'], ['gig', 'tertre'], ['barouche', 'elysee'], ['omnibus', 'boulmich'], ['brougham', 'procope'], ['phaeton', 'bourse'], ['gig', 'bateau'], ['bicycle', 'garnier', 6], ['pennyfarthing', 'boulmich', 5], ['velocipede', 'tertre', 4], ['panhard', 'elysee', 7], ['peugeot', 'bourse', 7], ['benz', 'procope', 6], ['bicycle', 'chien', 5]];
+PARKED.forEach(([t, p, off]) => { const [x, z] = POIV[p]; let px = x + 2 + (off || 0), pz = z; for (let k = 0; k < 12 && vPen({ d: VT[t] }, px, pz, 0); k++) { px = x + 2 + Math.cos(k) * (off || 3); pz = z + Math.sin(k) * (off || 3); } spawnVeh(t, px, pz, 0, { parked: true, home: true }); });
 function railAuto(v, dt) { if (v.type === 'tram') { if (Math.abs(v.sp) < .5 && (v.s >= v.rp.len - 5 || v.s <= 5)) v.tdir = v.s > v.rp.len / 2 ? -1 : 1; let thr = (v.tdir || 1);
     const [px, pz] = ppos(); const [lx, lz] = railLocal(v, px, pz); if (Math.abs(lz) < 3 && lx * Math.sign(v.sp || 1) > 0 && Math.abs(lx) < 12) thr = -Math.sign(v.sp || 1); if (rnd() < dt * .5 && Math.abs(v.sp) > 3) SFX.hoof(); driveRail(v, thr * .6, dt); v.sp = Math.max(-9, Math.min(9, v.sp));
     v.smk = (v.smk || 0) - dt; if (v.smk < 0 && Math.abs(v.sp) > 1) { v.smk = .5; FX.smoke(v.x, 3.6, v.z, 1, .2, 1.4); } }
@@ -442,7 +558,7 @@ function animOf(o, P, dt, punch, dead) { const sp = Math.hypot(o.x - o.lx, o.z -
 function syncMeshes(t) { const dt = Math.min(.1, Math.max(0, t - lastSync)); lastSync = t; const [cx, cz] = [camPos.x, camPos.z];
   for (const p of peds) { if (p.inVeh) { p.mesh.visible = false; continue; } const far = d2(p.x, p.z, cx, cz) > 90 * 90; p.mesh.visible = !far; if (far) continue; p.mesh.position.set(p.x, 0, p.z); p.mesh.rotation.y = -p.a; const P = p.mesh.userData.P; if (P) animOf(p, P, dt, false, !p.alive); }
   for (const v of vehs) { v.mesh.position.set(v.x, 0, v.z); v.mesh.rotation.y = -v.a; const far = d2(v.x, v.z, cx, cz) > 110 * 110; v.mesh.visible = !far; if (far) continue;
-    const fwd = v.d.rail ? (v.sp || 0) : (v.vx * Math.cos(v.a) + v.vz * Math.sin(v.a)); if (!v.wreck) animVeh(v.V, v.horseDead ? 0 : Math.abs(fwd), dt, fwd); }
+    const fwd = v.d.rail ? (v.sp || 0) : (v.vx * Math.cos(v.a) + v.vz * Math.sin(v.a)); if (!v.wreck) animVeh(v.V, v.horseDead ? 0 : Math.abs(fwd), dt, fwd); if (v.V.rider) v.V.rider.visible = !!v.driver && !v.wreck; }
   player.mesh.position.set(player.x, 0, player.z); player.mesh.rotation.y = -player.a; player.mesh.userData.P.aim = !WEAP[player.w].melee && !WEAP[player.w].throw && player.alive; animOf(player, player.mesh.userData.P, dt, player.punch > 0, !player.alive);
   for (const pk of pickups) if (pk.alive) { pk.m.rotation.y = t * 2; pk.m.position.y = 1 + Math.sin(t * 4) * .2; }
   for (const pk of pickups) if (!pk.alive && pk.rt !== undefined) { pk.rt -= 1 / 60; if (pk.rt <= 0) { pk.alive = true; pk.m.visible = true; delete pk.rt; } }
@@ -452,6 +568,10 @@ function syncMeshes(t) { const dt = Math.min(.1, Math.max(0, t - lastSync)); las
 function drawHead(x, y, s, on) { hx.fillStyle = on ? '#1e2a5a' : 'rgba(40,40,40,.5)'; hx.fillRect(x, y + s * .2, s, s * .35); hx.fillRect(x + s * .1, y, s * .8, s * .3); hx.fillStyle = on ? '#e0b898' : 'rgba(90,90,90,.5)'; hx.fillRect(x + s * .2, y + s * .55, s * .6, s * .45); if (on) { hx.fillStyle = '#d4a020'; hx.fillRect(x + s * .4, y + s * .05, s * .2, s * .2); } }
 function txt(s, x, y, size, col = '#f4c430', align = 'left') { hx.font = `bold ${size}px "Courier New",monospace`; hx.textAlign = align; hx.fillStyle = '#000'; hx.fillText(s, x + size * .08, y + size * .08); hx.fillStyle = col; hx.fillText(s, x, y); }
 function wrap(s, maxW, size) { hx.font = `bold ${size}px "Courier New",monospace`; const words = s.split(' '), lines = []; let l = ''; for (const w of words) { const t = l ? l + ' ' + w : w; if (hx.measureText(t).width > maxW && l) { lines.push(l); l = w; } else l = t; } if (l) lines.push(l); return lines; }
+const _pv = new THREE.Vector3(); function toScreen(x, z, y = 0) { _pv.set(x, y, z).project(camera); return [(_pv.x + 1) / 2 * innerWidth, (1 - _pv.y) / 2 * innerHeight]; }
+function hoverName(h) { const o = h.o; if (h.kind === 'veh') return (o.d.n || o.type[0].toUpperCase() + o.type.slice(1)) + (o.driver ? '' : ' — climb aboard'); if (h.kind === 'ped') return o.name || (o.type === 'civ' ? 'Talk' : o.type === 'cop' ? 'Sergent de ville' : o.type === 'gend' ? 'Garde républicaine' : 'Talk'); if (h.kind === 'pick') return 'Pick up'; return o.label || 'Interact'; }
+function drawHover() { const c = document.body.style; const want = player.veh ? 'crosshair' : mouse.R ? 'crosshair' : hover ? 'pointer' : 'default'; if (c.cursor !== want) c.cursor = want; const tg = pendingI || hover; if (!tg || player.veh) { if (player.dest && !player.veh) { const [x, y] = toScreen(player.dest[0], player.dest[1]); hx.strokeStyle = 'rgba(240,220,170,.6)'; hx.lineWidth = 1.5; hx.beginPath(); hx.arc(x, y, 6, 0, 7); hx.stroke(); } return; }
+  const [x, y] = toScreen(tg.o.x, tg.o.z), r = tg.kind === 'veh' ? 34 : 18; hx.strokeStyle = 'rgba(244,196,48,.9)'; hx.lineWidth = 2; hx.setLineDash([5, 4]); hx.beginPath(); hx.ellipse(x, y, r, r * .8, 0, 0, 7); hx.stroke(); hx.setLineDash([]); txt(hoverName(tg), x, y - r - 8, 13, '#f4e0a0', 'center'); }
 function drawHUD(dt) { const dpr = hud.width / innerWidth, Wd = hud.width, H = hud.height; hx.setTransform(dpr, 0, 0, dpr, 0, 0); hx.clearRect(0, 0, innerWidth, innerHeight); const w = innerWidth, h = innerHeight, sm = w < 700;
   if (rain > .05) { hx.strokeStyle = `rgba(180,200,220,${rain * .5})`; hx.lineWidth = 1; hx.beginPath(); for (let k = 0; k < 120 * rain; k++) { const x = Math.random() * w, y = Math.random() * h; hx.moveTo(x, y); hx.lineTo(x - 3, y + 12); } hx.stroke(); }
   if (flash > 0) { hx.fillStyle = `rgba(200,0,0,${flash})`; hx.fillRect(0, 0, w, h); flash -= dt; }
@@ -460,7 +580,8 @@ function drawHUD(dt) { const dpr = hud.width / innerWidth, Wd = hud.width, H = h
   // health
   hx.fillStyle = '#300'; hx.fillRect(12, fs * 2 + 18, 120, 8); hx.fillStyle = player.hp > 30 ? '#c02020' : '#ff4040'; hx.fillRect(12, fs * 2 + 18, 120 * Math.max(0, player.hp) / 100, 8);
   // weapon
-  const W_ = WEAP[player.w], am = player.ammo[W_.id]; txt(W_.n + (W_.id === 'fists' || W_.id === 'swordcane' ? '' : '  ' + am), 12, fs * 2 + 44, sm ? 12 : 15, '#e8dcc0');
+  const W_ = WEAP[player.w], am = player.ammo[W_.id] || 0; txt(W_.n + (W_.melee ? '' : W_.mag ? `  ${player.mag[W_.id] || 0}/${W_.mag} · ${am}` : '  ' + am) + (player.rel > 0 ? (W_.one ? '  — loading a round…' : '  — reloading…') : ''), 12, fs * 2 + 44, sm ? 12 : 15, player.rel > 0 ? '#e0a040' : '#e8dcc0');
+  drawHover();
   if (player.veh) { const v = player.veh; txt(`${v.type.toUpperCase()}  ${Math.round(Math.hypot(v.vx, v.vz) * 2.2 + Math.abs(v.sp || 0) * 2.2)} km/h  ${v.horseDead ? 'HORSES DOWN' : v.d.horses ? 'horses ' + Math.max(0, Math.round(v.horseHp / v.d.horses / .6)) + '%' : ''}`, 12, fs * 2 + 62, sm ? 11 : 13, v.horseDead ? '#f44' : '#bca'); }
   // minimap
   const ms = sm ? 90 : 130, mx = w - ms - 10, my = sm ? 44 : 52; hx.globalAlpha = .85; hx.imageSmoothingEnabled = false; hx.save(); hx.beginPath(); hx.rect(mx, my, ms, ms); hx.clip(); const zoom = 1.4, [px, pz] = ppos();
@@ -495,7 +616,7 @@ addEventListener('keydown', e => { if (e.code === 'KeyM' && state === 'play') ma
 let state = 'title', paused = false, nearPhone = null, phoneCD = 0, holyCD = 0, holeCD = 0;
 const $ = id => document.getElementById(id);
 function startGame(cont) { audio(); if (!cont) { localStorage.removeItem('gtaParis1880'); money = 0; mult = 1; done = {}; gallery = []; respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }; player.ammo = { fists: 1e9 }; giveWeapon('brick', 4); } else load();
-  $('title').classList.add('hidden'); state = 'play'; pager(HOOKS.welcome || 'Paris, 1890. Fresh off the night train with nothing but a watchmaker\'s hands.', 7); }
+  $('title').classList.add('hidden'); state = 'play'; camPos.set(player.x, 0, player.z); pager(HOOKS.welcome || 'Paris, 1890. Fresh off the night train with nothing but a watchmaker\'s hands.', 7); }
 $('bPlay').onclick = () => startGame(false); $('bCont').onclick = () => startGame(true); if (!localStorage.getItem('gtaParis1880')) $('bCont').style.display = 'none';
 function setPause(on) { paused = on; $('pause').classList.toggle('hidden', !on); if (on) buildMenu(); }
 $('bGal').onclick = () => { $('mlist').innerHTML = '<h4>Safehouse Gallery — rescued paintings, scores, instruments &amp; evidence</h4>' + (gallery.length ? gallery.map(g => `<div>🖼 ${g}</div>`).join('') : '<div>Empty, for now. Heists marked ◆ fill these walls.</div>'); };
@@ -509,7 +630,7 @@ function buildMenu() { const nd = Object.keys(done).length; $('pstats').innerHTM
   $('mlist').innerHTML = h; $('mlist').querySelectorAll('button').forEach(b => b.onclick = () => { const m = MISSIONS.find(x => x.id === b.dataset.m); if (M) failMission('Abandoned.'); setPause(false); startMission(m); }); }
 // ================= MAIN LOOP =================
 let last = performance.now(), simT = 0, dbgPause = false;
-function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn(bigMsg); } else updatePlayer(I, dt);
+function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn(bigMsg); } else updatePlayer(I, dt); updateTriggers();
   for (const p of [...peds]) pedAI(p, dt); updateVehs(dt); updateProjs(dt); updateWanted(dt); updateMission(dt); populate(dt); updateSky(dt); updateFx(dt);
   // phones
   phoneCD -= dt; holyCD -= dt; holeCD -= dt; nearPhone = null; if (!player.veh) for (const p of PHONES) if (d2(p.x, p.z, player.x, player.z) < 9) nearPhone = p;
@@ -521,14 +642,29 @@ function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn
   const d = tileAt(player.x, player.z) >= 0 ? dist[tileAt(player.x, player.z)] : undefined; if (d !== undefined && d !== lastDistrict) { lastDistrict = d; districtMsg = DN[d]; districtT = 2.5; }
   musicTick(dt, nearCabaret()); for (const f of HOOKS.update) f(dt); }
 function nearCabaret() { let best = 0; for (const n of ['chatnoir', 'lapin', 'galette', 'moulinrouge', 'ratmort']) { const p = POI[n]; const dd = Math.sqrt(d2(p[0], p[1], player.x, player.z)); best = Math.max(best, 1 - dd / 30); } return state === 'title' ? .6 : best; }
-function frame(now) { requestAnimationFrame(frame); const dt = Math.min(.05, (now - last) / 1000); last = now; const I = readInput();
-  if (state === 'play') { if (I.pause) setPause(!paused); if (!paused && !dbgPause) { simT += dt; step(dt, I); } } else { simT += dt; updateSky(dt * .3); camPos.x = POI.garnier[0] + Math.sin(simT * .05) * 120; camPos.z = POI.garnier[1] + 60 + Math.cos(simT * .05) * 80; musicTick(dt, .6); }
-  updateCam(dt); syncMeshes(simT); G.update(dt, simT, camPos.x, camPos.z); G.render(); if (state === 'play') { drawHUD(dt); if (mapOpen) drawFullMap(); } else hx.clearRect(0, 0, hud.width, hud.height); }
+// ---- frame-time profiler (F3): per-section ms over the last 300 frames ----
+const PROF = { on: false, n: 300, k: 0, buf: { frame: new Float32Array(300), sim: new Float32Array(300), stream: new Float32Array(300), render: new Float32Array(300), hud: new Float32Array(300) },
+  summary() { const o = {}; for (const [k, a] of Object.entries(this.buf)) { const v = Array.from(a).filter(x => x > 0).sort((p, q) => p - q); if (!v.length) continue; o[k] = { avg: +(v.reduce((p, q) => p + q, 0) / v.length).toFixed(2), p95: +v[Math.floor(v.length * .95)].toFixed(1), max: +v[v.length - 1].toFixed(1) }; } return o; } };
+addEventListener('keydown', e => { if (e.code === 'F3') { PROF.on = !PROF.on; e.preventDefault(); } });
+function drawProf() { const s = PROF.summary(), x = innerWidth - 270; hx.fillStyle = 'rgba(0,0,0,.6)'; hx.fillRect(x - 8, 60, 268, 130); let y = 78; txt('frame-time (ms)  avg / p95 / max', x, y, 12, '#fff'); for (const k of ['frame', 'sim', 'stream', 'render', 'hud']) if (s[k]) { y += 18; txt(`${k.padEnd(7)} ${s[k].avg} / ${s[k].p95} / ${s[k].max}`, x, y, 12, s[k].p95 > 25 ? '#f84' : '#cfc'); } y += 18; txt(`chunks ${G.stats.chunks}  gl-lost ${G.GL.losses}`, x, y, 12, '#cfc');
+  const a = PROF.buf.frame; hx.strokeStyle = '#ff0'; hx.beginPath(); for (let k = 0; k < PROF.n; k++) { const v = a[(PROF.k + k) % PROF.n]; hx.lineTo(x + k * .85, 186 - Math.min(60, v)); } hx.stroke(); }
+let lastGood = null;
+function frame(now) { requestAnimationFrame(frame); const _f0 = performance.now(); const dt = Math.min(.05, Math.max(0, (now - last) / 1000) || 0); last = now; const I = readInput(); let _t = performance.now(), tSim = 0, tStream = 0, tRender = 0, tHud = 0;
+  // NaN guard: a single NaN in the player/camera made the whole view (camera matrix) invalid = blank screen. Restore the last good state.
+  if (!isFinite(player.x) || !isFinite(player.z) || !isFinite(camPos.x) || !isFinite(camPos.z) || !isFinite(camH)) { console.warn('NaN state recovered'); if (lastGood) { player.x = lastGood[0]; player.z = lastGood[1]; } camPos.set(player.x, 0, player.z); camH = 44; if (player.veh && !isFinite(player.veh.x)) { player.veh.x = player.x; player.veh.z = player.z; player.veh.vx = player.veh.vz = 0; player.veh.a = 0; } } else lastGood = [player.x, player.z];
+  try { frame2(now, dt, I); } catch (e) { console.error(e); }
+  PROF.buf.frame[PROF.k] = performance.now() - _f0; PROF.k = (PROF.k + 1) % PROF.n; }
+function frame2(now, dt, I) { let _t = performance.now();
+  if (state === 'play') { if (I.pause && !shopOpen && performance.now() - shopShut > 200) setPause(!paused); if (!paused && !dbgPause && !shopOpen) { simT += dt; step(dt, I); } } else { simT += dt; updateSky(dt * .3); camPos.x = POI.garnier[0] + Math.sin(simT * .05) * 120; camPos.z = POI.garnier[1] + 60 + Math.cos(simT * .05) * 80; musicTick(dt, .6); }
+  PROF.buf.sim[PROF.k] = performance.now() - _t; _t = performance.now();
+  updateCam(dt); syncMeshes(simT); G.update(dt, simT, camPos.x, camPos.z); PROF.buf.stream[PROF.k] = performance.now() - _t; _t = performance.now();
+  G.render(); PROF.buf.render[PROF.k] = performance.now() - _t; _t = performance.now();
+  if (state === 'play') { drawHUD(dt); if (mapOpen) drawFullMap(); if (PROF.on) drawProf(); if (G.GL.lost) txt('Graphics device reset — restoring…', innerWidth / 2, innerHeight / 2, 18, '#fff', 'center'); } else hx.clearRect(0, 0, hud.width, hud.height); PROF.buf.hud[PROF.k] = performance.now() - _t; }
 addEventListener('resize', G.resize); G.resize(); camPos.set(player.x, 0, player.z);
 requestAnimationFrame(frame);
 // ================= DEBUG / TEST API =================
 const DEBUG = /[?&]debug/.test(location.search);
-window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, get choices() { return choices; }, setChoice: (k, v) => { choices[k] = v; }, THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV, get M() { return M; }, get wanted() { return wanted; }, get money() { return money; }, get heat() { return heat; }, set heat(v) { heat = v; }, get done() { return done; }, stats, get lastFail() { return lastFail; }, WEAP,
+window.GAME = { HOOKS, registerVehicle, VT, mouse, get hover() { return hover; }, prof: PROF, interactObj: (o, kind) => doInteract({ o, kind: kind || (o.d ? 'veh' : 'ped') }), openShop, startReload, get GL() { return G.GL; }, CHAPTERS, DRAMATIS, get gallery() { return gallery; }, get choices() { return choices; }, setChoice: (k, v) => { choices[k] = v; }, THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV, get M() { return M; }, get wanted() { return wanted; }, get money() { return money; }, get heat() { return heat; }, set heat(v) { heat = v; }, get done() { return done; }, stats, get lastFail() { return lastFail; }, WEAP,
   start: startGame, startMission: (id) => startMission(MISSIONS.find(m => m.id === id)), fail: failMission, step: (n = 60, dt = 1 / 30, I) => { for (let k = 0; k < n; k++) step(dt, I || readInput()); }, pause: (b) => dbgPause = b,
   enter: enterExit, fire: (a) => { if (a !== undefined) player.a = a; player.cd = 0; return fireWeapon(player.veh ? player.veh.x : player.x, player.veh ? player.veh.z : player.z, player.a); },
   give: giveWeapon, sel: (id) => player.w = WI[id], target: stepTarget, setTime: (h) => gameTime = h, setRain: (r) => { rain = rainTarget = r; },
@@ -536,21 +672,20 @@ window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, get choic
   drive: (thr, steer, n = 30) => { for (let k = 0; k < n; k++) { driveVeh(player.veh, thr, steer, 1 / 30); player.x = player.veh.x; player.z = player.veh.z; step(1 / 30, { mx: 0, my: 0, thr: 0, steer: 0 }); } },
   spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
 // content hooks: life.js (NPC talk, mission givers, letters/newspapers/rumours, activities, street events, shops)
-const HOOKS = { update: [], hud: [], map: [], phone: [], where: () => '', known: () => true, welcome: '' };
 Object.defineProperties(GAME, Object.getOwnPropertyDescriptors({ HOOKS, DEBUG, say, pager, big, addMoney, addHeat, crime, removePed, addPickup, startDef: startMission, nextStory, SFX, fires, VT, LOOKS, scene, camera: G.camera, enterExit, readInput,
   get state() { return state; }, get paused() { return paused || dbgPause; }, get gameTime() { return gameTime; }, get rain() { return rain; }, get respect() { return respect; }, get mult() { return mult; }, get wanted() { return wanted; }, set wanted(v) { wanted = v; }, get sightT() { return sightT; }, set sightT(v) { sightT = v; } }));
 LIFE.init(GAME);
 // autopilot: performs the current mission step through normal game actions (used by automated tests)
 GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 = { mx: 0, my: 0, thr: 0, steer: 0 }; const tick = (n = 5) => { for (let q = 0; q < n; q += 2) { if (M && M.s && M.s.t === 'eaves') { heat = 0; wanted = 0; sightT = 0; } GAME.step(Math.min(2, n - q), 1 / 30, I0); } }; const g0 = player.god; player.god = true; player.hp = 100; if (!player.alive) respawn('WASTED');
   const gotoVeh = (x, z) => { GAME.tp(x, z); tick(3); };
-  const killAt = (tx, tz, hp) => { if (player.veh) enterExitForce(); let px = tx + 1.5, pz = tz; for (let k = 0; k < 8; k++) { const a = k * .785, x = tx + Math.cos(a) * 2.2, z = tz + Math.sin(a) * 2.2; if (!pedBlock(x, z) && !pedBlock((x + tx) / 2, (z + tz) / 2)) { px = x; pz = z; break; } } player.x = px; player.z = pz; giveWeapon('shotgun', 50); player.w = WI.shotgun; player.cd = 0; fireWeapon(player.x, player.z, Math.atan2(tz - player.z, tx - player.x)); tick(1); };
+  const killAt = (tx, tz, hp) => { if (player.veh) enterExitForce(); let px = tx + 1.5, pz = tz; for (let k = 0; k < 8; k++) { const a = k * .785, x = tx + Math.cos(a) * 2.2, z = tz + Math.sin(a) * 2.2; if (!pedBlock(x, z) && !pedBlock((x + tx) / 2, (z + tz) / 2)) { px = x; pz = z; break; } } player.x = px; player.z = pz; giveWeapon('shotgun', 50); player.w = WI.shotgun; player.cd = 0; player.rel = 0; player.mag.shotgun = 2; player.kick = 0; fireWeapon(player.x, player.z, Math.atan2(tz - player.z, tx - player.x)); tick(1); };
   const ensureVeh = () => { if (!player.veh) { const [x, z] = snapWalk(Math.floor(player.x / T), Math.floor(player.z / T), true); const v = spawnVeh('brougham', x, z, 0); GAME.tp(x + 2.5, z); enterExit(); if (!player.veh) { player.veh = v; v.driver = 'player'; } } };
   switch (s.t) {
     case 'goto': if ((s.foot || player.veh && player.veh.d.rail) && player.veh) enterExitForce(); { const p = POI[s.at]; if (player.veh) { const q = POIV[s.at]; GAME.tp(q[0], q[1]); } else GAME.tp(p[0], p[1]); } tick(3); break;
     case 'steal': { if (player.veh) enterExitForce(); let v = M.target && M.target.alive && !M.target.wreck ? M.target : vehs.find(x => x.type === s.vtype && x.alive && !x.wreck); if (!v) return 'steal:no-vehicle'; for (const o of vehs) if (o !== v && !o.d.rail && d2(o.x, o.z, v.x, v.z) < 64) { o.x += 12; o.z += 0; } GAME.tp(v.x + Math.cos(v.a) * 0, v.z + v.d.wid / 2 + 1.2); enterExit(); tick(3); break; }
     case 'deliver': case 'race': { if (player.veh && player.veh.d.rail && (s.t === 'race' || player.veh !== M.veh)) enterExitForce(); if (!player.veh && M.veh && M.veh.alive && !M.veh.wreck) { player.veh = M.veh; M.veh.driver = 'player'; M.veh.parked = false; player.mesh.visible = false; } ensureVeh(); const list = s.t === 'race' ? M.cps.slice(M.cp) : [M.dtgt || POIV[s.at]]; for (const q of list) { gotoVeh(q[0], q[1]); } break; }
     case 'kill': for (let r = 0; r < 40 && M && M.s === s; r++) { const p = M.ents.find(e => e.alive); if (!p) { tick(1); break; } killAt(p.x, p.z); } break;
-    case 'destroy': case 'smash': for (let r = 0; r < 60 && M && M.s === s; r++) { const v = M.vehs.find(x => x.alive && !x.wreck && !x.burn); const p = M.props.find(x => x.alive); if (v) { killAt(v.x, v.z + v.d.wid / 2 + .2); damageVeh(v, 0); } else if (p) { if (r > 30) damageProp(p, 999); else killAt(p.x, p.z); } else tick(10); } break;
+    case 'destroy': case 'smash': for (let r = 0; r < 60 && M && M.s === s; r++) { const v = M.vehs.find(x => x.alive && !x.wreck && !x.burn); const p = M.props.find(x => x.alive); if (v) { if (r > 30) damageVeh(v, 999); else { killAt(v.x, v.z + v.d.wid / 2 + .2); damageVeh(v, 0); } } else if (p) { if (r > 30) damageProp(p, 999); else killAt(p.x, p.z); } else tick(10); } break;
     case 'collect': for (const pk of [...M.pks]) if (pk.alive) { if (player.veh) enterExitForce(); player.x = pk.x; player.z = pk.z; tick(1); } break;
     case 'escort': { if (player.veh && !M.board) enterExitForce(); if (!M.board && player.veh) { player.veh.driver = null; player.veh = null; player.mesh.visible = true; } ensureVeh(); for (const vv of [M.veh, M.bveh, player.veh]) if (vv && vv.alive) { vv.hp = Math.max(vv.hp, 100); vv.burn = 0; } const v = M.vip; const q0 = snapWalk(Math.floor(v.x / T), Math.floor(v.z / T), true); gotoVeh(q0[0], q0[1]); tick(5); if (M && M.board) { const q = POIV[s.to]; for (const vv of [M.bveh, player.veh]) if (vv && vv.alive) { vv.hp = Math.max(vv.hp, 100); vv.burn = 0; } gotoVeh(q[0], q[1]); tick(3); } break; }
     case 'survive': if (s.lose) { heat = 0; tick(3); } else { tick(Math.ceil((M.timer + .5) * 30)); } break;

@@ -52,7 +52,7 @@ function envFrom(top, hor, bot) { const c = cv(256, 128, (g) => { const gr = g.c
 const ENV_DAY = envFrom('#8fb0d0', '#e8e4dc', '#5a5248'), ENV_NIGHT = envFrom('#0a1020', '#3a3440', '#100c08');
 scene.environment = ENV_DAY;
 // ================= TEXTURES =================
-export function cv(w, h, f) { const c = document.createElement('canvas'); c.width = w; c.height = h; f(c.getContext('2d'), w, h); return c; }
+export function cv(w, h, f) { const c = document.createElement('canvas'); c.width = w; c.height = h; f(c.getContext('2d', { willReadFrequently: true }), w, h); return c; }
 function tex(c, rep = true, srgb = true) { const t = new THREE.CanvasTexture(c); if (rep) t.wrapS = t.wrapT = THREE.RepeatWrapping; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = MAXANI; return t; }
 let rs = 1880; const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
 const sh = (b, v) => `rgb(${Math.max(0, Math.min(255, b[0] + v)) | 0},${Math.max(0, Math.min(255, b[1] + v)) | 0},${Math.max(0, Math.min(255, b[2] + v)) | 0})`;
@@ -457,6 +457,10 @@ const CHUNKS = new Map(); export const chunkGroup = new THREE.Group(); scene.add
 const isBldT = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && (skipT[ti(i, j)] || bldH(i, j) > 0);
 // ---- building footprint field: blocks fill the land between the vector streets, contoured by marching squares (1-unit samples) ----
 const BF = new Map(), FM = 3, FPU = 4;
+// engine collision hook: signed building field at (x,z) from the same field the visible block meshes are contoured from
+// (>0 inside a building). Returns null when that chunk's field is not built yet (callers fall back to the tile grid).
+export function bldAt(x, z) { const cx = Math.floor(x / CHU), cz = Math.floor(z / CHU), o = BF.get(cx * 1000 + cz); if (!o) return null; const fu = x - o.X0, fv = z - o.Z0, u = Math.floor(fu), v = Math.floor(fv); if (u < 0 || v < 0 || u >= o.N - 1 || v >= o.N - 1) return null;
+  const a = fu - u, b = fv - v, F = o.F, N = o.N; return (F[v * N + u] * (1 - a) + F[v * N + u + 1] * a) * (1 - b) + (F[(v + 1) * N + u] * (1 - a) + F[(v + 1) * N + u + 1] * a) * b; }
 // parish churches that are not full landmarks: [x, z, model, rotation, scale] (positions fitted from lat/lon to the map's landmark frame)
 const SPIRES = [[1406, 1614, 'spireTwin', 0, 1.15], [2364, 706, 'spireTwin', Math.PI / 2, 1], [2481, 1766, 'spireSq', 0, 1.1], [2295, 2156, 'spireSq', .3, 1], [1838, 1333, 'spireDome', 0, 1], [2079, 1580, 'spireSq', 0, .95],
   [2365, 1595, 'spireSq', .2, .9], [2088, 364, 'spireSq', 0, .8], [2480, 1407, 'spireSq', 0, .9], [2213, 1909, 'spireSq', 0, .9]];
@@ -516,7 +520,11 @@ function bldField(cx, cz) { const key = cx * 1000 + cz; if (BF.has(key)) return 
     for (const PL of cells) if (PL) for (const P of PL) for (const p of P) if (p.k < 0) { const m = MV.get(p.e); if (m) { p.x = m[0]; p.z = m[1]; } } }
   const o = { F, DI, N, X0, Z0, cells, segs }; BF.set(key, o); if (BF.size > 64) BF.delete(BF.keys().next().value); return o; }
 const smoothMask = {};
-function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.width = c.height = CPX; const g = c.getContext('2d'); const i0 = cx * CH, j0 = cz * CH; const P = {}; for (const n of CLSN) P[n] = pat(g, n);
+function groundCanvas(cx, cz) { const it = groundCanvasG(cx, cz); let r; while (!(r = it.next()).done); return r.value; }
+// generator form: yields between the heavy canvas passes so chunk builds can be spread across frames (engine: no main-thread hitches)
+// engine perf: software (CPU) 2D canvases for chunk ground painting; avoids GPU-raster readback stalls (getImageData/drawImage ping-pong) in the per-chunk pipeline
+const CTX2D = { willReadFrequently: true };
+function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.width = c.height = CPX; const g = c.getContext('2d', CTX2D); const i0 = cx * CH, j0 = cz * CH; const P = {}; for (const n of CLSN) P[n] = pat(g, n);
   const cls = (i, j) => gclass(i, j);
   // ---- continuous vector ground: everything is drawn in world units from the OSM centre-lines/polygons, patterns anchored in world space (no tile seams) ----
   const vs = PXT / T, vx = i0 * T, vz = j0 * T, VCH = chunkVec(cx, cz); const WT = () => g.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs);
@@ -526,19 +534,20 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
     for (let k = 0; k + 3 < r.p.length; k += 2) { const ax = r.p[k], az = r.p[k + 1], bx = r.p[k + 2], bz = r.p[k + 3]; g.strokeStyle = wp(style, Math.atan2(bz - az, bx - ax) + rot, ax, az); g.beginPath(); g.moveTo(ax, az); g.lineTo(bx, bz); g.stroke(); } };
   const disc = (j, r, style) => { g.fillStyle = typeof style === 'string' && GP[style] ? wp(style) : style; g.beginPath(); g.arc(j.x, j.z, r, 0, 7); g.fill(); };
   WT(); g.lineCap = g.lineJoin = 'round'; const X0 = vx - 2, Z0 = vz - 2, SZ = CHU + 4;
-  g.fillStyle = wp('yard'); g.fillRect(X0, Z0, SZ, SZ);
+  g.fillStyle = wp('yard'); g.fillRect(X0, Z0, SZ, SZ); yield;
   // smooth area layers from the gameplay grid itself (bilinear-upsampled + blurred tile masks, thresholded): plazas, parvis, parks, water — no stair-steps, and exactly where gameplay thinks they are
   const SMR = CPX / 2, SMM = 6, SMN = CH + 2 * SMM; const SMC = smoothMask.c || (smoothMask.c = [document.createElement('canvas'), document.createElement('canvas'), document.createElement('canvas')]);
-  const smooth = (test, bl = 5) => { const [mc, tc] = SMC; mc.width = mc.height = SMN; const mg = mc.getContext('2d'), id = mg.createImageData(SMN, SMN); let any = 0;
+  const smooth = (test, bl = 5) => { const [mc, tc] = SMC; mc.width = mc.height = SMN; const mg = mc.getContext('2d', CTX2D), id = mg.createImageData(SMN, SMN); let any = 0;
     for (let b = 0; b < SMN; b++) for (let a = 0; a < SMN; a++) { const i = i0 - SMM + a, j = j0 - SMM + b; if (inb(i, j) && test(ti(i, j), i, j)) { id.data[(b * SMN + a) * 4 + 3] = 255; any = 1; } } if (!any) return null; mg.putImageData(id, 0, 0);
-    tc.width = tc.height = SMR; const tg = tc.getContext('2d', { willReadFrequently: true }); tg.imageSmoothingEnabled = true; tg.filter = `blur(${bl}px)`; const s = SMR / CH; tg.drawImage(mc, -SMM * s, -SMM * s, SMN * s, SMN * s); tg.filter = 'none';
+    const SQ = SMR / 4, qc = SMC[3] || (SMC[3] = document.createElement('canvas')); qc.width = qc.height = SQ; const qg = qc.getContext('2d', CTX2D); qg.imageSmoothingEnabled = true; qg.filter = `blur(${bl / 4}px)`; const sq = SQ / CH; qg.drawImage(mc, -SMM * sq, -SMM * sq, SMN * sq, SMN * sq); qg.filter = 'none';
+    tc.width = tc.height = SMR; const tg = tc.getContext('2d', { willReadFrequently: true }); tg.imageSmoothingEnabled = true; tg.drawImage(qc, 0, 0, SMR, SMR); /* blur at quarter res then bilinear-upsample: same soft edge, ~16x cheaper */
     const im = tg.getImageData(0, 0, SMR, SMR), d = im.data; for (let k = 3; k < d.length; k += 4) { const v = (d[k] - 128) * 10 + 128; d[k] = v < 0 ? 0 : v > 255 ? 255 : v; } tg.putImageData(im, 0, 0); return tc; };
-  const layer = (test, style, bl) => { const m = smooth(test, bl); if (!m) return; const lc = SMC[2]; lc.width = lc.height = CPX; const lg = lc.getContext('2d'); lg.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs); lg.fillStyle = (() => { const p = lg.createPattern(GP[style], 'repeat'); p.setTransform(new DOMMatrix().scale(4 / 128)); return p; })(); lg.fillRect(vx, vz, CHU, CHU);
+  const layer = (test, style, bl) => { const m = smooth(test, bl); if (!m) return; const lc = SMC[2]; lc.width = lc.height = CPX; const lg = lc.getContext('2d', CTX2D); lg.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs); lg.fillStyle = (() => { const p = lg.createPattern(GP[style], 'repeat'); p.setTransform(new DOMMatrix().scale(4 / 128)); return p; })(); lg.fillRect(vx, vz, CHU, CHU);
     lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = 'destination-in'; lg.drawImage(m, 0, 0, CPX, CPX); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(lc, 0, 0); WT(); };
   const WALK = new Set([K.SIDE, K.ROAD, K.BRIDGE, K.STAIR]);
-  layer(t => WALK.has(kind[t]), 'flag'); layer(t => skipT[t] > 0, 'parvis'); layer(t => kind[t] === K.PARK, 'grass', 10);
+  layer(t => WALK.has(kind[t]), 'flag'); yield; layer(t => skipT[t] > 0, 'parvis'); yield; layer(t => kind[t] === K.PARK, 'grass', 10); yield;
   { const m = smooth(t => kind[t] === K.WATER, 9); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
-  for (const o of VCH.rail) seg(o, 3 * T, 'rail', Math.PI / 2);
+  yield; for (const o of VCH.rail) seg(o, 3 * T, 'rail', Math.PI / 2);
   const RD = VCH.roads.filter(r => !r.br), BR = VCH.roads.filter(r => r.br), JC = VCH.junc;
   for (const r of RD) if (r.c === -2) seg(r, r.w, 'gravel');
   for (const r of RD) if (r.c >= 0) seg(r, r.pw, 'flag');
@@ -555,12 +564,14 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
     g.save(); g.beginPath(); g.arc(X, Y, ro - 2, 0, 7); g.clip(); g.fillStyle = P.pave; g.fillRect(X - ro, Y - ro, ro * 2, ro * 2); g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1.5; for (let r = ri + 8; r < ro; r += 9) { g.beginPath(); g.arc(X, Y, r, 0, 7); g.stroke(); } g.restore();
     g.fillStyle = 'rgba(30,26,22,.5)'; g.beginPath(); g.arc(X, Y, ri + 3, 0, 7); g.fill(); g.fillStyle = '#cfc8b8'; g.beginPath(); g.arc(X, Y, ri, 0, 7); g.fill(); g.fillStyle = P.flag; g.beginPath(); g.arc(X, Y, ri - 3, 0, 7); g.fill();
     g.strokeStyle = 'rgba(120,110,95,.35)'; g.lineWidth = 2; for (let r = ri * .35; r < ri - 5; r += ri * .2) { g.beginPath(); g.arc(X, Y, r, 0, 7); g.stroke(); } for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; g.beginPath(); g.moveTo(X + Math.cos(a) * ri * .35, Y + Math.sin(a) * ri * .35); g.lineTo(X + Math.cos(a) * (ri - 4), Y + Math.sin(a) * (ri - 4)); g.stroke(); } } }
+  yield;
   // seamless world-space colour variation (blotches keyed to world cells, identical across chunk borders) + soft AO along the real building outlines
   WT(); g.globalCompositeOperation = 'source-atop'; { const GS = 10;
     for (let b = Math.floor((vz - 16) / GS); b <= Math.floor((vz + CHU + 16) / GS); b++) for (let a = Math.floor((vx - 16) / GS); a <= Math.floor((vx + CHU + 16) / GS); a++) { const x = (a + hash(a, b, 502)) * GS, z = (b + hash(a, b, 503)) * GS, r = 4 + hash(a, b, 504) * 11, al = .03 + hash(a, b, 505) * .07, dk = hash(a, b, 501) < .62;
       const gr = g.createRadialGradient(x, z, 0, x, z, r); gr.addColorStop(0, dk ? `rgba(40,30,20,${al})` : `rgba(255,244,215,${al * .8})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, z - r, 2 * r, 2 * r); } }
-  { const F = bldField(cx, cz); g.filter = 'blur(7px)'; g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1.3; g.lineCap = 'round'; g.beginPath(); for (const s of F.segs) { g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); } g.stroke(); g.filter = 'none'; }
+  yield; { const F = bldField(cx, cz); g.filter = 'blur(7px)'; g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1.3; g.lineCap = 'round'; g.beginPath(); for (const s of F.segs) { g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); } g.stroke(); g.filter = 'none'; }
   g.globalCompositeOperation = 'source-over'; g.setTransform(1, 0, 0, 1, 0, 0);
+  yield;
   // inner courtyards: small gardens (lawn, gravel border, clipped shrubs, a tree) and dark light wells inside blocks
   { const sc2 = PXT / T, ox2 = i0 * T, oz2 = j0 * T; g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
     for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { if (!isYard(i, j)) continue; const X = (i * T - ox2) * sc2, Y = (j * T - oz2) * sc2, S2 = T * sc2, lot = hash(i >> 1, j >> 1, 92);
@@ -571,6 +582,7 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
         for (let k = 0; k < 4; k++) { const sx = X + 5 + (k % 2) * (S2 - 10), sy = Y + 5 + (k >> 1) * (S2 - 10); g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(sx + 1.5, sy + 1.5, 3.2, 0, 7); g.fill(); g.fillStyle = '#2f4a26'; g.beginPath(); g.arc(sx, sy, 3, 0, 7); g.fill(); g.fillStyle = '#4c6e36'; g.beginPath(); g.arc(sx - .8, sy - .8, 1.6, 0, 7); g.fill(); }
         if (hash(i, j, 94) < .3) { const cx2 = X + S2 / 2, cy2 = Y + S2 / 2; g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(cx2 + 4, cy2 + 4, 13, 0, 7); g.fill(); for (const [r, c] of [[12, '#2c4424'], [9, '#3f5e30'], [5, '#5a7a40']]) { g.fillStyle = c; g.beginPath(); g.arc(cx2 - (12 - r) * .3, cy2 - (12 - r) * .3, r, 0, 7); g.fill(); } } } }
     g.restore(); }
+  yield;
   // baked contact AO under props, autumn leaves under trees, horse droppings on carriageways
   { const sc2 = PXT / T, ox2 = i0 * T, oz2 = j0 * T; const AOR = { fountain: 3.4, tree: 2.4, kiosk: 1.5, morris: 1.1, pissoir: 1.4, wallace: .8, trough: 1.3, bench: .9, lamp: .45 };
     for (const p of ensureChunk(cx, cz)) { const r = AOR[p.type]; if (!r) continue; const X = (p.x - ox2) * sc2, Y = (p.z - oz2) * sc2, rr = r * sc2; const gr = g.createRadialGradient(X, Y, 0, X, Y, rr); gr.addColorStop(0, `rgba(0,0,0,${p.type === 'tree' ? .32 : .5})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X - rr, Y - rr, rr * 2, rr * 2);
@@ -582,6 +594,7 @@ function groundCanvas(cx, cz) { const c = document.createElement('canvas'); c.wi
       if (p.type === 'tree') { rs = (p.x * 13 + p.z * 7) | 0 || 1; for (let k = 0; k < 26; k++) { const a = rnd() * 6.3, d = Math.sqrt(rnd()) * 3.4 * sc2; g.fillStyle = ['#a8642a', '#c8902a', '#8a4a1e', '#b87a30', '#6a5a24'][k % 5]; g.save(); g.translate(X + Math.cos(a) * d, Y + Math.sin(a) * d); g.rotate(rnd() * 6); g.beginPath(); g.ellipse(0, 0, 2.6, 1.4, 0, 0, 7); g.fill(); g.restore(); } } } }
   for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { if (!ROADC(cls(i, j)) || hash(i, j, 91) > .045) continue; const X = (i - i0 + hash(i, j, 92)) * PXT, Y = (j - j0 + hash(i, j, 93)) * PXT;
     for (let k = 0; k < 4; k++) { g.fillStyle = k ? '#3a2a16' : '#2a1e10'; g.beginPath(); g.ellipse(X + (hash(i, j, 94 + k) - .5) * 6, Y + (hash(i, j, 98 + k) - .5) * 6, 2.4, 1.9, 0, 0, 7); g.fill(); } g.fillStyle = 'rgba(220,200,150,.35)'; g.fillRect(X - 1, Y - 2, 2, 1); }
+  yield;
   // rails
   const sc = PXT / T, ox = i0 * T, oz = j0 * T; for (const [P2, gauge, col] of [[TRAM, .55, '#2a2826'], [TRAIN, .7, '#3a3836']]) { if (!P2 || !P2.length) continue; g.strokeStyle = col; g.lineWidth = 2.2;
     for (const s of [-1, 1]) { g.beginPath(); let started = false; for (let k = 0; k < P2.length; k++) { const [px, pz] = P2[k], nx = P2[Math.min(k + 1, P2.length - 1)], pv = P2[Math.max(0, k - 1)], dx = nx[0] - pv[0], dz = nx[1] - pv[1], l = Math.hypot(dx, dz) || 1;
@@ -658,11 +671,12 @@ function buildingGeo(cx, cz, out) { const A = BM.map(() => ({ p: [], n: [], u: [
   A.forEach((t, k) => { const cnt = t.p.length / 3; if (!cnt) return; P.push(...t.p); Nn.push(...t.n); U.push(...t.u); Cc.push(...t.c); geo.addGroup(off, cnt, k); off += cnt; });
   if (!off) return null; geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); geo.computeBoundingSphere();
   const mesh = new THREE.Mesh(geo, BM); mesh.castShadow = mesh.receiveShadow = true; out.chim = chim; out.stacks = stacks; out.det = det; out.domes = domes; out.sky = sky; out.wtow = wtow; out.spires = SPIRES.filter(q => q[0] >= ox && q[0] < ox + CHU && q[1] >= oz && q[1] < oz + CHU).map(q => { let best = null, bd = 1e9; for (let j = Math.floor(q[1] / T) - 5; j <= Math.floor(q[1] / T) + 5; j++) for (let i = Math.floor(q[0] / T) - 5; i <= Math.floor(q[0] / T) + 5; i++) { if (!Hb(i, j)) continue; const u = i * T + 1 - FX, v = j * T + 1 - FZ; if (u < 0 || v < 0 || u >= FN || v >= FN || DI[v * FN + u] < 1.5) continue; const d = (i * T + 1 - q[0]) ** 2 + (j * T + 1 - q[1]) ** 2 - DI[v * FN + u] * 4; if (d < bd) { bd = d; best = [i * T + 1, j * T + 1]; } } if (!best) return null; const ci = cinfo(best[0], best[1]); return [best[0], (ci.top || ci.h) - .2, best[1], q[2], q[3], q[4] || 1]; }).filter(Boolean); return mesh; }
-function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: [], stacks: [], mats: [] }; const c = groundCanvas(cx, cz); const t = tex(c, false); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = true;
+function buildChunk(cx, cz) { const it = buildChunkG(cx, cz); let r; while (!(r = it.next()).done); return r.value; }
+function* buildChunkG(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: [], stacks: [], mats: [] }; bldField(cx, cz); yield; let _t0 = performance.now(); const c = yield* groundCanvasG(cx, cz); stats.tGround = performance.now() - _t0; yield; const t = tex(c, false); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.generateMipmaps = true;
   const gm = stdM({ map: t, alphaTest: .5, roughness: .95 }); if (Q.bloom && !CFG.ps1) { gm.bumpMap = t; gm.bumpScale = 2.2; } ch.mats.push(gm); ch.tex = t; applyWet(gm);
   const nearHill = Math.hypot(cx * CHU + CHU / 2 - HILL.x, cz * CHU + CHU / 2 - HILL.z) < HILL.r + CHU; const gseg = nearHill ? 40 : 1;
   const gp = new THREE.Mesh(new THREE.PlaneGeometry(CHU, CHU, gseg, gseg).rotateX(-Math.PI / 2), gm); gp.position.set(cx * CHU + CHU / 2, 0, cz * CHU + CHU / 2); gp.receiveShadow = true; ch.g.add(gp);
-  const out = {}; const bm = buildingGeo(cx, cz, out); if (bm) { bm.userData.bld = 1; ch.g.add(bm); }
+  renderer.initTexture(t); yield; const out = {}; _t0 = performance.now(); const bm = buildingGeo(cx, cz, out); yield; stats.tBld = performance.now() - _t0; if (bm) { bm.userData.bld = 1; ch.g.add(bm); }
   { const dm = detailGeo(out.det || [], cx, cz).mesh(SHOPM); if (dm) ch.g.add(dm); const pm = Q.life ? puddleGeo(cx, cz) : null; if (pm) ch.g.add(pm); }
   const ch1 = inst(PG.chimney, PROPMAT, out.chim || [], q => _m4.compose(_v4.set(q[0], q[1], q[2]), _q4.setFromAxisAngle(_up, q[3]), _s4.set(1, q[5] || 1, q[4] || 1))); if (ch1) ch.g.add(ch1);
   for (const ty of ['spireSq', 'spireTwin', 'spireDome']) { const L = (out.spires || []).filter(q => q[3] === ty); const m = inst(PG[ty], PROPMAT, L, q => { place(q[0], q[1], q[2], q[4], q[5]); _m4.compose(_v4.set(q[0], q[1], q[2]), _q4.setFromAxisAngle(_up, q[4]), _s4.set(q[5], q[5] * .55, q[5])); }); if (m) ch.g.add(m); } // squashed vertically so the tower stays under the top-down camera yet reads by silhouette + shadow
@@ -670,6 +684,7 @@ function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: 
   const wt1 = inst(PG.wtower, PROPMAT, out.wtow || [], q => place(q[0], q[1], q[2], 0, 1)); if (wt1) ch.g.add(wt1);
   const dm1 = inst(PG.dome, PROPMAT, out.domes || [], q => place(q[0], q[1], q[2], 0, .55)); if (dm1) ch.g.add(dm1);
   const st1 = inst(PG.stack, PROPMAT, out.stacks || [], q => place(q[0], q[1] - .5, q[2], 0, 1)); if (st1) ch.g.add(st1); ch.chims = out.chim || []; ch.stacks = (out.stacks || []).map(q => [q[0], q[1] + 10.6, q[2]]);
+  stats.tMid = performance.now() - _t0; yield; _t0 = performance.now();
   // props
   const props = ensureChunk(cx, cz).filter(p => !p.dyn); const by = {}; for (const p of props) (by[p.type] = by[p.type] || []).push(p);
   const hide = (p, mesh, k) => { (p.inst = p.inst || []).push([mesh, k]); };
@@ -688,7 +703,7 @@ function buildChunk(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps: 
   { const FL = by.fountain || []; mk(FL, PG.fountainW, FWATM, p => place(p.x, 0, p.z, 0, 1), false); mk(FL, PG.fountainS, FSPRM, p => place(p.x, 0, p.z, 0, 1), false); }
   for (const ty of ['morris', 'wallace', 'trough', 'pissoir', 'bench', 'kiosk', 'fountain']) mk(by[ty] || [], PG[ty], PROPMAT, p => place(p.x, 0, p.z, -(p.ry || 0) + (ty === 'bench' ? Math.PI / 2 : 0), 1));
   for (const p of props) if (!p.alive) killInst(p);
-  return ch; }
+  stats.tProps = performance.now() - _t0; return ch; }
 function killInst(p) { if (!p.inst) return; for (const [m, k] of p.inst) { m.getMatrixAt(k, _m4); _m4.decompose(_v4, _q4, _s4); if (p.type === 'tree' || p.type === 'lamp') { if (m.material === LANTM || m.material === GLOBEM || m.material === POOLM || m.material === CANOPYM) _s4.set(0, 0, 0); else _q4.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.45)); } else _s4.set(0, 0, 0); _m4.compose(_v4, _q4, _s4); m.setMatrixAt(k, _m4); m.instanceMatrix.needsUpdate = true; } }
 // ================= STREAMING =================
 const LGROUP = new THREE.Group(); scene.add(LGROUP); const LBUILT = new Map();
@@ -699,13 +714,20 @@ export const stats = { chunks: 0, built: 0, buildMs: 0 };
 function wantedChunks(m) { const [x0, z0, x1, z1] = viewRect(); const out = []; const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   for (let a = Math.max(0, Math.floor((x0 - m) / CHU)); a <= Math.min(NCX - 1, Math.floor((x1 + m) / CHU)); a++) for (let b = Math.max(0, Math.floor((z0 - m) / CHU)); b <= Math.min(NCZ - 1, Math.floor((z1 + m) / CHU)); b++) out.push([a, b, ((a + .5) * CHU - cx) ** 2 + ((b + .5) * CHU - cz) ** 2]);
   out.sort((p, q) => p[2] - q[2]); return { list: out, cx, cz }; }
-function streamChunks(budgetMs, force) { const { list, cx, cz } = wantedChunks(20); const t0 = performance.now(); const keep = new Set(list.map(q => q[0] * 1000 + q[1]));
-  for (const [a, b] of list) { const k = a * 1000 + b; if (CHUNKS.has(k)) continue; if (!force && performance.now() - t0 > budgetMs) break; const ch = buildChunk(a, b); CHUNKS.set(k, ch); chunkGroup.add(ch.g); stats.built++; }
+// Streaming (engine): chunk builds run as resumable jobs (buildChunkG yields between heavy passes) under a per-frame time budget,
+// so a new chunk never stalls a frame. Chunks are prefetched in a wide ring ahead of the view; visible-but-missing chunks get a bigger budget.
+let JOB = null; const PREF = 70;
+function streamChunks(budgetMs, force) { const { list, cx, cz } = wantedChunks(force ? 20 : PREF); const t0 = performance.now(); const keep = new Set(list.map(q => q[0] * 1000 + q[1]));
+  if (force) { if (JOB) { let r; while (!(r = JOB.it.next()).done); finishJob(r.value); } for (const [a, b] of list) { const k = a * 1000 + b; if (CHUNKS.has(k)) continue; const ch = buildChunk(a, b); CHUNKS.set(k, ch); chunkGroup.add(ch.g); stats.built++; } }
+  else { const vis = new Set(wantedChunks(4).list.map(q => q[0] * 1000 + q[1])); let urgent = false; for (const k of vis) if (!CHUNKS.has(k)) urgent = true; const B = urgent ? Math.max(budgetMs, 12) : budgetMs; stats.urgent = urgent;
+    while (performance.now() - t0 < B) { if (!JOB) { let best = null; for (const q of list) { const k = q[0] * 1000 + q[1]; if (CHUNKS.has(k)) continue; const w = q[2] - (vis.has(k) ? 1e9 : 0); if (!best || w < best[2]) best = [q[0], q[1], w]; } if (!best) break; JOB = { a: best[0], b: best[1], it: buildChunkG(best[0], best[1]) }; }
+      const r = JOB.it.next(); if (r.done) finishJob(r.value); } }
   stats.buildMs = performance.now() - t0;
-  if (CHUNKS.size > 30) for (const [k, ch] of CHUNKS) { if (keep.has(k)) continue; const d = ((ch.cx + .5) * CHU - cx) ** 2 + ((ch.cz + .5) * CHU - cz) ** 2; if (d < (CHU * 3) ** 2) continue; disposeChunk(ch); CHUNKS.delete(k); }
+  if (CHUNKS.size > 40) for (const [k, ch] of CHUNKS) { if (keep.has(k)) continue; const d = ((ch.cx + .5) * CHU - cx) ** 2 + ((ch.cz + .5) * CHU - cz) ** 2; if (d < (CHU * 3.5) ** 2) continue; disposeChunk(ch); CHUNKS.delete(k); }
   stats.chunks = CHUNKS.size;
-  // landmarks
-  for (const L of LMODELS) { const d = (L.x - cx) ** 2 + (L.z - cz) ** 2, r = Math.max(L.w, L.d) / 2; if (d < (130 + r) ** 2) { if (!LBUILT.has(L)) { const g = buildLandmark(L); if (g) { LGROUP.add(g); LBUILT.set(L, g); } } } else if (d > (200 + r) ** 2 && LBUILT.has(L)) { const g = LBUILT.get(L); LGROUP.remove(g); g.traverse(o => o.geometry && o.geometry.dispose()); LBUILT.delete(L); } } }
+  // landmarks: at most one new build per frame (all of them when forced)
+  let lb = 0; for (const L of LMODELS) { const d = (L.x - cx) ** 2 + (L.z - cz) ** 2, r = Math.max(L.w, L.d) / 2; if (d < (130 + r) ** 2) { if (!LBUILT.has(L) && (force || lb < 1)) { lb++; const _tl = performance.now(); const g = buildLandmark(L); stats.tLand = (stats.tLand || 0) + performance.now() - _tl; if (g) { LGROUP.add(g); LBUILT.set(L, g); } } } else if (d > (200 + r) ** 2 && LBUILT.has(L)) { const g = LBUILT.get(L); LGROUP.remove(g); g.traverse(o => o.geometry && o.geometry.dispose()); LBUILT.delete(L); } } }
+function finishJob(ch) { const k = JOB.a * 1000 + JOB.b; JOB = null; if (CHUNKS.has(k)) return; CHUNKS.set(k, ch); chunkGroup.add(ch.g); stats.built++; }
 function disposeChunk(ch) { chunkGroup.remove(ch.g); ch.g.traverse(o => { if (o.geometry && !Object.values(PG).includes(o.geometry) && o.geometry !== POOLG) o.geometry.dispose(); if (o.dispose && o.isInstancedMesh) o.dispose(); }); ch.tex.dispose(); ch.mats.forEach(m => m.dispose()); for (const p of chunkProps.get(ch.cx * 1000 + ch.cz) || []) delete p.inst; }
 // ================= WATER =================
 const WN = tex(cv(256, 256, g => { const id = g.createImageData(256, 256); for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) { const a = x / 256 * 6.283, b = y / 256 * 6.283; const dx = Math.cos(a * 3 + Math.sin(b * 2) * 1.5) * .5 + Math.cos(a * 7 + b * 5) * .25 + Math.cos(a * 13 - b * 4) * .12, dz = Math.cos(b * 4 + Math.sin(a * 2)) * .5 + Math.cos(b * 9 - a * 3) * .25 + Math.sin(a * 5 + b * 11) * .12;
@@ -849,7 +871,12 @@ export function update(dt, t, cx, cz) { { const c = renderer.domElement; CUTU.uR
   fpsTick(dt); }
 function postCfg() { POST.on = !!(Q.post && CFG.post && !CFG.ps1); POST.bloom = !!Q.bloom; POST.ssao = !!Q.ssao; POST.fx = Q.fx ?? 2; POST.paint = (Q.fx ?? 2) >= 2 ? 2 : 1; WU.uMark.value = POST.on && POST.fx >= 1 ? 1 : 0; if (POST.on) postSize(renderer, Q.aa ? 4 : 0); }
 function applyBump() { const on = !!(Q.bloom && !CFG.ps1); for (const m of BM) { const want = on ? m.map : null; if (m.bumpMap !== want) { m.bumpMap = want; m.bumpScale = 1.6; m.needsUpdate = true; } } for (const ch of CHUNKS.values()) for (const m of ch.mats) if (m.map) { const want = on ? m.map : null; if (m.bumpMap !== want) { m.bumpMap = want; m.bumpScale = 2.2; m.needsUpdate = true; } } }
-renderer.info.autoReset = false; let rT = 0; export function render() { renderer.info.reset(); CUTU.uCut.value = 1; if (POST.on) { rT += .016; postRender(renderer, scene, camera, rT); } else renderer.render(scene, camera); perf.calls = renderer.info.render.calls; perf.tris = renderer.info.render.triangles; }
+// WebGL context loss (blank screen): GPU memory pressure / driver resets kill the context; without preventDefault() it never comes back.
+// Keep it restorable, skip drawing while lost, and on restore rebuild the post targets (three re-uploads textures/programs lazily).
+export const GL = { lost: false, losses: 0, restores: 0, errors: 0 };
+glc.addEventListener('webglcontextlost', e => { e.preventDefault(); GL.lost = true; GL.losses++; console.warn('WebGL context lost'); }, false);
+glc.addEventListener('webglcontextrestored', () => { GL.lost = false; GL.restores++; try { POST.w = 0; applyShadow(); postCfg(); resize(); } catch (e) { console.warn(e); } for (const ch of CHUNKS.values()) if (ch.tex) ch.tex.needsUpdate = true; }, false);
+renderer.info.autoReset = false; let rT = 0; export function render() { if (GL.lost) return; renderer.info.reset(); CUTU.uCut.value = 1; if (POST.on) { rT += .016; postRender(renderer, scene, camera, rT); } else renderer.render(scene, camera); perf.calls = renderer.info.render.calls; perf.tris = renderer.info.render.triangles; }
 export function flush() { const save = CHUNKS.size; streamChunks(1e9, true); for (const L of LBUILT.keys()) {} return CHUNKS.size - save; }
 // ================= MAP CANVAS (1px per tile) =================
 let MAPC = null;
@@ -942,3 +969,4 @@ export function auditLive() { const miss = []; let n = 0; for (const [k, ch] of 
     if (bt < 3) continue; n++; const m = ch.g.children.find(o => o.userData.bld); const P = m && m.geometry.attributes.position; if (!m || !P || P.count < 3 || !Number.isFinite((m.geometry.computeBoundingSphere(), m.geometry.boundingSphere.radius))) miss.push([ch.cx, ch.cz, bt]); }
   return { chunks: n, miss, retries: stats.fieldRetry || 0 }; }
 if (typeof window !== 'undefined') { window.__auditChunks = auditChunks; window.__auditLive = auditLive; window.__spireAt = (cx, cz) => { const o = {}; const m = buildingGeo(cx, cz, o); if (m) m.geometry.dispose(); return o.spires; }; }
+export const _buildChunkG = buildChunkG;

@@ -228,6 +228,24 @@ export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), ou
     case 'barouche': { const c = d.body; panel(0, 1.05, 0, 3.4, .6, W * .9, c); b.box(1, .5, W * .85, -.8, 1.55, 0, '#6a2a5a'); b.box(1, .5, W * .85, .5, 1.55, 0, '#6a2a5a');
       b.add(new THREE.CylinderGeometry(.85, .85, W * .9, 10, 1, true, 0, Math.PI * .7), d.roof, M(-1.35, 1.45, 0, Math.PI / 2, 0, Math.PI / 2 + .1)); b.box(.7, .5, W * .7, 1.7, 1.45, 0, c); coachman(b, 1.7, 1.7, '#2a1a3a', '#111');
       b.box(L * .9, .12, .12, 0, .78, W * .3, '#2a1c10'); b.box(L * .9, .12, .12, 0, .78, -W * .3, '#2a1c10'); out.wheels.push(wheelPair(.85, W, -1.3), wheelPair(.65, W, 1.4)); lampAt = [[1.4, 1.9, W * .5], [1.4, 1.9, -W * .5]]; break; }
+    // ---- 1890: cycles (rider part is out.rider, shown only when ridden) ----
+    case 'bicycle': case 'velocipede': case 'pennyfarthing': { const rb = new GB(), wood = type === 'velocipede';
+      const fr = wood ? '#5a3a1a' : '#151515', fx = type === 'pennyfarthing' ? .3 : .55, rx = type === 'pennyfarthing' ? -.62 : -.55, fr_r = type === 'pennyfarthing' ? .72 : type === 'velocipede' ? .46 : .35, rr = type === 'pennyfarthing' ? .2 : type === 'velocipede' ? .4 : .35;
+      out.wheels.push(wheelPair(fr_r, .05, fx), wheelPair(rr, .05, rx));
+      if (type === 'pennyfarthing') { b.add(new THREE.TorusGeometry(.75, .04, 4, 24, Math.PI * .6), fr, M(.05, .7, 0, 0, 0, Math.PI * .25)); b.box(.04, .7, .04, .3, 1.1, 0, fr); b.box(.3, .05, .05, .2, 1.48, 0, '#3a2a1a'); b.box(.04, .04, .5, .38, 1.5, 0, fr); coachman(rb, .12, 1.25, '#3a3040', '#222'); }
+      else { const sy = type === 'velocipede' ? .95 : .8; b.box(1.0, .05, .05, 0, sy - .1, 0, fr, 0, 0, type === 'velocipede' ? 0 : -.15); b.box(.05, .5, .05, rx + .3, sy - .3, 0, fr, 0, 0, .5); b.box(.05, .55, .05, fx - .1, sy - .25, 0, fr, 0, 0, -.25); b.box(.25, .06, .12, -.15, sy, 0, '#3a2a1a'); b.box(.04, .04, .5, fx - .15, sy + .15, 0, fr);
+        if (type === 'bicycle') b.add(new THREE.TorusGeometry(.12, .03, 4, 10), '#2a2a2a', M(0, .35, 0)); coachman(rb, -.12, sy - .25, type === 'bicycle' ? '#4a3a2a' : '#3a2a30', '#2a2a2a'); }
+      const rm = mk(rb); rm.visible = false; g.add(rm); out.rider = rm; break; }
+    // ---- 1890: petrol carriages ----
+    case 'panhard': { const c = d.body; b.box(.8, .55, W * .75, 1.1, .95, 0, '#2a2a2a'); b.box(.82, .08, W * .78, 1.1, 1.25, 0, '#b8902c'); panel(-.2, 1.0, 0, 1.6, .5, W * .9, c); b.box(.5, .55, W * .82, -.2, 1.45, 0, '#3a1a10'); b.box(.4, .45, W * .82, -.8, 1.4, 0, '#3a1a10');
+      b.cyl(.03, .03, .5, .55, 1.4, 0, '#1a1a1a', 5, 0, 0, .4); b.add(new THREE.TorusGeometry(.16, .025, 4, 12), '#2a1a10', M(.45, 1.62, 0, Math.PI / 2 + .4)); coachman(b, 0, 1.2, '#2a2a30', '#111'); b.cyl(.06, .06, .5, -1.4, .6, W * .3, '#3a3a3a', 6, 0, 0, Math.PI / 2);
+      out.wheels.push(wheelPair(.42, W * .95, 1.0), wheelPair(.55, W, -.9)); lampAt = [[1.5, 1.2, W * .42], [1.5, 1.2, -W * .42]]; break; }
+    case 'peugeot': { const c = d.body; panel(0, .95, 0, 2.2, .4, W * .85, c); b.box(.55, .5, W * .8, .55, 1.35, 0, '#2a1a10'); b.box(.55, .5, W * .8, -.55, 1.35, 0, '#2a1a10'); b.box(.6, .35, W * .7, -1.0, .75, 0, '#3a3a3a');
+      b.box(2.3, .04, .04, 0, 2.0, W * .4, d.roof); b.box(2.3, .04, .04, 0, 2.0, -W * .4, d.roof); b.box(2.3, .03, W * .85, 0, 2.02, 0, '#e8dcc0'); for (const x of [-1.1, 1.1]) for (const zz of [-1, 1]) b.box(.03, .9, .03, x, 1.55, zz * W * .4, '#1a1a1a');
+      coachman(b, -.45, 1.1, '#2a3a2a', '#1a1a1a'); b.cyl(.03, .03, .6, .2, 1.4, 0, '#1a1a1a', 5, 0, 0, .3); out.wheels.push(wheelPair(.4, W * .95, .85), wheelPair(.48, W * .95, -.8)); lampAt = [[1.15, 1.2, W * .42]]; break; }
+    case 'benz': { const c = d.body; b.box(1.4, .08, .08, .1, .6, W * .3, '#2a2a2a'); b.box(1.4, .08, .08, .1, .6, -W * .3, '#2a2a2a'); b.box(.7, .3, W * .7, -.1, 1.05, 0, c); b.box(.3, .4, W * .7, -.4, 1.3, 0, '#3a2a1a');
+      b.box(.6, .35, W * .6, -.9, .75, 0, '#4a4a40'); b.cyl(.5, .5, .06, -.9, .55, 0, '#3a3a3a', 18); b.cyl(.08, .08, .5, -.9, 1.05, 0, '#b8902c', 8); b.box(.04, .7, .04, .55, 1.15, 0, '#1a1a1a', 0, 0, -.35); b.box(.04, .04, .35, .7, 1.48, 0, '#1a1a1a');
+      coachman(b, -.25, 1.05, '#2a2a30', '#111'); out.wheels.push(wheelPair(.38, .06, 1.05), wheelPair(.62, W * .9, -.75)); lampAt = [[1.1, 1.0, 0]]; break; }
     case 'gig': { const c = d.body; b.box(1.1, .45, W * .7, 0, 1.25, 0, c); b.box(.6, .4, W * .65, -.2, 1.65, 0, '#3a2a1a'); coachman(b, 0, 1.35, '#4a3a2a', '#2a2a2a');
       b.box(2.8, .08, .08, 1.0, 1.05, .3, '#5a4020'); b.box(2.8, .08, .08, 1.0, 1.05, -.3, '#5a4020'); out.wheels.push(wheelPair(.95, W * 1.05, 0)); lampAt = [[.6, 1.5, W * .4]]; break; }
     case 'omnibus': { const c = d.body; panel(0, 1.55, 0, 5.4, 1.6, W * .92, c); b.box(5.4, .1, W * .98, 0, 2.4, 0, '#2a2a20');
