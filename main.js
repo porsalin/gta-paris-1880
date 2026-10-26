@@ -2,6 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { FACTIONS, MISSIONS, CHAPTERS, DRAMATIS } from './missions.js';
 import { K, S, SURF, NX, NZ, T, WX, WZ, kind, surf, dist, DN, LM, LABELS, FLAGGED, tileAt, kAt, pedBlock, vehBlock, snapWalk, POI, POIV, GN, GE, ADJ, nodesIn, nearestNode, edgePts, edgeOther, TRAM, TRAIN, pathAt, pathNear, propsNear, addDynProp, setPropM, dynProps } from './world.js';
 import * as G from './gfx.js';
+import * as LIFE from './life.js';
 import { LOOKS, gangLook, makePed, animPed, killHorse, makeVeh, animVeh, charMat, LAMPMAT } from './models.js';
 const { renderer, scene, camera, hud, FX, cv } = G; const hx = hud.getContext('2d');
 let rs = 1880; const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
@@ -36,11 +37,11 @@ const PEDT = {
 };
 const FCOL = { apache: ['#d8d8d8', '#a01818'], avant: ['#6a4a8a', '#c8a020'], velvet: ['#4a1a4a', '#111'], crimson: ['#8a1a1a', '#222'], side: ['#555', '#a01818'] };
 const CIVL = ['bourgeois', 'bourgeois', 'clerk', 'worker', 'worker', 'lady', 'lady', 'maid', 'artist'];
-function lookFor(type, col) { if (type === 'civ') return LOOKS[CIVL[Math.floor(rnd() * CIVL.length)]](); if (type === 'gang') return col ? gangLook(col[0], col[1]) : LOOKS.apache(); return (LOOKS[type] || LOOKS.clerk)(); }
+function lookFor(type, col) { if (type === 'civ') { const k = CIVL[Math.floor(rnd() * CIVL.length)]; lookFor.k = k; return LOOKS[k](); } if (type === 'gang') return col ? gangLook(col[0], col[1]) : LOOKS.apache(); return (LOOKS[type] || LOOKS.clerk)(); }
 function mkPedMesh(look, mounted) { const P = makePed(look, mounted); scene.add(P.g); P.g.userData.P = P; return P.g; }
 function spawnPed(type, x, z, o = {}) { const d = PEDT[type];
   const p = Object.assign({ type, x, z, a: rnd() * 6.28, hp: d.hp, spd: d.spd, alive: true, t: 0, cd: rnd(), wander: rnd() * 6.28, flee: 0, mounted: !!d.mounted }, o);
-  if (!o.inVeh) p.mesh = mkPedMesh(lookFor(o.look || type, o.col), p.mounted); else p.mesh = new THREE.Group(); p.lx = x; p.lz = z; peds.push(p); return p; }
+  if (!o.inVeh) p.mesh = mkPedMesh(lookFor(o.look || type, o.col), p.mounted); else p.mesh = new THREE.Group(); p.kind = o.look || (type === 'civ' ? lookFor.k : type); p.uid = ++spawnPed.n; p.lx = x; p.lz = z; peds.push(p); return p; } spawnPed.n = 0;
 // named story figures: pick their look from the step's speaker / escorted name (looks only; ped type and logic unchanged)
 const NAMED = { Henri: 'vautrin', Vautrin: 'vautrin', Maza: 'maza', Lucie: 'lucie', Vaneau: 'vaneau' };
 function whoLook(s, k = 0) { if (s.t === 'eaves') { const sp = [...new Set((s.say || []).map(l => l.split(':')[0].trim()))]; return NAMED[sp[k]]; } const m = /^(?:Escort|Drive|Walk|Get|Bring|Collect) (\w+)/.exec(s.text || ''); return m ? NAMED[m[1]] : undefined; }
@@ -478,23 +479,23 @@ function drawHUD(dt) { const dpr = hud.width / innerWidth, Wd = hud.width, H = h
     if (M.timer && !['survive', 'hold'].includes(M.s.t)) st += `  ⏱ ${Math.ceil(M.timer)}`; txt(st, w / 2, h - 30, sm ? 14 : 18, '#ffe040', 'center'); }
   if (bigT > 0) { bigT -= dt; txt(bigMsg, w / 2, h * .38, sm ? 30 : 52, bigMsg === 'WASTED' || bigMsg === 'BUSTED' || bigMsg.includes('FAIL') ? '#e02020' : '#f4c430', 'center'); }
   if (districtT > 0) { districtT -= dt; txt(districtMsg, w / 2, h * .48, sm ? 16 : 22, '#e8dcc0', 'center'); }
-  if (!M && nearPhone) txt(nearPhone.fac === 'side' ? 'Newsstand kiosk — side job: walk in' : `${facName(nearPhone.fac)} — magneto phone`, w / 2, h * .6, sm ? 13 : 16, '#ffe040', 'center'); }
+  if (!M && nearPhone) txt(nearPhone.fac === 'side' ? 'Newsstand kiosk — side job: walk in' : `${facName(nearPhone.fac)} — magneto phone`, w / 2, h * .6, sm ? 13 : 16, '#ffe040', 'center'); for (const f of HOOKS.hud) f(hx, w, h, sm); }
 // ================= FULL MAP (M) =================
 let mapOpen = false;
 function drawFullMap() { const w = innerWidth, h = innerHeight, mc = G.mapCanvas(); const sc = Math.min((w - 40) / NX, (h - 70) / NZ), ox = (w - NX * sc) / 2, oy = 46; hx.fillStyle = 'rgba(10,8,6,.92)'; hx.fillRect(0, 0, w, h); hx.imageSmoothingEnabled = true; hx.drawImage(mc, ox, oy, NX * sc, NZ * sc); hx.strokeStyle = '#f4c430'; hx.strokeRect(ox, oy, NX * sc, NZ * sc);
-  const P = (x, z) => [ox + x / T * sc, oy + z / T * sc]; txt('PARIS 1880 — Plan de la Ville  (M to close)', w / 2, 30, 18, '#f4c430', 'center');
+  const P = (x, z) => [ox + x / T * sc, oy + z / T * sc]; txt('PARIS 1890 — Plan de la Ville  (M to close)', w / 2, 30, 18, '#f4c430', 'center');
   hx.save(); for (const [n, x, z, a] of LABELS) { if (x < 0 || z < 0 || x > WX || z > WZ) continue; const [sx, sy] = P(x, z); hx.save(); hx.translate(sx, sy); hx.rotate(a || 0); hx.font = 'italic 10px Georgia,serif'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(30,24,16,.9)'; hx.fillText(n, 1, 1); hx.fillStyle = '#f0e6cc'; hx.fillText(n, 0, 0); hx.restore(); }
   for (const k in LM) { const L = LM[k]; const [sx, sy] = P(L[1], L[2]); hx.fillStyle = '#e8b040'; hx.beginPath(); hx.arc(sx, sy, 2.5, 0, 7); hx.fill(); hx.font = 'bold 10px "Courier New",monospace'; hx.textAlign = 'left'; hx.fillStyle = '#000'; hx.fillText(L[0], sx + 5, sy + 4); hx.fillStyle = '#ffe6a0'; hx.fillText(L[0], sx + 4, sy + 3); }
   if (!M) for (const p of PHONES) { const [sx, sy] = P(p.x, p.z); hx.fillStyle = p.fac === 'side' ? '#fc0' : '#f3c'; hx.fillRect(sx - 4, sy - 4, 8, 8); }
   const tg = stepTarget(); if (tg) { const [sx, sy] = P(tg[0], tg[1]); hx.strokeStyle = '#ff0'; hx.lineWidth = 2; hx.beginPath(); hx.arc(sx, sy, 7, 0, 7); hx.stroke(); }
-  const [px, pz] = ppos(), [sx, sy] = P(px, pz); hx.fillStyle = '#ff2'; hx.beginPath(); hx.arc(sx, sy, 5, 0, 7); hx.fill(); hx.strokeStyle = '#000'; hx.stroke(); hx.restore();
+  for (const f of HOOKS.map) f(hx, P); const [px, pz] = ppos(), [sx, sy] = P(px, pz); hx.fillStyle = '#ff2'; hx.beginPath(); hx.arc(sx, sy, 5, 0, 7); hx.fill(); hx.strokeStyle = '#000'; hx.stroke(); hx.restore();
   txt('● landmarks   ■ magneto phones   ◯ objective   ● you', w / 2, h - 10, 12, '#e8dcc0', 'center'); }
 addEventListener('keydown', e => { if (e.code === 'KeyM' && state === 'play') mapOpen = !mapOpen; });
 // ================= MENUS =================
 let state = 'title', paused = false, nearPhone = null, phoneCD = 0, holyCD = 0, holeCD = 0;
 const $ = id => document.getElementById(id);
 function startGame(cont) { audio(); if (!cont) { localStorage.removeItem('gtaParis1880'); money = 0; mult = 1; done = {}; gallery = []; respect = { apache: 0, avant: 0, velvet: 0, crimson: 0 }; player.ammo = { fists: 1e9 }; giveWeapon('brick', 4); } else load();
-  $('title').classList.add('hidden'); state = 'play'; pager('Paris, 1880. Fresh off the night train with nothing but a watchmaker\'s hands. Find a magneto phone (glowing rings) — Maza\'s Apaches at Les Halles are hiring.', 7); }
+  $('title').classList.add('hidden'); state = 'play'; pager(HOOKS.welcome || 'Paris, 1890. Fresh off the night train with nothing but a watchmaker\'s hands.', 7); }
 $('bPlay').onclick = () => startGame(false); $('bCont').onclick = () => startGame(true); if (!localStorage.getItem('gtaParis1880')) $('bCont').style.display = 'none';
 function setPause(on) { paused = on; $('pause').classList.toggle('hidden', !on); if (on) buildMenu(); }
 $('bGal').onclick = () => { $('mlist').innerHTML = '<h4>Safehouse Gallery — rescued paintings, scores, instruments &amp; evidence</h4>' + (gallery.length ? gallery.map(g => `<div>🖼 ${g}</div>`).join('') : '<div>Empty, for now. Heists marked ◆ fill these walls.</div>'); };
@@ -503,8 +504,8 @@ $('bRes').onclick = () => setPause(false); $('bSave').onclick = () => { save(); 
 $('bGfx').onclick = () => { $('pause').classList.add('hidden'); G.openSettings(() => $('pause').classList.remove('hidden')); };
 $('bSnd').onclick = () => { snd = !snd; $('bSnd').textContent = 'SOUND: ' + (snd ? 'ON' : 'OFF'); }; $('bAbort').onclick = () => { if (M) failMission('Mission abandoned.'); setPause(false); };
 function buildMenu() { const nd = Object.keys(done).length; $('pstats').innerHTML = `₣ ${money.toLocaleString('fr-FR')} · ×${mult} · Missions ${nd}/${MISSIONS.length} · Respect: ` + Object.entries(respect).map(([k, v]) => `${k} ${v}`).join(' · ');
-  let h = ''; const nx = nextStory(); CHAPTERS.forEach((c, ci) => { h += `<h4>${c.act} · ${c.season} · ${c.title}</h4>`; for (const m of STORYM.filter(m => m.chapter === ci)) { const avail = done[m.id] || m === nx; h += `<div class="${done[m.id] ? 'done' : ''}">${avail ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : '🔒 '}${m.n}. ${m.heist ? '◆ ' : ''}${m.title} <small>(${facName(m.fac)})</small>${done[m.id] ? ' ✓' : ''}</div>`; } });
-  h += `<h4>${facName('side')}</h4>`; for (const m of byFac.side) { const avail = done[m.id] || m === nextFor('side'); h += `<div class="${done[m.id] ? 'done' : ''}">${avail ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : '🔒 '}${m.n}. ${m.title}${done[m.id] ? ' ✓' : ''}</div>`; }
+  let h = ''; const nx = nextStory(); CHAPTERS.forEach((c, ci) => { h += `<h4>${c.act} · ${c.season} · ${c.title}</h4>`; for (const m of STORYM.filter(m => m.chapter === ci)) { const avail = done[m.id] || m === nx; h += `<div class="${done[m.id] ? 'done' : ''}">${avail && DEBUG ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : avail && !done[m.id] ? '📍 ' + (HOOKS.where(m) || '') + ' — ' : avail ? '' : '🔒 '}${m.n}. ${m.heist ? '◆ ' : ''}${m.title} <small>(${facName(m.fac)})</small>${done[m.id] ? ' ✓' : ''}</div>`; } });
+  h += `<h4>${facName('side')}</h4>`; for (const m of byFac.side) { const avail = DEBUG || HOOKS.known(m); h += `<div class="${done[m.id] ? 'done' : ''}">${avail && DEBUG ? `<button data-m="${m.id}">${done[m.id] ? 'REPLAY' : 'PLAY'}</button>` : avail ? '📍 ' + (HOOKS.where(m) || '') + ' — ' : '❔ '}${m.n}. ${m.title}${done[m.id] ? ' ✓' : ''}</div>`; }
   $('mlist').innerHTML = h; $('mlist').querySelectorAll('button').forEach(b => b.onclick = () => { const m = MISSIONS.find(x => x.id === b.dataset.m); if (M) failMission('Abandoned.'); setPause(false); startMission(m); }); }
 // ================= MAIN LOOP =================
 let last = performance.now(), simT = 0, dbgPause = false;
@@ -512,13 +513,13 @@ function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn
   for (const p of [...peds]) pedAI(p, dt); updateVehs(dt); updateProjs(dt); updateWanted(dt); updateMission(dt); populate(dt); updateSky(dt); updateFx(dt);
   // phones
   phoneCD -= dt; holyCD -= dt; holeCD -= dt; nearPhone = null; if (!player.veh) for (const p of PHONES) if (d2(p.x, p.z, player.x, player.z) < 9) nearPhone = p;
-  if (nearPhone && !M && phoneCD < 0 && player.alive) { phoneCD = 3; const m = nextFor(nearPhone.fac); SFX.bell(); if (m) startMission(m); else { const ns = nearPhone.fac !== 'side' && nextStory(); pager(ns ? `Not now. ${FACTIONS[ns.fac].who} is waiting for you (${FACTIONS[ns.fac].name}).` : 'Nothing more for you today. (Replay jobs from the pause menu.)', 3); } }
+  if (nearPhone && !M && phoneCD < 0 && player.alive && HOOKS.phone.length) { phoneCD = 12; for (const f of HOOKS.phone) f(nearPhone); } else if (nearPhone && !M && phoneCD < 0 && player.alive) { phoneCD = 3; const m = nextFor(nearPhone.fac); SFX.bell(); if (m) startMission(m); else { const ns = nearPhone.fac !== 'side' && nextStory(); pager(ns ? `Not now. ${FACTIONS[ns.fac].who} is waiting for you (${FACTIONS[ns.fac].name}).` : 'Nothing more for you today. (Replay jobs from the pause menu.)', 3); } }
   // Notre-Dame confessional (west door) drops one level
   const nd = POI.notredame; if (!player.veh && wanted > 0 && holyCD < 0 && d2(nd[0], nd[1], player.x, player.z) < 16) { holyCD = 20; heat = wanted > 1 ? LV[wanted - 1] + .1 : 0; addMoney(-300, true); pager('Confessional, Notre-Dame: "Mea culpa." -1 head, 300 F in the alms box.', 3); SFX.bell(); }
   // catacomb manholes: travel underground, lose up to 2 heads
   if (!player.veh && holeCD < 0) for (let k = 0; k < MANHOLES.length; k++) { const h = MANHOLES[k]; if (d2(h.x, h.z, player.x, player.z) < 2) { const o = MANHOLES[(k + 3) % MANHOLES.length]; holeCD = 6; player.x = o.x + 1.5; player.z = o.z; camPos.set(player.x, 0, player.z); if (wanted > 0) heat = wanted > 2 ? LV[wanted - 2] + .1 : 0; pager('Through the Catacombs... you surface elsewhere, unseen.', 3); noise(1, .3, 300); break; } }
   const d = tileAt(player.x, player.z) >= 0 ? dist[tileAt(player.x, player.z)] : undefined; if (d !== undefined && d !== lastDistrict) { lastDistrict = d; districtMsg = DN[d]; districtT = 2.5; }
-  musicTick(dt, nearCabaret()); }
+  musicTick(dt, nearCabaret()); for (const f of HOOKS.update) f(dt); }
 function nearCabaret() { let best = 0; for (const n of ['chatnoir', 'lapin', 'galette', 'moulinrouge', 'ratmort']) { const p = POI[n]; const dd = Math.sqrt(d2(p[0], p[1], player.x, player.z)); best = Math.max(best, 1 - dd / 30); } return state === 'title' ? .6 : best; }
 function frame(now) { requestAnimationFrame(frame); const dt = Math.min(.05, (now - last) / 1000); last = now; const I = readInput();
   if (state === 'play') { if (I.pause) setPause(!paused); if (!paused && !dbgPause) { simT += dt; step(dt, I); } } else { simT += dt; updateSky(dt * .3); camPos.x = POI.garnier[0] + Math.sin(simT * .05) * 120; camPos.z = POI.garnier[1] + 60 + Math.cos(simT * .05) * 80; musicTick(dt, .6); }
@@ -526,6 +527,7 @@ function frame(now) { requestAnimationFrame(frame); const dt = Math.min(.05, (no
 addEventListener('resize', G.resize); G.resize(); camPos.set(player.x, 0, player.z);
 requestAnimationFrame(frame);
 // ================= DEBUG / TEST API =================
+const DEBUG = /[?&]debug/.test(location.search);
 window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, get choices() { return choices; }, setChoice: (k, v) => { choices[k] = v; }, THREE, player, peds, vehs, props: dynProps, MISSIONS, POI, POIV, get M() { return M; }, get wanted() { return wanted; }, get money() { return money; }, get heat() { return heat; }, set heat(v) { heat = v; }, get done() { return done; }, stats, get lastFail() { return lastFail; }, WEAP,
   start: startGame, startMission: (id) => startMission(MISSIONS.find(m => m.id === id)), fail: failMission, step: (n = 60, dt = 1 / 30, I) => { for (let k = 0; k < n; k++) step(dt, I || readInput()); }, pause: (b) => dbgPause = b,
   enter: enterExit, fire: (a) => { if (a !== undefined) player.a = a; player.cd = 0; return fireWeapon(player.veh ? player.veh.x : player.x, player.veh ? player.veh.z : player.z, player.a); },
@@ -533,6 +535,11 @@ window.GAME = { CHAPTERS, DRAMATIS, get gallery() { return gallery; }, get choic
   tp(x, z) { if (player.veh && player.veh.d.rail) { const v = player.veh; v.s = pathNear(v.rp, x, z); v.sp = 0; driveRail(v, 0, 0); x = v.x; z = v.z; } else if (player.veh) { player.veh.x = x; player.veh.z = z; player.veh.vx = player.veh.vz = 0; } player.x = x; player.z = z; camPos.set(x, 0, z); },
   drive: (thr, steer, n = 30) => { for (let k = 0; k < n; k++) { driveVeh(player.veh, thr, steer, 1 / 30); player.x = player.veh.x; player.z = player.veh.z; step(1 / 30, { mx: 0, my: 0, thr: 0, steer: 0 }); } },
   spawnVeh, hitscan, render: () => { updateCam(1); syncMeshes(simT); G.update(1 / 60, simT, camPos.x, camPos.z); G.render(); drawHUD(0); if (mapOpen) drawFullMap(); }, flush: () => { updateCam(1); return G.flush(); }, G, FX, perf: G.perf, spawnRail, setMap: (b) => mapOpen = b, zoom: (h) => camOverride = h, spawnPed, quiet: () => { bigT = 0; pagerT = 0; pagerQ.length = 0; districtT = 0; }, get tram() { return tram; }, get train() { return train; } };
+// content hooks: life.js (NPC talk, mission givers, letters/newspapers/rumours, activities, street events, shops)
+const HOOKS = { update: [], hud: [], map: [], phone: [], where: () => '', known: () => true, welcome: '' };
+Object.defineProperties(GAME, Object.getOwnPropertyDescriptors({ HOOKS, DEBUG, say, pager, big, addMoney, addHeat, crime, removePed, addPickup, startDef: startMission, nextStory, SFX, fires, VT, LOOKS, scene, camera: G.camera, enterExit, readInput,
+  get state() { return state; }, get paused() { return paused || dbgPause; }, get gameTime() { return gameTime; }, get rain() { return rain; }, get respect() { return respect; }, get mult() { return mult; }, get wanted() { return wanted; }, set wanted(v) { wanted = v; }, get sightT() { return sightT; }, set sightT(v) { sightT = v; } }));
+LIFE.init(GAME);
 // autopilot: performs the current mission step through normal game actions (used by automated tests)
 GAME.solveStep = function () { if (!M || !M.s) return 'none'; const s = M.s, I0 = { mx: 0, my: 0, thr: 0, steer: 0 }; const tick = (n = 5) => { for (let q = 0; q < n; q += 2) { if (M && M.s && M.s.t === 'eaves') { heat = 0; wanted = 0; sightT = 0; } GAME.step(Math.min(2, n - q), 1 / 30, I0); } }; const g0 = player.god; player.god = true; player.hp = 100; if (!player.alive) respawn('WASTED');
   const gotoVeh = (x, z) => { GAME.tp(x, z); tick(3); };

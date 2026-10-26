@@ -1,37 +1,37 @@
 # -*- coding: utf-8 -*-
-# ACTE IV — AUTOMNE 1880 — "Les Contes"
+# ACTE IV — AUTOMNE 1890 — "Les Contes"
 ACT4 = [
-('crimson',"Les Contes d'Hoffmann","The Tales of Hoffmann",
- "September. At the Salle Favart, Jacques Offenbach, frail and racing his own clock, is rehearsing Les Contes d'Hoffmann. The Opéra-Comique's clock is the sixth of the twelve, and Crane has a man in the orchestra.",
- """@ ~ Offenbach: (at the piano, coughing) Again, from the Barcarolle. Gently. Like a gondola that owes money.
- | g favart ~ Go to the Opéra-Comique, Salle Favart.
- | ev favart 24 ~ Listen to the rehearsal, and to the second oboe, who is not playing. // Offenbach: I would give everything I have to be at the premiere. // Carvalho: You will be, maître. // Offenbach: Carvalho, you are a manager. You lie for a living. // Oboist: (whispering to a stagehand) The clock in the foyer. Midnight on the twenty-fourth. The Englishman will pay double.
- | sn favart 4 10 ~ While the company rehearses, slip past the stagehands into the clock room.
- | sw favart ~ Fit Broca's cylinder in the foyer clock.
- | % ~ Offenbach: (passing Théo in the corridor) You are the man who mends clocks? Mend mine, then. It runs too fast. No? A pity. Nobody can.""",None),
+('crimson',"Esclarmonde","Esclarmonde",
+ "September. Since the Salle Favart burned in 1887, the Opéra-Comique has played in the Théâtre des Nations on the Place du Châtelet. Jules Massenet is rehearsing Esclarmonde for Mademoiselle Sanderson. The company's clock is the sixth of the twelve, and Crane has a man in the orchestra.",
+ """@ ~ Massenet: (at the piano) Again, from the incantation. Softly, mademoiselle. You are a sorceress, not a fire-bell.
+ | g lyrique ~ Go to the Opéra-Comique, at the Place du Châtelet.
+ | ev lyrique 24 ~ Listen to the rehearsal, and to the second oboe, who is not playing. // Sanderson: Maître, the high G again? // Massenet: The high G always, my child. Paris pays for the high G and forgives everything else. // Massenet: (to the orchestra) Gentlemen, the second oboe is a rumour. Will somebody confirm him? // Oboist: (whispering to a stagehand) The clock in the foyer. Midnight on the twenty-fourth. The Englishman will pay double.
+ | sn lyrique 4 10 ~ While the company rehearses, slip past the stagehands into the clock room.
+ | sw lyrique ~ Fit Broca's cylinder in the foyer clock.
+ | % ~ Massenet: (passing Théo in the corridor) You are the man who mends clocks? Then mend the critics. They are always a bar behind.""",None),
 ('avant',"Sarah s'en va","Sarah Departs",
- "Sarah Bernhardt sails for New York in the middle of October with a company, eight trunks of costumes and a coffin she sleeps in. She needs a dresser who can climb, pick a lock and lie to customs. Odile has an idea.",
+ "October. Sarah Bernhardt is rehearsing Sardou's Cléopâtre at the Porte Saint-Martin, and planning a tour of the whole world, with a company, forty trunks of costumes and a coffin she sleeps in. She needs a dresser who can climb, pick a lock and lie to customs. Odile has an idea.",
  """@ ~ Odile: A dresser! For Sarah Bernhardt! In America! Théo, it's the only honest job in the world that suits a thief.
- | e bateau comedie ~ Drive Odile down from Montmartre to meet Madame Bernhardt.
- | ev comedie 22 ~ Listen to the interview. // Bernhardt: Can you sew? // Odile: Badly. // Bernhardt: Can you lie? // Odile: Beautifully. // Bernhardt: Then you will dress me, and lie to the newspapermen, and in New York you will be someone else entirely. Everyone is, in New York. // Bernhardt: But you have something to finish first. I can see it in your face. Finish it, and then come. There will be a ticket at Le Havre with your name on it. Your real name.
- | k comedie 4 a ~ Twist: the Baron's men have followed Odile. Drive them off before they reach the stage door.
+ | e bateau republique ~ Drive Odile down from Montmartre to meet Madame Bernhardt.
+ | ev republique 22 ~ Listen to the interview. // Bernhardt: Can you sew? // Odile: Badly. // Bernhardt: Can you lie? // Odile: Beautifully. // Bernhardt: Then you will dress me, and lie to the newspapermen, and in Rio and Sydney and New York you will be someone else entirely. Everyone is, abroad. // Bernhardt: But you have something to finish first. I can see it in your face. Finish it, and then come. We sail in the new year. There will be a ticket with your name on it. Your real name.
+ | k republique 4 a ~ Twist: the Baron's men have followed Odile. Drive them off before they reach the stage door.
  | % ~ Odile: My real name. She said my real name. I don't think I've heard it out loud in ten years.""","Bernhardt's letter of engagement"),
-('apache',"Le Deuil d'Offenbach","Offenbach's Mourning",
- "5 October. Jacques Offenbach is dead, his opera unfinished. Paris mourns him at the Madeleine, and the Baron uses the funeral to move the tourbillon itself.",
+('apache',"Les Noces de la Madeleine","The Madeleine Wedding",
+ "October. A minister's daughter marries a banker's son at the Madeleine, and the whole of the Faubourg is on the steps. The Baron uses the crush of carriages to move the tourbillon itself.",
  """@ ~ Maza: All of Paris will be at the Madeleine. The Baron's carriage will be the only one going the other way.
- | g madeleine ~ Go to the Madeleine as the funeral leaves.
- | ev madeleine 18 ~ Listen to the mourners. // Mourner: He wrote music to make Paris laugh at itself. // Other: And now Paris will have to laugh at itself without help. // Fauré: (to the choir) Gently, gently. He would not want it too sad. He would want it in tempo.
- | tl madeleine garnier ~ Twist: Crane, in mourning black, walks against the crowd towards the Opéra. Follow him. // Crane: (to himself) A great man. A great waste. Like all of them. // Crane: (at the Opéra) Inform the Baron. Everything is ready.
+ | g madeleine ~ Go to the Madeleine as the wedding party comes out.
+ | ev madeleine 18 ~ Listen to the guests on the steps. // Guest: Forty carriages, and a petrol motor from the Panhard works. It smells like a lamp. // Other: It is the future, my dear. The future always smells. // Fauré: (to the choir) Gently, gently. They are being married, not buried. In tempo, please.
+ | tl madeleine garnier ~ Twist: Crane, in a wedding coat, walks against the crowd towards the Opéra. Follow him. // Crane: (to himself) A wedding. A contract with flowers on it. // Crane: (at the Opéra) Inform the Baron. Everything is ready.
  | lo 2 ~ The Baron's watchmen have seen you. Lose them.
  | % ~ Théo: Everything is ready. He has the tourbillon in the vault, and he believes his twelve clocks are still his. In December, we will see whose time it is.""",None),
 ('apache',"Salle Pleyel","Salle Pleyel",
- "The concert hall of the piano-makers Pleyel, on the rue Rochechouart, holds the seventh clock. Camille Saint-Saëns is giving a recital, and is in no mood to be interrupted.",
- """@ ~ Maza: Your pianist is the most bad-tempered man in Paris. If you make a sound during his Beethoven, he will have you arrested and I won't pay the bail.
+ "The concert hall of the piano-makers Pleyel, on the rue Rochechouart, holds the seventh clock. Ignacy Paderewski, the young Polish pianist all Paris is mad about, is giving a recital, and is in no mood to be interrupted.",
+ """@ ~ Maza: Your pianist has the most hair and the worst temper in Paris. If you make a sound during his Beethoven, he will have you arrested and I won't pay the bail.
  | g pleyel ~ Go to the Salle Pleyel.
- | ev pleyel 22 ~ Listen to Saint-Saëns in the green room before he goes on. // Saint-Saëns: The clock in this hall is three seconds fast. I can hear it from the stage. It is like playing next to a woodpecker. // Saint-Saëns: And some English music-lover has been stealing my manuscripts. My concerto, monsieur. My new concerto! // Théo: We recovered it, monsieur. // Saint-Saëns: You did? Then you are the only reliable person in this city.
+ | ev pleyel 22 ~ Listen to Paderewski in the green room before he goes on. // Paderewski: The clock in this hall is three seconds fast. I can hear it from the stage. It is like playing next to a woodpecker. // Paderewski: And some Englishman has been asking my tuner which clock strikes first in Paris. Why should a music-lover care? // Théo: He is not a music-lover, monsieur. // Paderewski: No. Music-lovers never ask about clocks. Only about hair.
  | sn pleyel 4 10 ~ While he plays, get into the clock room past the Baron's men.
  | sw pleyel ~ Fit the cylinder.
- | % ~ Saint-Saëns: (after the recital) The clock is now exactly right. I noticed in the second movement. Whoever you are, you have ruined my excuse for playing badly.""",None),
+ | % ~ Paderewski: (after the recital) The clock is now exactly right. I noticed in the second movement. Whoever you are, you have ruined my excuse for playing badly.""",None),
 ('crimson',"Salle Érard","Salle Érard",
  "The eighth clock is at the Salle Érard. Lucie's ledger, or Maza's, has made the Baron's friends nervous, and the hall is crawling with private police.",
  """@ ~ Lucie: The men in the ledger know we have it. They have hired guards for every clock in Paris.
@@ -65,14 +65,14 @@ ACT4 = [
  | k durandruel 5 a ~ Twist: the arsonists come in force at dawn. Drive them off.
  | x lorette 2 ~ Burn their paraffin carts before they come back.
  | % ~ Durand-Ruel: (at dawn, among the pictures) Every one of these is a prayer, monsieur. You have kept them from being burnt as heretics.""",None),
-('crimson',"Victor Hugo","Victor Hugo",
- "Lucie wants the story told, when it is over, by someone the whole Republic will believe. There is only one such man, and he is seventy-eight years old and lives on the avenue d'Eylau.",
- """@ ~ Lucie: He was in exile for nineteen years. He will understand.
- | e procope arc ~ Escort Lucie to call on Victor Hugo.
- | ev arc 26 ~ Listen to Hugo. // Hugo: Madame, I have known exile. It is a long night in which one learns to see in the dark. // Hugo: You ask me to bear witness against a baron. I have borne witness against an emperor. Barons are smaller, and their crimes larger. // Hugo: Publish. The truth needs no permission, only courage. And a good printer.
- | tl arc champs ~ Twist: a man has been watching the house. Follow him down the avenue. // Watcher: (to himself) The poet's house. The Englishman will want to know. // Watcher: (to a cab) Rue de Rivoli.
+('crimson',"Monsieur Clemenceau","Monsieur Clemenceau",
+ "Lucie wants the story told, when it is over, by someone the Chamber cannot ignore. Georges Clemenceau, deputy, duellist and editor of La Justice, receives visitors in his house on the rue Franklin in Passy.",
+ """@ ~ Lucie: He was mayor of Montmartre in the year of the Commune. He has seen what the powerful do when they are frightened. He will understand.
+ | e procope trocadero ~ Escort Lucie to call on Monsieur Clemenceau, above the Trocadéro.
+ | ev trocadero 26 ~ Listen to Clemenceau. // Clemenceau: Madame, I have fought three duels and a hundred debates. The debates were bloodier. // Clemenceau: You ask me to print a story against a baron with friends at the Préfecture. Good. I have no friends at the Préfecture; it saves time. // Clemenceau: Publish. The truth needs no permission, only courage. And a good printer.
+ | tl trocadero champs ~ Twist: a man has been watching the house. Follow him down the avenue. // Watcher: (to himself) The deputy's house. The Englishman will want to know. // Watcher: (to a cab) Rue de Rivoli.
  | lo 2 ~ He has called for help. Lose them.
- | % ~ Hugo: (by note, the next day) Monsieur, I am told you followed a spy from my door. At my age one is grateful for such small proofs of the existence of youth.""","Victor Hugo's letter"),
+ | % ~ Clemenceau: (by note, the next day) Monsieur, I am told you followed a spy from my door. Next time bring him in. I should have liked to ask him a few questions, with the door shut.""","Clemenceau's letter"),
 ('apache',"Le Conservatoire","The Conservatoire",
  "The ninth clock is at the Conservatoire, in the room where the Prix de Rome is judged. Jules Massenet, who teaches composition there, knows its every eccentricity.",
  """@ ~ Massenet: The clock? Charming. It strikes like a soprano who has had a little too much champagne. Why should anyone want to steal it, dear boy?
@@ -117,10 +117,10 @@ ACT4 = [
  "Madame Viardot's clock was the first one Théo saved. Crane means to take it back on the night of her last Thursday of the year, and undo the chord.",
  """@ ~ Viardot: My clock? Again? How tiresome. Bring your watchmaker, Odile. I will sing something long and very loud.
  | g lorette ~ Go to Madame Viardot's.
- | ev lorette 20 ~ Listen to Viardot's last Thursday. // Viardot: (singing) Che farò senza Euridice... // Guest: Is it true, madame, that Turgenev is in Paris? // Viardot: Ivan is always in Paris, in his heart. His body is in Russia, complaining about the cold. // Odile: (whispering) Crane's men are in the garden.
+ | ev lorette 20 ~ Listen to Viardot's last Thursday. // Viardot: (singing) Che farò senza Euridice... // Guest: You still keep Turgenev's chair by the piano, madame? // Viardot: Ivan sat there for thirty years. Seven years dead, and nobody else has dared to sit in it. // Odile: (whispering) Crane's men are in the garden.
  | k lorette 5 a ~ Twist: Crane's men break in during the aria. Protect the house.
  | sw lorette ~ Fit Broca's cylinder in the clock.
- | % ~ Viardot: (after) They broke my window during the Gluck, which is unforgivable. But you saved the clock. Ivan will be pleased. He likes to think of it ticking while I sing.""","Viardot's clock key"),
+ | % ~ Viardot: (after) They broke my window during the Gluck, which is unforgivable. But you saved the clock. Ivan would have been pleased. He liked to hear it ticking while I sang.""","Viardot's clock key"),
 ('crimson',"Les Plans de Garnier","Garnier's Plans",
  "Charles Garnier does not like the Baron, and likes even less the idea that someone has built a vault under his Opéra without asking. He has the original plans of the foundations.",
  """@ ~ Garnier: A vault? Under my house? Without my permission? Monsieur, I would rather have a Baron in my bed.

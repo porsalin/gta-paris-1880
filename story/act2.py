@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
-# ACTE II — PRINTEMPS 1880 — "Le Salon"
+# ACTE II — PRINTEMPS 1890 — "Le Salon"
 ACT2 = [
-('avant',"Rue des Pyramides","The Rue des Pyramides",
- "1 April. The Independents open their fifth exhibition at 10 rue des Pyramides, and Monsieur Degas needs a watchman he can trust. Henri has vouched for Théo, which Degas regards as a point against him.",
- """@ ~ Degas: You are the clockmaker. Good. Clockmakers look at things closely and say nothing. Painters look at nothing and say everything.
- | g pyramides ~ Report to Degas at 10 rue des Pyramides.
- | ev pyramides 22 ~ Walk the rooms. Watch the walls, not the visitors, and listen to two gentlemen at the Cassatts. // First gentleman: Daubs. Every one of them. // Second gentleman: Then why are you measuring them, Albert? // First gentleman: The Baron wants the sizes. He says he can sell a daub very dear, provided it has a famous name. // Degas: (passing) And a famous frame, no doubt.
- | k pyramides 3 ~ Twist: at closing time three men produce knives and go for the canvases. Stop them. // Degas: Not that one! That one is unfinished, which is to say it is the only good one.
- | % ~ Degas: You will stay on as watchman until the thirtieth. Thirty francs a week and no opinions. Mademoiselle Cassatt saw something yesterday. Ask her; she is the only one of us with any sense.""",None),
+('avant',"Les Indépendants","The Independents",
+ "20 March. The Société des Artistes Indépendants opens its sixth exhibition in the Pavillon de la Ville de Paris on the Champs-Élysées, and Monsieur Signac needs a watchman he can trust. Henri has vouched for Théo, which Signac regards as a point against him.",
+ """@ ~ Signac: You are the clockmaker. Good. Clockmakers look at things closely and say nothing. Painters look at nothing and say everything. Monsieur Seurat will tell you which pictures matter. He will say all of them, in a whisper.
+ | g industrie ~ Report to Signac at the Pavillon de la Ville de Paris, beside the Palais de l'Industrie.
+ | ev industrie 22 ~ Walk the rooms. Watch the walls, not the visitors, and listen to two gentlemen at the Cassatts. // First gentleman: Dots. Ten thousand dots, and not one of them a face. // Second gentleman: Then why are you measuring them, Albert? // First gentleman: The Baron wants the sizes. He says he can sell a daub very dear, provided it has a famous name. // Degas: (passing) And a famous frame, no doubt.
+ | k industrie 3 ~ Twist: at closing time three men produce knives and go for the canvases. Stop them. // Seurat: (quietly) Not that one. It took a year. Every point of it took a year.
+ | % ~ Signac: You will stay on as watchman until the twenty-seventh. Thirty francs a week and no opinions. Mademoiselle Cassatt came to look yesterday, and saw something. Ask her; she is the only one of us with any sense.""",None),
 ('avant',"Mademoiselle Cassatt","Miss Cassatt",
  "Mary Cassatt noticed a copyist at her pastels who worked far too well and far too fast. She would like Théo to walk with her to the Tuileries, where she says she last saw him.",
  """@ ~ Cassatt: In Philadelphia we would simply ask the man what he was doing. In Paris that is considered vulgar, so we follow him instead.
- | e pyramides tuileriesg r ~ Escort Mademoiselle Cassatt to the Tuileries gardens.
+ | e industrie tuileriesg r ~ Escort Mademoiselle Cassatt to the Tuileries gardens.
  | g tuileriesg ~ Cassatt: There. By the ruined palace, with the folding stool. He has a painter's hands and a bookkeeper's eyes.
  | tl tuileriesg vendome ~ Follow the copyist without alarming him. // Copyist: (to a nursemaid) Charming child. Hold still, I shall have him in three strokes. // Copyist: (counting under his breath) Four Cassatts, two Degas, one Morisot. // Copyist: (at the Rue de Castiglione) Damn the man, he is always early.
  | ev vendome 18 ~ Twist: under the Vendôme Column he meets Silas Crane. Listen. // Crane: You copied her line, not her mind, old chap. These children have no weight in them. // Copyist: The buyers don't look at weight, they look at the name. // Crane: The Baron's buyers will look very carefully. Do them again.
  | % ~ Cassatt: (later, by letter) I have seen the copies. They are clever. That is the worst I can say of any picture. Tell me how I may help.""",None),
-('crimson',"Les Soirées de Médan","Evenings at Médan",
- "Zola and his young disciples have published Les Soirées de Médan, and the boulevard can talk of nothing but Maupassant's story. Maupassant, it seems, has dined with a Baron who asked a great deal about clocks.",
+('crimson',"La Bête Humaine","The Human Beast",
+ "Zola's railway novel is in every bookseller's window, and Maupassant's Notre Cœur is running in the Revue des Deux Mondes, so the boulevard can talk of nothing but novelists. Maupassant, it seems, has dined with a Baron who asked a great deal about clocks.",
  """@ ~ Lucie: Maupassant drinks at the Procope after the Odéon. He will tell you everything if you let him think it was his idea.
  | g procope ~ Meet Lucie at the Procope.
  | ev procope 24 ~ Maupassant holds court at the next table. Listen. // Maupassant: Boule de Suif is a fat girl in a carriage, my friends, and she is the only honest person in France. // Friend: And your Baron? // Maupassant: Vaneau? He collects people the way he collects pictures, with the price still pinned to the frame. He asked me whether I knew any good clockmakers. I said I knew only bad poets. // Maupassant: He laughed. Men like that only laugh when they are counting.
@@ -25,8 +25,8 @@ ACT2 = [
  | g odeon ~ Maupassant: You want to know about the Baron? Then a word of advice, from a man at the Ministry of the Marine. He keeps two ledgers. One for the tax man, and one for God.
  | % ~ Lucie: Two ledgers. If we find the second one, we have him. If he finds us looking, he has us.""",None),
 ('velvet',"Le Jury","The Jury",
- "The official Salon fills the Palais de l'Industrie. Vaneau sits on a committee that hangs the pictures, and he wants Monet's Lavacourt to 'go missing' before the critics see it. Théo plays along, and hides it to save it.",
- """@ ~ Vaneau: Monsieur Monet is impertinent: he has sent to the Salon and the Independents both. Let him learn that impertinence has a price. You will make his picture vanish. Do it well and you have a friend for life. Do it badly and you have me.
+ "The official Salon fills the Palais de l'Industrie. Vaneau sits on a committee that hangs the pictures, and he wants Monet's old Lavacourt, lent by a collector to the retrospective room, to 'go missing' before the critics see it. Théo plays along, and hides it to save it.",
+ """@ ~ Vaneau: Monsieur Monet is going about Paris with a subscription list, collecting money to buy Manet's Olympia for the nation. The nation does not want it. Let him learn what it costs to embarrass men of taste. You will make his picture vanish. Do it well and you have a friend for life. Do it badly and you have me.
  | g industrie ~ Go to the Palais de l'Industrie.
  | sn industrie 3 9 ~ Get past the Salon guardians to the store-rooms.
  | cs industrie 2 ~ Take the Lavacourt and its frame, unseen.
@@ -40,13 +40,13 @@ ACT2 = [
  | c cirquehiver 2 ~ Collect the silver they dropped in their hurry.
  | f chien 900 ~ Sell their silver to Maza.
  | % ~ Maza: They told me, between sobs, that the buyer was not buying. He was making sure nobody else could. The Baron is cornering the market in your master's clocks, mon petit.""",None),
-('crimson',"Les Adieux de Sarah","Sarah's Farewell",
- "18 April. Sarah Bernhardt has resigned from the Comédie-Française after a bad notice, and the whole Palais-Royal is in uproar. Crane means to use the commotion to lift a portrait from the theatre foyer.",
- """@ ~ Lucie: Every journalist in Paris will be outside the Comédie. Nobody will be looking at the walls. Nobody but us.
- | g comedie ~ Go to the Comédie-Française.
- | k comedie 3 a ~ Stop Crane's men in the colonnade before they reach the foyer.
- | e comedie palaisroyal r ~ Madame Bernhardt wants a way out through the crowd. See her through the Palais-Royal gardens. // Bernhardt: They will say I fled. I did not flee. I made an exit. There is a difference, and I have spent twenty years learning it.
- | g palaisroyal ~ Bernhardt: You have a kind face, young man. It will be the ruin of you. Come and see me when I am famous in America.
+('crimson',"Sarah en Jeanne","Sarah as Joan",
+ "April. Sarah Bernhardt is playing Jeanne d'Arc at the Porte Saint-Martin, and the crowd at the stage door is larger every night. Crane means to use the crush to lift a portrait from the theatre foyer.",
+ """@ ~ Lucie: Every journalist in Paris will be at the stage door. Nobody will be looking at the walls. Nobody but us.
+ | g republique ~ Go to the Théâtre de la Porte Saint-Martin, by the Place du Château-d'Eau.
+ | k republique 3 a ~ Stop Crane's men under the portico before they reach the foyer.
+ | e republique stjacques r ~ Madame Bernhardt wants a way out through the crowd. See her safely to her carriage by the Tour Saint-Jacques. // Bernhardt: They burn me at the stake eight times a week, monsieur. One learns to leave a theatre quickly.
+ | g stjacques ~ Bernhardt: You have a kind face, young man. It will be the ruin of you. Come and see me when I am Cleopatra; it opens in October.
  | % ~ Lucie: The portrait is safe. And you have been kissed on both cheeks by Sarah Bernhardt, which Henri will never forgive.""",None),
 ('avant',"Au Bon Marché","At the Bon Marché",
  "Crane's forgeries are hung as decoration in the grands magasins, and sold quietly to rich clients who think they are buying a bargain. Lucie needs a catalogue of them.",
@@ -57,22 +57,22 @@ ACT2 = [
  | lo 1 ~ Leave by the delivery yard.
  | b stsulpice 800 ~ A shopgirl dropped a sealed envelope addressed to 'S.C.' outside Saint-Sulpice. Retrieve it.
  | % ~ Lucie: Four, and all of them sold to the same three families. They are not selling paintings, Théo. They are buying people.""",None),
-('velvet',"La Vie Moderne","Modern Life",
- "Manet's one-man show at La Vie Moderne on the Boulevard des Italiens. Vaneau asks Théo to 'collect' a canvas for his private gallery. Instead Théo will plant a tracing behind it.",
- """@ ~ Vaneau: The little still life. Lilacs. Take it after the gas is lowered. Manet will never notice, he is ill and very busy being charming about it.
- | g boulevard ~ Go to La Vie Moderne.
- | ev boulevard 20 ~ Manet is talking to his visitors. Listen. // Manet: People ask me why I paint flowers. Because they do not argue, madame. // Manet: (to Théo) You look at my pictures like a man looking for a door. What is behind the canvas, young man, a mistress or a debt? // Théo: A clock, monsieur. // Manet: Ah. Worse.
- | sn boulevard 3 9 ~ Wait for the gas to be lowered, then slip past the attendants.
- | sw boulevard ~ Hide Lucie's tracing behind the canvas Vaneau wants. He can keep the frame and the empty ambition.
- | % ~ Théo: I left the lilacs where they were and stole the Baron's patience instead. Now, when his men take that painting, Lucie's tracing goes with it, and we will know where his gallery is.""",None),
+('velvet',"L'Entresol","The Mezzanine",
+ "At Boussod, Valadon et Cie, the old house of Goupil, a young Dutch manager named Theo van Gogh keeps the pictures his employers dislike on the mezzanine. Vaneau asks Théo to 'collect' one for his private gallery. Instead Théo will plant a tracing behind it.",
+ """@ ~ Vaneau: The little Monet upstairs, the cliffs. Take it after the gas is lowered. The Dutchman will never notice; he is far too busy apologising for his taste.
+ | g goupil ~ Go to Boussod, Valadon et Cie.
+ | ev goupil 20 ~ Monsieur van Gogh is showing the mezzanine to a visitor. Listen. // Van Gogh: Downstairs we sell what Paris already likes, madame. Up here I keep what it will like in twenty years. // Van Gogh: (to Théo) You look at the pictures like a man looking for a door. What is behind the canvas, a mistress or a debt? // Théo: A clock, monsieur. // Van Gogh: Ah. That is worse. My brother would say a clock is only a sunflower that has learned arithmetic.
+ | sn goupil 3 9 ~ Wait for the gas to be lowered, then slip past the clerks.
+ | sw goupil ~ Hide Lucie's tracing behind the canvas Vaneau wants. He can keep the frame and the empty ambition.
+ | % ~ Théo: I left the cliffs where they were and stole the Baron's patience instead. Now, when his men take that painting, Lucie's tracing goes with it, and we will know where his gallery is.""",None),
 ('crimson',"Le Petit Debussy","Young Debussy",
- "At the Conservatoire an eighteen-year-old pianist called Claude Debussy has been making fun of a visiting 'English music-lover' who copied out every manuscript in the library. Debussy, naturally, noticed.",
+ "Claude Debussy, twenty-seven, back from Rome with a Prix de Rome and no money, gives lessons in the practice rooms of the Conservatoire. He has been making fun of an 'English music-lover' who copied out every manuscript in the library. Debussy, naturally, noticed.",
  """@ ~ Debussy: You are the police? No? A pity. I have always wanted to be arrested for an opinion.
  | g conservatoire ~ Go to the Conservatoire on the rue du Faubourg-Poissonnière.
- | ev conservatoire 22 ~ Debussy is improvising in a practice room while the masters argue in the corridor. Listen to both. // Debussy: (playing) What do you think of it, monsieur? It has no rules at all. // Master: It has no manners, which is worse. // Debussy: The Englishman asked for Monsieur Saint-Saëns's new concerto, the violin one. He wrote down every note. He sang it to himself, flat. // Master: Debussy, the scale of D, if you please, and without improvements.
- | tl conservatoire heugel ~ Twist: the Englishman's copyist is leaving with a satchel. Follow him to the music publisher Heugel. // Copyist: (to himself) Allegro non troppo... troppo, troppo...
+ | ev conservatoire 22 ~ Debussy is improvising in a practice room while the masters argue in the corridor. Listen to both. // Debussy: (playing) What do you think of it, monsieur? It has no rules at all. // Master: It has no manners, which is worse. // Debussy: The Englishman asked for Monsieur Fauré's Requiem, the new score with the full orchestra. He wrote down every note. He sang it to himself, flat. // Master: Monsieur Debussy, this room is for pupils, not for revolutions. The scale of D, please, and without improvements.
+ | tl conservatoire heugel ~ Twist: the Englishman's copyist is leaving with a satchel. Follow him to the music publisher Heugel. // Copyist: (to himself) Pie Jesu... pie, pie, piece of luck...
  | k heugel 3 a ~ He is selling the copy to Crane's agents. Stop the sale.
- | % ~ Debussy: (by note, a week later) I hear you saved Saint-Saëns from piracy. He will be insufferable. He is already.""","Copied score of the Third Violin Concerto"),
+ | % ~ Debussy: (by note, a week later) I hear you saved Monsieur Fauré from piracy. He was charming about it. He is charming about everything, which is very hard to forgive.""","Copied score of Fauré's Requiem"),
 ('avant',"Le Jeudi de Madame Viardot","Madame Viardot's Thursday",
  "Pauline Viardot holds her musical Thursdays on the rue de Douai. Tonight an English tenor has been invited, and Lucie is fairly certain he is no tenor.",
  """@ ~ Lucie: A tenor who has never sung in public, who has three addresses, and who once asked me to forge a Turner. If he sings tonight, I shall eat my bonnet.
@@ -106,7 +106,7 @@ ACT2 = [
  | gt chien 140 ~ Get back to Les Halles before Mourier works out where the porters came from.
  | % ~ Maza: He arrested forty porters and released them all by midnight. He could not prove which ones had thrown the cabbages. I have never been prouder of a vegetable.""",None),
 ('crimson',"Madame Morisot","Madame Morisot",
- "After the Pont des Arts, Mourier has every hotel and lodging-house watched. Berthe Morisot, who exhibits with the Independents and fears nobody, has offered Théo a room near the Étoile for one night.",
+ "After the Pont des Arts, Mourier has every hotel and lodging-house watched. Berthe Morisot, who exhibited with the Impressionists from the first and fears nobody, has offered Théo a room in her house on the rue de Villejust, near the Étoile, for one night.",
  """@ ~ Morisot: My husband thinks you are a cousin from Bordeaux. Try to look provincial. No, less. Bordeaux is not the moon.
  | gt arc 120 ~ Get to the Morisots' house near the Étoile before curfew patrols begin.
  | ev arc 24 ~ Twist: Mourier himself calls at the door. Listen from the stairs. // Mourier: Madame, an apprentice watchmaker, a thief, has been seen in this street. // Morisot: Inspector, I paint women in white dresses on summer afternoons. Do I look as if I harbour thieves? // Mourier: Madame paints very modern pictures. Modern people are capable of anything. // Morisot: Then you must arrest the century, Inspector. Good night.

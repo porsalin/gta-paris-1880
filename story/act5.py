@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# ACTE V — DÉCEMBRE 1880 — "Réveillon"
+# ACTE V — DÉCEMBRE 1890 — "Réveillon"
 ACT5 = [
 ('crimson',"La Neige","The Snow",
  "December. Snow on the boulevards and the gas-lamps haloed in it. Mourier has put a price of five thousand francs on Théo's head, and every informer in Paris can count.",
@@ -36,7 +36,7 @@ ACT5 = [
  | % ~ Théo: Twelve seconds. When his clock strikes midnight, ours will already have struck. The door will open to our chord, and he will be twelve seconds too late.""",None),
 ('crimson',"Les Douze Sonneurs","The Twelve Ringers",
  "Twelve friends at twelve clocks, each with one of Théo's watches. They must all have them by tonight, and Mourier is watching the streets.",
- """@ ~ Broca: Twelve of the best: three bell-ringers, two students, a nun, a cab driver, five old Communards. They'll ring true, I promise you.
+ """@ ~ Broca: Twelve of the best: three bell-ringers, two students, a nun, a cab driver, five old Communards who came home with the amnesty. They'll ring true, I promise you.
  | st phaeton procope ~ Take a phaeton at the Procope.
  | r stgermain,sorbonne,chatelet,hoteldeville,bourse,favart,conservatoire,lorette,staugustin,madeleine 120 ~ Deliver the watches to all ten outlying clocks before the night watch begins.
  | k pleyel 4 a ~ Twist: Crane's men are guarding the Pleyel clock. Clear them for your ringer.
@@ -115,12 +115,12 @@ ACT5 = [
  | % ~ Théo: (to himself) I'll keep it. I'll keep it like a promise.""",None),
 ('crimson',"La Une","The Front Page",
  "The whole story, printed. Lucie has run off ten thousand copies and wants them on every café table in Paris by breakfast.",
- """@ ~ Lucie: The truth needs no permission. Hugo said so. Only courage, and a good printer.
+ """@ ~ Lucie: The truth needs no permission. Clemenceau said so. Only courage, and a good printer.
  | ?mourier=a g palaisjustice ~ First, the examining magistrate wants a statement. Go to the Palais de Justice. // Magistrate: The Baron, Crane and Mourier will all stand trial in the spring. The Republic will be very thorough, and very quiet.
  | ?mourier=b g procope ~ The Procope is besieged by journalists. Lucie's front page has done its work. // Lucie: Every paper in Paris has picked it up. The magistrates had to act by noon. They hated it. I've never been happier.
  | c boulmich 4 ~ Hand out the papers on the Boulevard Saint-Michel.
  | g procope ~ Toast at the Procope.
- | % ~ Lucie: 'L'Affaire du Tourbillon', the headline. I wanted 'The Watchmaker's Revenge', but Hugo said it was vulgar.""",None),
+ | % ~ Lucie: 'L'Affaire du Tourbillon', the headline. I wanted 'The Watchmaker's Revenge', but Clemenceau said it was vulgar, and he should know.""",None),
 ('apache',"Les Comptes","Settling Accounts",
  "Maza settles the crew's accounts. Everyone gets paid; the stolen art goes home.",
  """@ ~ Maza: I've been through every franc. Everyone gets paid, mon petit. Even heroes. Even me. Especially me.
@@ -128,19 +128,19 @@ ACT5 = [
  | e chien monceau ~ Drive Maza to see the safehouse gallery.
  | % ~ Maza: (looking at the pictures) So this is what all the fuss was about. Paint. I could have sold them all, you know. I'm glad I didn't. Don't tell anyone.""",None),
 ('avant',"Les Indépendants","The Independents",
- "Degas, Cassatt, Morisot and Pissarro come to Caillebotte's to see the recovered works before they go home to their owners.",
+ "Degas, Cassatt, Morisot, Pissarro and young Signac come to Caillebotte's to see the recovered works before they go home to their owners.",
  """@ ~ Cassatt: I said you were to be believed. Nobody listened. They never listen to Americans, or to women. I am both, so I have twice the satisfaction.
  | g monceau ~ Go to the safehouse gallery.
- | ev monceau 22 ~ Listen to the painters among the pictures. // Pissarro: Look, there are three of mine. I didn't know anyone had ever wanted to steal me. // Morisot: It is the best review you have ever had, Camille. // Degas: So the watchmaker's boy has better taste than the Baron. Unsurprising. Barons buy names. Watchmakers buy works. // Degas: (to Théo) You will come to the next exhibition. As a guest. And with no opinions.
+ | ev monceau 22 ~ Listen to the painters among the pictures. // Pissarro: Look, there are three of mine. I didn't know anyone had ever wanted to steal me. // Morisot: It is the best review you have ever had, Camille. // Degas: So the watchmaker's boy has better taste than the Baron. Unsurprising. Barons buy names. Watchmakers buy works. // Signac: Monsieur Degas, you have just said something kind. // Degas: (to Théo) You will come to dinner on Friday. As a guest. And with no opinions.
  | % ~ Théo: No opinions, Monsieur Degas. Only the time.""",None),
 ('velvet',"Odile","Odile",
- "Odile leaves Paris as herself at last. The boat train for Le Havre leaves from Saint-Lazare, and in New York a theatre company is waiting for its new dresser.",
+ "Odile leaves Paris as herself at last. The boat train leaves from Saint-Lazare, and Madame Bernhardt's company, bound around the world, is waiting for its new dresser.",
  """@ ~ Odile: Don't make a scene, Théo. I'm a professional, I can't be seen weeping on a platform.
  | e monceau gare ~ Drive Odile to the Gare Saint-Lazare.
- | ev gare 20 ~ On the platform. Listen. // Odile: I'll write. Badly. Every week. // Théo: Write me the time in New York. I want to set a clock to it. // Odile: Wind your clocks, Théo. And when you hear one strike midnight, think of a thief.
+ | ev gare 20 ~ On the platform. Listen. // Odile: I'll write. Badly. Every week. // Théo: Write me the time in Rio, and New York, and Sydney. I want to set a clock to it. // Odile: Wind your clocks, Théo. And when you hear one strike midnight, think of a thief.
  | % ~ Théo: (as the train leaves) Odile Vaneau, dresser to Sarah Bernhardt. It suits her. She was always in costume.""","Odile's feather"),
 ('avant',"Réveillon","New Year's Eve",
- "The last night of 1880. Midnight in a room behind a piano works in Montmartre, where the tourbillon is going to strike twelve.",
+ "The last night of 1890. Midnight in a room behind a piano works in Montmartre, where the tourbillon is going to strike twelve.",
  """@ ~ Henri: Champagne! Real champagne, Maza swears it fell off a cart! Théo, come up, the whole of Paris is going to strike midnight!
  | e bateau tertre ~ Bring Henri and Vallet up to the Place du Tertre.
  | h tertre 15 ~ Watch the fireworks over Paris as the clocks strike midnight.
@@ -151,8 +151,8 @@ SIDE = [
   "@ ~ Old cabman: My mare has won nine races and lost one, and the one she lost she was asleep. Beat her if you can, young man. | st brougham boulevard ~ Take a cab on the Boulevard des Italiens. | r boulevard,bourse,halles,chatelet 65 ~ Hit the checkpoints before the old cabman."),
  ("Le Receleur de Nuit","Night Fence","At night Les Halles fills with loose goods: crates fallen from carts, baskets nobody claims. Maza buys it all.",
   "@ ~ Maza: Whatever's loose is mine, mon petit. Whatever's fastened is someone else's. Learn the difference. | c halles 4 ~ Collect the loose goods. | f chien 600 ~ Sell them to Maza."),
- ("L'Accordeur","The Piano Tuner","A concert grand must reach the Salle Pleyel without a scratch for Saint-Saëns's recital.",
-  "@ ~ Henri: If you scratch it, Saint-Saëns will hear it from the stage. He hears everything. He hears things that haven't happened yet. | st gig bateau ~ Take the piano cart. | df pleyel ~ Deliver it to Salle Pleyel. Fragile!"),
+ ("L'Accordeur","The Piano Tuner","A concert grand must reach the Salle Pleyel without a scratch for Paderewski's recital.",
+  "@ ~ Henri: If you scratch it, Paderewski will hear it from the stage. He hears everything. He hears things that haven't happened yet. | st gig bateau ~ Take the piano cart. | df pleyel ~ Deliver it to Salle Pleyel. Fragile!"),
  ("Les Copistes","The Copyists","Crane buys copies from art students at the Louvre. Swap theirs for blank canvases before he collects.",
   "@ ~ Lucie: Swap three. Don't feel sorry for the students, they'll paint better copies next week. | g louvre ~ Go to the Louvre. | sn louvre 3 9 ~ Pass the guardians of the Grande Galerie. | cs louvre 3 ~ Swap three copies unseen."),
  ("L'Omnibus","The Omnibus","Run the Madeleine–Bastille omnibus line, stopping at every stop, and keep the passengers happy.",
@@ -168,7 +168,11 @@ SIDE = [
  ("Les Partitions","Sheet Music","Deliver the Conservatoire's orchestral parts to the publishers before tomorrow's concerts.",
   "@ ~ Copyist: Durand first, then Heugel. If they arrive in the wrong order, they will both complain to Massenet, and Massenet will be charming about it, which is worse. | c conservatoire 3 ~ Collect the scores. | g durand ~ Deliver to Durand et Schoenewerk. | g heugel ~ And to Heugel's, Au Ménestrel."),
  ("Le Cirque","The Circus","Escort a horse-trainer and her prize mare from the Abbesses to the Cirque Fernando before the evening show.",
-  "@ ~ Trainer: She is called Duchesse, and she does not like cabs, policemen or men with moustaches. | e abbesses fernando ~ Bring the trainer to the Cirque Fernando."),
+  "@ ~ Trainer: She is called Duchesse, and she does not like cabs, policemen or men with moustaches. | e abbesses fernando ~ Bring the trainer to the Cirque Fernando. | % ~ Lautrec: (from the front row, sketching) Mademoiselle Duchesse has better legs than the whole corps de ballet. Do not tell the corps de ballet."),
+ ("La Tour de Monsieur Eiffel","Monsieur Eiffel's Tower","Gustave Eiffel keeps a laboratory at the top of his tower. A case of barometers from the Richard works must reach it before the weather turns.",
+  "@ ~ Eiffel: The instruments, monsieur, and intact. Up there the wind tells the truth, and I mean to hear every word. | st gig bastille ~ Take the instrument-maker's gig. | df eiffel ~ Deliver the barometers to the foot of the Tour Eiffel. Fragile! | gf eiffel ~ Carry the case in under the great arch. | % ~ Eiffel: Three hundred metres of iron, and every newspaper in Paris said it would fall down. It is the newspapers, monsieur, that keep falling down."),
+ ("Les Gymnopédies","The Gymnopédies","Erik Satie, second pianist at the Chat Noir, has had his satchel of manuscripts snatched on the rue de Laval.",
+  "@ ~ Satie: They took my music, monsieur. Slow music. The thief will be very disappointed. | g chatnoir ~ Go to the Chat Noir. | ev chatnoir 16 ~ Listen to Salis and his customers. // Salis: Messieurs, you are in the most literary cabaret in the world. Kindly pay as if you knew it. // Customer: The thief went towards the Galette, with the pianist's bag. // Satie: My bag. With my umbrella in it. | k galette 3 ~ The snatch-thieves are drinking at the Moulin de la Galette. Take back the satchel. | g chatnoir ~ Return it to the Chat Noir. | % ~ Satie: Thank you. I shall dedicate something to you. Something very slow, so that you have time to enjoy it."),
  ("La Tour Saint-Jacques","The Tour Saint-Jacques","The Belleville toughs want the square at the Tour Saint-Jacques for their Sunday game. The market women want it more.",
   "@ ~ Market woman: You keep them off for half an hour, and we'll keep you in onions till Easter. | h stjacques 25 ~ Hold the square."),
 ]

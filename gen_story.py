@@ -1,5 +1,7 @@
 import json, story_data as S
 W=json.load(open('map/world.json'))['landmarks']
+_t,_e=W['trocadero'],W['ecolemil']
+W['eiffel']=['Tour Eiffel',_t[1]+(_e[1]-_t[1])*.31,_t[2]+(_e[2]-_t[2])*.31]
 VT={'gig','brougham','phaeton','barouche','omnibus'}
 import math
 def far(a,b): A,B=W[a],W[b]; return math.hypot(A[1]-B[1],A[2]-B[2])

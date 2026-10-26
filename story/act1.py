@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# ACTE I — HIVER 1880 — "L'Apprenti"
+# ACTE I — HIVER 1890 — "L'Apprenti"
 ACT1 = [
-('avant',"La Débâcle","The Breaking of the Ice",
- "January. The Seine has frozen and is breaking up with a noise like artillery. Théo comes home to rue Mouffetard and finds the workshop door open to the cold.",
+('avant',"La Grippe","The Influenza",
+ "January. The Russian influenza has put half of Paris to bed, and a yellow fog lies on the Seine like wet wool. Théo comes home from the chemist on rue Mouffetard and finds the workshop door standing open to the cold.",
  """@ ~ // Théo: Nineteen clocks on the wall, and every one of them stopped at a quarter past two. Somebody wanted me to know the hour.
  | gt cellier 90 ~ Run home to Maître Vallet's workshop before the trail goes cold.
  | k cellier 2 ~ Two masked men are still at the strongbox. Throw them out. // Masked man: Leave it, Jojo, it's only the boy!
@@ -14,7 +14,7 @@ ACT1 = [
  """@ ~ Henri: A feather? Mon vieux, that is a signature. La Pie, they call her. She robs only the rich, which is to say she has never robbed me.
  | g bateau ~ Find Henri at the piano works on rue Ravignan.
  | st gig bateau ~ Borrow the coal-merchant's gig. Henri will square it with him. Probably.
- | r tertre,abbesses,ratmort 55 ~ A masked rider on the rooftops! Keep her in sight down the hill. // Henri: There! On the roof of the laundry! Nobody runs on ice like that unless they are paid to.
+ | r tertre,abbesses,ratmort 55 ~ A masked rider on the rooftops! Keep her in sight down the hill. // Henri: There! On the roof of the laundry! Nobody runs on wet slates like that unless they are paid to.
  | g ratmort ~ She is gone, but she dropped something outside the Café du Rat Mort. Look.
  | % ~ Théo: A pawn ticket from the Mont-de-Piété. Number 4471. // Henri: Either she is careless, or she wanted you to have it. I cannot decide which frightens me more.""","Magpie feather"),
 ('apache',"Le Chien qui Fume","The Smoking Dog",
@@ -49,7 +49,7 @@ ACT1 = [
  | ch moineau abbesses ratmort 0 900 ~ You have the boy by the collar. Let him go free at the Abbesses, or hand him to Maza's man at the Rat Mort. // Théo: Go on. Tell La Pie I said good evening. Moineau: You're soft, monsieur. I'll remember that. In a good way. // Maza's man: Maza will teach him a better trade. Here's for your trouble. Théo: (pocketing it) Then why do I feel I have sold something?
  | % ~ Théo: La Pie has a bird-keeper. And La Pie answers to someone who pays in silver.""",None),
 ('crimson',"Retour de Genève","Back from Geneva",
- "Lucie Arnoux, engraver and former forger, has slipped back over the border eight months before the amnesty. She can read a scrap of canvas the way a priest reads a confession.",
+ "Lucie Arnoux, engraver and former forger, has slipped back over the Swiss border with a forger's sentence still hanging over her. She can read a scrap of canvas the way a priest reads a confession.",
  """@ ~ Lucie: Don't say my name in this café, it still has a price on it. Sit. Order something hot and look bored. You are very good at it already.
  | g procope ~ Meet Lucie at the Café Procope, the oldest café in Paris and the least discreet.
  | e procope printers ~ Walk her to her old press on rue de la Harpe. Keep off the main streets.

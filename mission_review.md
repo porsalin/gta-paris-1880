@@ -1,4 +1,38 @@
-# Mission review: GTA Paris 1880
+# Mission review: GTA Paris 1890
+
+## 1890 pass (October 2026)
+**Year change.** The story moves from 1880 to 1890: the winter of the Russian influenza, the year after the Exposition and the Tower. All 114 missions (5 acts × 20 + 14 side jobs) were re-dated and re-voiced. Real figures are only hosts, witnesses, mentors and passengers: never killers, never killed, never criminals.
+
+| Figure | Status | Why (1890 fact) |
+|---|---|---|
+| Édouard Manet | left | died 1883; now only Monet's *Olympia* subscription |
+| Victor Hugo | left | died 1885; now only Rodin's Hugo monument (commissioned 1889) |
+| Jacques Offenbach | left | died 1880 |
+| Camille Saint-Saëns | left | away from Paris 1889–90 after his mother's death (Canaries, Algeria) |
+| Degas, Cassatt, Morisot, Caillebotte, Pissarro, Monet, Renoir, Durand-Ruel, Tanguy, Zola, Maupassant, Mallarmé, Bernhardt, Viardot, Massenet, Fauré, Debussy, Chabrier, Rodin, Nadar, Garnier | stayed | all alive and working in Paris in 1890; ages and works updated (*La Bête humaine*, *Notre Cœur*, *Cléopâtre*, *Esclarmonde*, Japanese prints show) |
+| Paul Signac (26) | added | 6th Indépendants, 20 March 1890 |
+| Georges Seurat (30) | added | *Le Chahut* at the 1890 Indépendants |
+| Theo van Gogh (33) | added | Boussod, Valadon & Cie, bd Montmartre |
+| Henri de Toulouse-Lautrec (25) | added | Moulin Rouge (opened Oct 1889), Cirque Fernando |
+| Georges Clemenceau (49) | added | deputy for the Var, *La Justice* |
+| Sibyl Sanderson (25) | added | *Esclarmonde* (1889) |
+| Erik Satie (24) | added | second pianist at the Chat Noir; *Gymnopédies* (1888) |
+| Rodolphe Salis | added | Chat Noir, rue de Laval (since 1885) |
+| Aristide Bruant (39) | added | Le Mirliton, bd Rochechouart |
+| Ignacy Jan Paderewski (29) | added | Paris recitals since 1888 |
+| Gustave Eiffel (57) | added | laboratory atop his tower (1889) |
+| Zidler, La Goulue, Valentin le Désossé, Yvette Guilbert, Caran d'Ache, Paul Nadar, the Hanlon-Lees | added (street/venue cameos, acts.js) | Moulin Rouge, Eldorado, Chat Noir shadow theatre, Folies-Bergère, Nadar studio |
+
+**World flow.** The mission menu is debug-only (`?debug`). Givers stand at real places and start their mission when you talk to them (T or click); petits bleus, kiosk headlines and street rumours point to them. See story_bible.md, "How missions are found".
+
+**NPC talk.** `lines.js` + `life.js`: seeded persona per pedestrian (name, trade by look and district, temperament), lines composed from 98 tagged fragments (time, weather, district, notoriety, act) with a rolling no-repeat memory, plus hand-written lines for named characters, shopkeepers and performers.
+
+**Activities.** `acts.js`: newspaper run, fiacre fares, bike and car races, écarté, billiards, fence, tailor, gunsmith, photography (14 landmarks), Chéret posters (15), Vallet's notebook (12), performers, music halls (5 shows), pickpocketing, street events.
+
+**Testing.** `tm2.py` starts a fresh world (no menu), walks to each giver, talks to it, and autopilots the mission: **114/114 started from their givers and passed on path A, 4/4 on path B**, activity self-test passes, 0 page errors.
+
+---
+## Earlier pass (1880 version, kept for history)
 
 This pass reworks all 112 missions (5 acts of 20, plus 12 kiosk side jobs). It covers depth, layering, challenge and period voice.
 
