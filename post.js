@@ -22,6 +22,7 @@ const COMP = mat(`uniform sampler2D t; uniform sampler2D bl; uniform sampler2D a
     if (ts > .001) { float f=smoothstep(.28,.5,abs(vUv.y-.5))+smoothstep(.4,.5,abs(vUv.x-.5))*.5; c=mix(c, texture2D(lo,vUv).rgb, clamp(f*ts,0.,1.)); }
     if (aoOn > .5) { float a=0.; a+=texture2D(ao,vUv+aoPx*vec2(-1.,-1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(1.,-1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(-1.,1.)).r; a+=texture2D(ao,vUv+aoPx*vec2(1.,1.)).r; c*=a*.25; }
     vec3 b=texture2D(bl,vUv).rgb; c+=b*bs;
+    if (wet > .02) { vec3 sk=vec3(0.); float w=1.; for(int i=1;i<=10;i++){ vec2 o=vec2((h(vec2(float(i),floor(vUv.x*240.)))-.5)*.002, float(i)*.011); sk+=texture2D(bl,vUv+o).rgb*w; w*=.8; } c+=sk*wet*(.12+night*.5)*vec3(1.,.92,.8); } // wet-street light streaks below lamps & windows
     if (gr > .001) { vec2 dl=(vUv-sunUV)*(1./20.)*.9; vec2 p=vUv; vec3 s=vec3(0.); float w=1.; for(int i=0;i<20;i++){ p-=dl; s+=texture2D(bl,p).rgb*w; w*=.94; } c+=s*(gr*.09)*vec3(1.,.85,.62); }
     c*=ex; c=aces(c);
     c=mix(c, c*c*(3.-2.*c), .22);                                                  // gentle S-curve for depth

@@ -33,14 +33,14 @@ const GC = new Map(); function cached(key, f) { if (!GC.has(key)) GC.set(key, f(
 // look: {coat, trou, hat:'top'|'bowler'|'kepi'|'cap'|'bonnet'|'none'|'helmet'|'beret', hatc, skin, dress, stripes, long, apron, scarf}
 export const LOOKS = {
   bourgeois: () => ({ coat: pick(['#22222a', '#3a2e28', '#2a3038', '#1c1c1c']), trou: pick(['#2a2a30', '#5a5450', '#3a3430']), hat: 'top', hatc: '#151515', long: true, cane: Math.random() < .5, watch: Math.random() < .5 }),
-  clerk: () => ({ coat: pick(['#4a4038', '#3a3a44', '#5a4a3a']), trou: '#3a3530', hat: 'bowler', hatc: pick(['#222', '#3a2a1a']), news: Math.random() < .3, cane: Math.random() < .2 }),
-  worker: () => ({ coat: pick(['#3a5a8a', '#2e4a72', '#5a4a3a', '#6a6050']), trou: pick(['#4a4038', '#2e3a5a']), hat: 'cap', hatc: pick(['#3a3a3a', '#4a3a2a']), apron: Math.random() < .3 }),
-  lady: () => ({ parasol: Math.random() < .35 ? pick(['#f4ece0', '#e8c8d0', '#c8d8e8', '#3a2a3a', '#f0e0a0']) : null, coat: pick(['#7a2a3a', '#2a4a6a', '#4a2a5a', '#6a5a3a', '#2a5a4a', '#8a6a7a', '#c8b8a0']), trou: '#000', hat: 'bonnet', hatc: pick(['#e8d8c0', '#3a2a2a', '#a04060', '#f0f0e0']), dress: true }),
+  clerk: () => ({ coat: pick(['#4a4038', '#3a3a44', '#5a4a3a']), trou: '#3a3530', hat: Math.random() < .3 ? 'boater' : 'bowler', hatc: pick(['#222', '#3a2a1a']), news: Math.random() < .3, cane: Math.random() < .2 }),
+  worker: () => { const sm = Math.random() < .6; return { coat: sm ? pick(['#3a5a9a', '#2e4e86', '#4a6aa0']) : pick(['#5a4a3a', '#6a6050']), trou: pick(['#4a4038', '#2e3a5a', '#6a5a48']), hat: Math.random() < .8 ? 'cap' : 'beret', hatc: pick(['#3a3a3a', '#4a3a2a', '#24283a']), smock: sm, apron: !sm && Math.random() < .3, scarf: Math.random() < .4 ? pick(['#a02020', '#2a2a2a', '#c8a040']) : null }; },
+  lady: () => ({ parasol: Math.random() < .35 ? pick(['#f4ece0', '#e8c8d0', '#c8d8e8', '#3a2a3a', '#f0e0a0']) : null, coat: pick(['#7a2a3a', '#2a4a6a', '#4a2a5a', '#6a5a3a', '#2a5a4a', '#8a6a7a', '#c8b8a0']), trou: '#000', hat: pick(['bonnet', 'ladyhat', 'ladyhat', 'boater']), hatc: pick(['#e8d8c0', '#3a2a2a', '#a04060', '#f0f0e0']), dress: true }),
   maid: () => ({ coat: '#2a2a2a', trou: '#000', hat: 'bonnet', hatc: '#f4f0e8', dress: true, apron: true, basket: Math.random() < .6 }),
   artist: () => ({ coat: pick(['#5a3a2a', '#3a4a2a', '#2a2a3a']), trou: '#4a3a2a', hat: 'beret', hatc: pick(['#1a1a1a', '#5a1a1a', '#1a2a4a']), scarf: pick(['#c03020', '#d0a020', '#3060a0']) }),
   apache: () => ({ coat: '#f0f0f0', stripes: '#1a2a5a', trou: '#2a2a2a', hat: 'cap', hatc: '#2a2a2a', scarf: '#b01818' }),
   cop: () => ({ coat: '#1a2448', trou: '#1a2040', hat: 'kepi', hatc: '#1a2040', belt: '#d4b040', long: true }),
-  gend: () => ({ coat: '#22285a', trou: '#d8d0c0', hat: 'helmet', hatc: '#2a2a2a', belt: '#d8d8d8' }),
+  gend: () => ({ coat: '#1c2250', trou: '#2a2c44', hat: 'bicorne', hatc: '#121216', belt: '#ece6d0', aig: '#e8e2d0', long: true }),
   soldier: () => ({ coat: '#2a3a7a', trou: '#b02020', hat: 'kepi', hatc: '#b02020', belt: '#d8d0b0' }),
   vip: () => ({ coat: pick(['#e8e0f0', '#f0d8e0']), trou: '#000', hat: 'bonnet', hatc: '#6a4a5a', dress: true, scarf: '#f0ebe0', parasol: '#f4ece0' }),
   boss: () => ({ coat: '#0e0e0e', trou: '#111', hat: 'top', hatc: '#0a0a0a', long: true, scarf: '#ece6d8', fur: '#3a2e26', cane: true, beard: Math.random() < .5 ? '#3a3430' : null }),
@@ -73,7 +73,7 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
     lathe(b, [[.001, .78], [.13, .8], [.15, .9], [.135, 1.0], [.16, 1.12], [.19, 1.2], [.13, 1.27], [.06, 1.3]], 0, 0, 0, coat, .8, 1.05);
     const sp = []; for (let k = 0; k <= 14; k++) { const t = k / 14, y = .82 - t * .8; sp.push([.12 + Math.pow(t, 1.5) * .21 + (k % 5 === 4 ? .015 : 0), y]); } sp.push([.001, .02]);
     { const p0 = b.p.length; lathe(b, sp.reverse(), .03, 0, 0, coat, .95, 1, 30); fold(b, p0, .03, 9, .07, .82); }
-    b.sph(.18, -.17, .76, 0, cDk, 1, .85, 1.05, 10); // bustle
+    b.sph(.12, -.13, .74, 0, cDk, 1, .8, 1.05, 10); // 1890: the bustle has shrunk to a small pad
     lathe(b, [[.15, .84], [.165, .86], [.165, .9], [.15, .92]], 0, 0, 0, L.scarf || dk(coat, .55), .8, 1.06);
     b.sph(.07, .1, 1.08, 0, lt(coat, .5), .5, 1.6, .9, 8); // lace jabot
     if (L.apron) { lathe(b, [[.2, .3], [.2, .3], [.16, .62], [.15, .8]], .05, 0, 0, '#f4f0e8', .98, 1.02, 16, 0, Math.PI * .1, Math.PI * .8); b.sph(.09, .11, 1.05, 0, '#f4f0e8', .5, 1.2, 1.4, 8); }
@@ -84,10 +84,12 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
     if (!L.stripes && !L.apron) { b.sph(.08, .1, 1.12, 0, '#efe8dc', .45, 1.6, .9, 8); b.sph(.032, .13, 1.22, 0, L.scarf || '#151515', .7, 1, 1.5, 6);
       for (const s of [-1, 1]) b.sph(.06, .105, 1.1, s * .07, cDk, .4, 2.1, .7, 7); for (const y of [.86, .95, 1.04]) b.sph(.014, .12, y, .03, '#c8a050', 1, 1, 1, 4); }
     if (L.vest) lathe(b, [[.158, .8], [.162, .95], [.17, 1.1], [.12, 1.2]], .012, 0, 0, L.vest, .74, 1.0, 16, 0, Math.PI * .2, Math.PI * .6);
+    if (L.smock) { const p0 = b.p.length; lathe(b, [[.16, 1.06], [.19, .9], [.215, .7], [.235, .5], [.228, .48]], 0, 0, 0, coat, .82, 1.04, 28); fold(b, p0, 0, 11, .07, 1.0); lathe(b, [[.17, 1.1], [.19, 1.16], [.17, 1.24]], 0, 0, 0, dk(coat, .8), .78, 1.06, 18); } // bleu de travail: gathered yoke, loose folds
     const tl = L.long ? .32 : .58; // coat skirt / tails, open at the front
     { const p0 = b.p.length; lathe(b, [[.17, .8], [.18, .72], [.21, (tl + .72) / 2], [.235, tl], [.225, tl - .02]], -.01, 0, 0, coat, .8, 1.02, 26, 0, Math.PI * .62, Math.PI * 1.76); fold(b, p0, -.01, 7, .05, .8); }
     b.sph(.012, -.13, .78, .05, cDk); b.sph(.012, -.13, .78, -.05, cDk); // back buttons
     if (L.apron) lathe(b, [[.17, .5], [.175, .6], [.17, .9], [.15, 1.0]], .01, 0, 0, '#c8b8a0', .76, 1.02, 14, 0, Math.PI * .15, Math.PI * .7);
+    if (L.aig) { for (let k = 0; k < 3; k++) b.add(new THREE.TorusGeometry(.07 + k * .015, .008, 4, 10, Math.PI), L.aig, M(.06, 1.12 - k * .03, .1, Math.PI / 2, 0, -.6)); }
     if (L.belt) { lathe(b, [[.16, .76], [.168, .78], [.168, .81], [.16, .83]], 0, 0, 0, L.belt, .75, 1.06); for (let y = .88; y < 1.2; y += .09) b.sph(.018, .125, y, 0, L.belt, 1, 1, 1, 5); for (const s of [-1, 1]) b.sph(.06, 0, 1.27, s * .19, L.belt, 1, .35, 1.1, 8); }
     lathe(b, [[.001, .66], [.14, .66], [.155, .72], [.15, .76]], 0, 0, 0, dk(L.trou, .9), .74, 1.05, 14); }
   if (L.fur) { lathe(b, [[.13, 1.18], [.2, 1.2], [.21, 1.25], [.15, 1.31], [.09, 1.33]], 0, 0, 0, L.fur, .85, 1.12, 16); }
@@ -114,6 +116,9 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
     case 'beret': lathe(b, [[.001, 1.69], [.12, 1.685], [.2, 1.64], [.18, 1.6], [.145, 1.585]], -.03, 0, 0, hc, 1, 1, 18, 0); b.cyl(.01, .012, .04, -.03, 1.705, 0, hc, 5); break;
     case 'bonnet': b.sph(.16, -.04, 1.53, 0, hc, 1, 1, 1.05, 12); lathe(b, [[.12, 1.45], [.21, 1.52], [.23, 1.58], [.2, 1.6]], .04, 0, 0, hc, .75, 1, 18, 0, -Math.PI * .1, Math.PI * 1.2);
       for (const s of [-1, 1]) b.add(new THREE.CylinderGeometry(.012, .012, .2, 6), '#a03050', M(.06, 1.37, s * .1)); b.sph(.05, -.01, 1.68, .08, '#c84060', 1, 1, 1, 7); b.sph(.045, -.06, 1.67, -.04, '#f0e0a0', 1, 1, 1, 7); b.sph(.04, -.02, 1.7, .02, '#5a8a4a', 1, .6, 1, 6); break;
+    case 'boater': lathe(b, [[.001, 1.69], [.125, 1.69], [.128, 1.6], [.12, 1.595]], -.005, 0, 0, L.dress ? '#e8d4a0' : '#dcc690', .95, 1, 18); lathe(b, [[.129, 1.61], [.131, 1.645], [.128, 1.65]], -.005, 0, 0, L.dress ? (L.scarf || '#7a2a3a') : '#1a2a4a', .96, 1.01, 18); lathe(b, [[.1, 1.6], [.24, 1.6], [.245, 1.61], [.1, 1.612]], -.005, 0, 0, '#e4d09a', .95, 1, 22); break; // straw canotier
+    case 'ladyhat': lathe(b, [[.001, 1.7], [.09, 1.69], [.1, 1.64], [.095, 1.62]], .0, 0, 0, hc, 1, 1, 16); lathe(b, [[.09, 1.62], [.2, 1.625], [.205, 1.635], [.09, 1.64]], .0, 0, 0, hc, 1, .95, 20); b.sph(.05, .02, 1.7, .07, '#c84060', 1, .8, 1, 7); b.sph(.045, -.03, 1.71, .03, '#f0e0a0', 1, .8, 1, 7); b.sph(.04, -.05, 1.72, .1, '#5a8a4a', 1.6, .5, .6, 6); b.add(new THREE.ConeGeometry(.02, .22, 5), '#f4f0e8', M(-.08, 1.76, -.04, .3, 0, .9)); break; // small tilted hat with flowers + plume
+    case 'bicorne': lathe(b, [[.001, 1.62], [.14, 1.6], [.14, 1.57]], -.005, 0, 0, hc, 1, 1, 14); b.sph(.2, 0, 1.66, 0, hc, .38, .5, 1.3, 12); lathe(b, [[.2, 1.6], [.205, 1.62], [.2, 1.63]], 0, 0, 0, '#d8d0b8', .4, 1.32, 14); b.sph(.035, .06, 1.7, .0, '#c8202a', .5, 1, 1, 6); b.sph(.022, .07, 1.7, 0, '#e8e2d0', .5, 1, 1, 6); break; // gendarme's bicorne with cockade
     default: break; }
   for (let k = 0; k < hIdx; k += 3) { b.p[k] *= .86; b.p[k + 2] *= .86; } // slimmer, elegant torso
   for (let k = hIdx; k < b.p.length; k += 3) { b.p[k] = .01 + (b.p[k] - .01) * .72; b.p[k + 1] = 1.31 + (b.p[k + 1] - 1.32) * .72; b.p[k + 2] *= .72; }
@@ -127,7 +132,7 @@ function pedGeos(L) { const key = JSON.stringify(L); return cached('q' + key, ()
   const lg = new GB(); if (L.dress) { lg.cyl(.04, .045, .3, 0, -.4, 0, '#2a2020', 8); } else { caps(lg, .07, .38, 0, -.24, 0, L.trou); lg.cyl(.066, .066, .04, 0, -.47, 0, dk(L.trou, .8), 10); }
   lg.sph(.06, .06, -.53, 0, '#16100c', 1.9, .65, .95, 9);
   const ar = new GB(); ar.sph(.07, 0, -.01, 0, L.dress ? lt(coat, .06) : coat, 1, 1, 1, 9); caps(ar, .062, .3, 0, -.22, 0, coat, 0, 0, 1, 1);
-  if (L.dress) ar.sph(.095, 0, -.03, 0, coat, 1, .9, 1, 9);
+  if (L.dress) { ar.sph(.115, 0, -.06, 0, lt(coat, .04), 1, 1.25, 1, 12); ar.sph(.09, 0, .02, 0, coat, 1.05, .8, 1.05, 10); } // 1890 leg-of-mutton sleeve: big puff, tight forearm
   if (L.stripes) for (const y of [-.1, -.22, -.34]) ar.cyl(.066, .066, .03, 0, y, 0, L.stripes, 10);
   ar.cyl(.058, .062, .05, 0, -.41, 0, L.dress ? lt(coat, .5) : '#efe8dc', 10); ar.sph(.052, .01, -.47, 0, (L.dress || L.boss) && hs % 2 ? '#f4f0e8' : sk, .9, 1.15, .75, 8);
   return { body, leg: shade(lg.geo(), -.56, 0, .6), arm: ar.geo() }; }); }
@@ -140,8 +145,8 @@ const OUTM = new THREE.MeshBasicMaterial({ color: 0x120c08, side: THREE.BackSide
 OUTM.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * .022;'); };
 export const PEDCFG = { outline: false };
 // x-ray silhouette: drawn only where the figure is hidden behind roofs / trees (depth GREATER), so occluders stay solid
-export const XRAYM = new THREE.MeshBasicMaterial({ color: 0xf2c46a, transparent: true, opacity: .42, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false });
-export const XRAYN = new THREE.MeshBasicMaterial({ color: 0xc8d8f0, transparent: true, opacity: .28, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false });
+export const XRAYM = new THREE.MeshBasicMaterial({ color: 0xf2c46a, transparent: true, opacity: .42, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
+export const XRAYN = new THREE.MeshBasicMaterial({ color: 0xc8d8f0, transparent: true, opacity: .28, depthWrite: false, depthFunc: THREE.GreaterDepth, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
 export function addXray(root, mat = XRAYM) { const L = []; (root.isMesh ? [root] : []).concat([]).forEach(o => { if (o.isMesh && !o.userData.blob && !o.userData.xr && o.material !== RINGM) L.push(o); }); for (const o of L) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xr = 1; x.userData.blob = 1; x.renderOrder = 20; x.castShadow = false; x.raycast = () => {}; o.add(x); } }
 const RINGT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(255,210,90,0)'); gr.addColorStop(.62, 'rgba(255,214,100,.12)'); gr.addColorStop(.8, 'rgba(255,224,130,.75)'); gr.addColorStop(.88, 'rgba(255,200,80,.35)'); gr.addColorStop(1, 'rgba(255,190,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
 export const RINGM = new THREE.MeshBasicMaterial({ map: RINGT, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
@@ -245,12 +250,15 @@ export function makeVeh(type, d) { const g = new THREE.Group(), b = new GB(), ou
     // ---- 1890: petrol carriages ----
     case 'panhard': { const c = d.body; b.box(.8, .55, W * .75, 1.1, .95, 0, '#2a2a2a'); b.box(.82, .08, W * .78, 1.1, 1.25, 0, '#b8902c'); panel(-.2, 1.0, 0, 1.6, .5, W * .9, c); b.box(.5, .55, W * .82, -.2, 1.45, 0, '#3a1a10'); b.box(.4, .45, W * .82, -.8, 1.4, 0, '#3a1a10');
       b.cyl(.03, .03, .5, .55, 1.4, 0, '#1a1a1a', 5, 0, 0, .4); b.add(new THREE.TorusGeometry(.16, .025, 4, 12), '#2a1a10', M(.45, 1.62, 0, Math.PI / 2 + .4)); coachman(b, 0, 1.2, '#2a2a30', '#111'); b.cyl(.06, .06, .5, -1.4, .6, W * .3, '#3a3a3a', 6, 0, 0, Math.PI / 2);
-      out.wheels.push(wheelPair(.42, W * .95, 1.0), wheelPair(.55, W, -.9)); lampAt = [[1.5, 1.2, W * .42], [1.5, 1.2, -W * .42]]; break; }
+      out.wheels.push(wheelPair(.42, W * .95, 1.0), wheelPair(.55, W, -.9)); for (const zz of [-1, 1]) { b.box(.7, .03, .22, 1.0, .98, zz * W * .5, '#151515', 0, 0, -.12); b.box(.6, .03, .22, -.95, 1.05, zz * W * .5, '#151515', 0, 0, .1); b.box(2.1, .025, .025, -.2, 1.27, zz * W * .46, '#c8a040'); } b.box(.45, .1, W * .78, -.2, 1.25, 0, '#6a2a1a'); b.box(.38, .1, W * .78, -.8, 1.2, 0, '#6a2a1a'); // v13: mudguards, brass rails, buttoned oxblood leather
+      lampAt = [[1.5, 1.2, W * .42], [1.5, 1.2, -W * .42]]; break; }
     case 'peugeot': { const c = d.body; panel(0, .95, 0, 2.2, .4, W * .85, c); b.box(.55, .5, W * .8, .55, 1.35, 0, '#2a1a10'); b.box(.55, .5, W * .8, -.55, 1.35, 0, '#2a1a10'); b.box(.6, .35, W * .7, -1.0, .75, 0, '#3a3a3a');
       b.box(2.3, .04, .04, 0, 2.0, W * .4, d.roof); b.box(2.3, .04, .04, 0, 2.0, -W * .4, d.roof); b.box(2.3, .03, W * .85, 0, 2.02, 0, '#e8dcc0'); for (const x of [-1.1, 1.1]) for (const zz of [-1, 1]) b.box(.03, .9, .03, x, 1.55, zz * W * .4, '#1a1a1a');
-      coachman(b, -.45, 1.1, '#2a3a2a', '#1a1a1a'); b.cyl(.03, .03, .6, .2, 1.4, 0, '#1a1a1a', 5, 0, 0, .3); out.wheels.push(wheelPair(.4, W * .95, .85), wheelPair(.48, W * .95, -.8)); lampAt = [[1.15, 1.2, W * .42]]; break; }
+      coachman(b, -.45, 1.1, '#2a3a2a', '#1a1a1a'); b.cyl(.03, .03, .6, .2, 1.4, 0, '#1a1a1a', 5, 0, 0, .3); for (let k = 0; k < 12; k++) { const x = -1.1 + k * .2; for (const zz of [-1, 1]) b.box(.12, .1, .02, x, 1.94, zz * W * .43, k % 2 ? '#e8dcc0' : '#b83a2a'); } b.box(.5, .08, W * .75, .55, 1.12, 0, '#4a2a1a'); b.box(.5, .08, W * .75, -.55, 1.12, 0, '#4a2a1a'); // v13: scalloped canopy fringe, seat cushions
+      out.wheels.push(wheelPair(.4, W * .95, .85), wheelPair(.48, W * .95, -.8)); lampAt = [[1.15, 1.2, W * .42]]; break; }
     case 'benz': { const c = d.body; b.box(1.4, .08, .08, .1, .6, W * .3, '#2a2a2a'); b.box(1.4, .08, .08, .1, .6, -W * .3, '#2a2a2a'); b.box(.7, .3, W * .7, -.1, 1.05, 0, c); b.box(.3, .4, W * .7, -.4, 1.3, 0, '#3a2a1a');
       b.box(.6, .35, W * .6, -.9, .75, 0, '#4a4a40'); b.cyl(.5, .5, .06, -.9, .55, 0, '#3a3a3a', 18); b.cyl(.08, .08, .5, -.9, 1.05, 0, '#b8902c', 8); b.box(.04, .7, .04, .55, 1.15, 0, '#1a1a1a', 0, 0, -.35); b.box(.04, .04, .35, .7, 1.48, 0, '#1a1a1a');
+      b.box(.32, .08, W * .66, -.25, 1.22, 0, '#5a2a1a'); b.sph(.07, .95, 1.0, 0, '#d8b048', 1, 1, 1, 8); b.box(.25, .02, W * .62, .35, .95, 0, '#5a4020'); // v13: buttoned seat, brass carriage lamp, footboard
       coachman(b, -.25, 1.05, '#2a2a30', '#111'); out.wheels.push(wheelPair(.38, .06, 1.05), wheelPair(.62, W * .9, -.75)); lampAt = [[1.1, 1.0, 0]]; break; }
     case 'gig': { const c = d.body; b.box(1.1, .45, W * .7, 0, 1.25, 0, c); b.box(.6, .4, W * .65, -.2, 1.65, 0, '#3a2a1a'); coachman(b, 0, 1.35, '#4a3a2a', '#2a2a2a');
       b.box(2.8, .08, .08, 1.0, 1.05, .3, '#5a4020'); b.box(2.8, .08, .08, 1.0, 1.05, -.3, '#5a4020'); out.wheels.push(wheelPair(.95, W * 1.05, 0)); lampAt = [[.6, 1.5, W * .4]]; break; }
