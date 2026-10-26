@@ -420,14 +420,14 @@ function detailGeo(det, cx, cz) { const B = new QB(); const lvl = Q.det | 0; if 
     if (st === 0) for (const y0 of [2.8 * FS, 6.4 * FS]) { if (y0 + 1.8 > h) continue; B.box(W, 0, y0 + .3, .2, L, .07, .5, STONE2); B.q(W(-L / 2, y0 + .37, .48), W(L / 2, y0 + .37, .48), W(L / 2, y0 + .85, .48), W(-L / 2, y0 + .85, .48), RAIL); }
     else B.box(W, 0, 1.6 * FS, .05, L, .08, .12, STONE2);
     // ground-floor shopfronts on the pavement side
-    if (gclass(oi, oj) !== 4 || hash(bi, bj, 61) > (st === 2 ? .45 : .7)) continue; const k = Math.floor(hash(bi >> 1, bj >> 1, 62) * 8);
+    if (gclass(oi, oj) !== 4) continue; const zk = hooks.shop ? hooks.shop(bi, bj, oi, oj) : null; if (zk === -1 || (zk == null && hash(bi, bj, 61) > (st === 2 ? .45 : .7))) continue; const k = zk ?? Math.floor(hash(bi >> 1, bj >> 1, 62) * 8); // ground-floor use from zoning.js
     B.q(W(-L * .46, 2.46, .05), W(L * .46, 2.46, .05), W(L * .46, 2.9, .05), W(-L * .46, 2.9, .05), SGUV(k)); B.box(W, 0, 2.4, .04, L * .96, .05, .06, GILT);
     if (hash(bi, bj, 63) < .8) { const A = AWUV(Math.floor(hash(bi >> 2, bj >> 2, 64) * 8)), hi = [2, 2, 2]; B.q(W(-L / 2, 1.86, 1.1), W(L / 2, 1.86, 1.1), W(L / 2, 2.36, .07), W(-L / 2, 2.36, .07), A, hi); B.q(W(-L / 2, 1.66, 1.1), W(L / 2, 1.66, 1.1), W(L / 2, 1.86, 1.1), W(-L / 2, 1.86, 1.1), A, hi); }
     if (Q.life && (k === 0 || k === 3)) { if (gclass(oi + Math.round(nx), oj + Math.round(nz)) !== 0 || true) cafeSet(B, W, -.45 + hash(bi, bj, 65) * .2, 1.3); if (lvl >= 2 && hash(bi, bj, 66) < .6) cafeSet(B, W, .5, 1.25); }
     else if (lvl >= 2 && hash(bi, bj, 67) < .7) { const t = k === 1 ? 2 : k === 6 ? 3 : k === 5 ? 1 : 0; B.box(W, -.4, 0, .45, .66, .42, .5, WOOD, WHT, GDUV(t)); if (hash(bi, bj, 68) < .5) B.box(W, .42, 0, .4, .6, .34, .45, WOOD, WHT, GDUV((t + 1) % 4)); } }
   // street life on squares and pavements
   if (Q.life) { const i0 = cx * CH, j0 = cz * CH; for (let j = j0; j < j0 + CH; j++) for (let i = i0; i < i0 + CH; i++) { const c0 = gclass(i, j); if (c0 !== 4 && c0 !== 9) continue; const x = i * T + T / 2, z = j * T + T / 2;
-      if (hash(i, j, 71) < (c0 === 9 ? .045 : .012) && !nearLM(x, z) && N4.every(([a, b]) => { const q = gclass(i + a, j + b); return q === 4 || q === 9; })) { const r = hash(i, j, 72) < .5; stall(B, B.frame(x, z, r ? 1 : 0, r ? 0 : 1), Math.floor(hash(i, j, 73) * 8)); continue; }
+      const sa = hooks.stallAt ? hooks.stallAt(i, j) : null; if (sa != null) { const r = Math.abs(Math.sin(sa)) > .5; /* market stalls only where zoning.js puts a market */ stall(B, B.frame(x, z, r ? 1 : 0, r ? 0 : 1), Math.floor(hash(i, j, 73) * 8)); continue; }
       if (c0 === 4 && hash(i, j, 74) < .006) { const rd = N4.findIndex(([a, b]) => ROADC(gclass(i + a, j + b))); if (rd >= 0) { const [a, b] = N4[rd]; flowerCart(B, B.frame(x, z, b, -a)); } } } }
   return B; }
 // v12: puddle decals removed — rain now wets every road / pavement / roof surface globally (see WETU)

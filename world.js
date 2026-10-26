@@ -49,16 +49,17 @@ export function pathAt(P, s) { s = Math.max(0, Math.min(P.len, s)); let k = 1; w
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, Math.atan2(b[1] - a[1], b[0] - a[0])]; }
 export function pathNear(P, x, z) { let best = 0, bd = 1e18; for (let s = 0; s <= P.len; s += 2) { const q = pathAt(P, s), d = (q[0] - x) ** 2 + (q[1] - z) ** 2; if (d < bd) { bd = d; best = s; } } return best; }
 // ---- building parcels / styles (shared by renderer and ground) ----
+export const hooks = { prop: null, style: null, floors: null, allow: null, zoneProps: null, shop: null, stallAt: null }; // zoning.js fills style/floors/allow/zoneProps/shop/stallAt
 export const ST = { HAUS: 0, OLD: 1, MONT: 2, BRICK: 3 };
 const DSTY = { 0: [2, 2, 2, 1], 1: [0], 2: [1, 1, 0], 3: [3, 3, 1], 4: [1], 5: [1, 1, 0], 6: [1, 0], 7: [0], 8: [0, 0, 1], 9: [2, 3, 1, 3], 10: [1, 3, 1], 11: [2, 1, 3], 12: [0, 1], 13: [0, 0, 1] };
 export const skipT = new Uint8Array(NX * NZ); // tiles replaced by landmark models
-export function styleOf(i, j) { const pi = i >> 2, pj = j >> 2, d = dist[ti(i, j)], l = DSTY[d] || [0]; return l[Math.floor(hash(pi, pj, 7) * l.length)]; }
+export function styleOf(i, j) { const zs = hooks.style && hooks.style(i, j); if (zs != null) return zs; const pi = i >> 2, pj = j >> 2, d = dist[ti(i, j)], l = DSTY[d] || [0]; return l[Math.floor(hash(pi, pj, 7) * l.length)]; }
 export const DCUT = [4, 3, 3, 5];
 // building height (walls) for tile, 0 if open. Returns also courtyard/workshop
 export function bldH(i, j) { if (!inb(i, j)) return 0; const t = ti(i, j); if (kind[t] !== K.BLD || skipT[t]) return 0; const st = styleOf(i, j), dp = depth[t];
   const pi = i >> 2, pj = j >> 2, h0 = hash(pi, pj, 3);
   if (dp > DCUT[st]) return hash(i >> 1, j >> 1, 9) < .45 ? 0 : 3.6 + (st === 3 ? 2.5 : 0); // courtyard or workshop
-  const f = st === 0 ? 4 + Math.floor(h0 * 2.4) : st === 1 ? 3 + Math.floor(h0 * 2.2) : st === 2 ? 1 + Math.floor(h0 * 2) : 2 + Math.floor(h0 * 3);
+  const f = (hooks.floors && hooks.floors(i, j, st)) ?? (st === 0 ? 4 + Math.floor(h0 * 2.4) : st === 1 ? 3 + Math.floor(h0 * 2.2) : st === 2 ? 1 + Math.floor(h0 * 2) : 2 + Math.floor(h0 * 3));
   return (1.6 + f * 1.2 + .3) * 1.5; } // Haussmann storeys (FS = 1.5 in gfx.js)
 export const isYard = (i, j) => inb(i, j) && kind[ti(i, j)] === K.BLD && !skipT[ti(i, j)] && bldH(i, j) === 0;
 // ---- props (data, generated lazily per chunk) ----
@@ -67,7 +68,6 @@ export const PD = { lamp: { r: .3, hp: 25 }, tree: { r: .6, hp: 200 }, morris: {
 const propGrid = new Map(); export const chunkProps = new Map(); export const dynProps = [];
 const gk = (x, z) => Math.floor(x / 8) * 10000 + Math.floor(z / 8);
 export function addProp(type, x, z, extra) { const p = Object.assign({ type, x, z, r: PD[type].r, hp: PD[type].hp, alive: true }, extra || {}); const k = gk(x, z); if (!propGrid.has(k)) propGrid.set(k, []); propGrid.get(k).push(p); return p; }
-export const hooks = { prop: null };
 export function setPropM(p) { if (hooks.prop) hooks.prop(p); }
 function nearSame(type, x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if (p.type === type && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
 function nearAny(x, z, r) { const a = Math.floor(x / 8), b = Math.floor(z / 8), n = Math.ceil(r / 8); for (let i = a - n; i <= a + n; i++) for (let j = b - n; j <= b + n; j++) { const l = propGrid.get(i * 10000 + j); if (l) for (const p of l) if ((p.x - x) ** 2 + (p.z - z) ** 2 < r * r) return true; } return false; }
@@ -97,11 +97,12 @@ export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key =
   return out; })();
 const LAMPC = new Map(); for (const q of LAMPS) { const k = Math.floor(q.x / CHU) * 1000 + Math.floor(q.z / CHU); (LAMPC.get(k) || LAMPC.set(k, []).get(k)).push(q); }
 export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
+  if (hooks.zoneProps) hooks.zoneProps(cx, cz, (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; }, nearAny); // zoning.js: fountains, market stalls, bouquinistes, bandstands
   for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if (k !== K.SIDE && k !== K.PARK) continue;
     const d = dist[t], h = hash(i, j, 1), x = (i + .5) * T, z = (j + .5) * T; let road = null, water = false, bld = false;
     for (const [di, dj] of N4) { const kk = kij(i + di, j + dj); if ((kk === K.ROAD || kk === K.BRIDGE) && !road) road = [di, dj]; if (kk === K.WATER) water = true; if (kk === K.BLD) bld = true; }
     if (inClear(x, z)) continue; if (nearSame('lamp', x, z, 1.7)) continue;
-    const put = (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; };
+    const put = (ty, px, pz, o) => { if (hooks.allow && !hooks.allow(ty, px, pz)) return null; if (nearSame('stall', px, pz, 2.6) || nearSame('bouq', px, pz, 2) || nearSame('band', px, pz, 5)) return null; const p = addProp(ty, px, pz, o); L.push(p); return p; };
     // v12: fountain / stall placement now belongs to zoning.js (city-layout worker); the fountain model stays in gfx.js
     if (nearSame('fountain', x, z, 5.2)) continue;
     if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }

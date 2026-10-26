@@ -1,8 +1,10 @@
 import * as THREE from './vendor/three.module.js';
 import { FACTIONS, MISSIONS, CHAPTERS, DRAMATIS } from './missions.js';
 import { K, S, SURF, NX, NZ, T, WX, WZ, kind, surf, dist, DN, LM, LABELS, FLAGGED, tileAt, kAt, pedBlock, vehBlock, snapWalk, POI, POIV, GN, GE, ADJ, nodesIn, nearestNode, edgePts, edgeOther, TRAM, TRAIN, pathAt, pathNear, propsNear, addDynProp, setPropM, dynProps, skipT } from './world.js';
+import { quarterAt, ZD as ZONES } from './zoning.js'; // city layout & land use (must load before gfx builds chunks)
 import * as G from './gfx.js';
 import * as LIFE from './life.js';
+import './zrender.js'; // zone buildings: churches, markets, gasworks, factories, rail sheds, Montmartre, the Seine
 import { LOOKS, gangLook, makePed, animPed, killHorse, makeVeh, animVeh, charMat, LAMPMAT } from './models.js';
 const { renderer, scene, camera, hud, FX, cv } = G; const hx = hud.getContext('2d');
 let rs = 1880; const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
@@ -255,6 +257,8 @@ function enterExit(target) { if (player.veh) { const v = player.veh; const s = M
 // Hooks for the other modules: HOOKS.interact(target, ctx) handlers run first (return true to consume); HOOKS.triggers are
 // world mission/activity starters { id, x, z, r, label?, click?, onEnter?(ctx), onClick?(ctx), when?() }; HOOKS.objects are clickable things { x, z, r, label, onClick(ctx) }.
 const HOOKS = { interact: [], triggers: [], objects: [], update: [], hud: [], map: [], phone: [], where: () => '', known: () => true, welcome: '', clickOwned: true }; let hover = null, pendingI = null;
+// district names on the M map (zoning.js quarters: Champs-Élysées, Latin Quarter, Marais, Saint-Honoré, Pigalle, Grands Boulevards, Île Saint-Louis, Belleville, Ménilmontant, Passy, ...)
+HOOKS.map.push((g, P) => { g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; for (const q of ZONES.quarters) { const [sx, sy] = P(Math.max(40, Math.min(WX - 40, q[1])), q[2]); g.font = 'bold 13px Georgia,serif'; g.lineWidth = 4; g.strokeStyle = 'rgba(20,14,8,.85)'; g.strokeText(q[0], sx, sy); g.fillStyle = '#f4e2b0'; g.fillText(q[0], sx, sy); } g.restore(); });
 function hoverAt(x, z) { let best = null, bd = 1e9; const consider = (o, kind, d, r) => { if (d < r * r && d < bd) { bd = d; best = { kind, o }; } };
   for (const p of peds) if (p.alive && !p.inVeh && p.mesh && p.mesh.visible) consider(p, 'ped', d2(p.x, p.z, x, z), 1.3);
   for (const v of vehs) { if (!v.alive || v.wreck || v === player.veh || v.d.rail === 'train') continue; const c = Math.cos(v.a), s_ = Math.sin(v.a), lx = (x - v.x) * c + (z - v.z) * s_, lz = -(x - v.x) * s_ + (z - v.z) * c; if (Math.abs(lx) < v.d.len / 2 + .4 && Math.abs(lz) < v.d.wid / 2 + .4) consider(v, 'veh', d2(v.x, v.z, x, z) * .5, 6); }
@@ -639,7 +643,7 @@ function step(dt, I) { if (!player.alive) { deadT -= dt; if (deadT <= 0) respawn
   const nd = POI.notredame; if (!player.veh && wanted > 0 && holyCD < 0 && d2(nd[0], nd[1], player.x, player.z) < 16) { holyCD = 20; heat = wanted > 1 ? LV[wanted - 1] + .1 : 0; addMoney(-300, true); pager('Confessional, Notre-Dame: "Mea culpa." -1 head, 300 F in the alms box.', 3); SFX.bell(); }
   // catacomb manholes: travel underground, lose up to 2 heads
   if (!player.veh && holeCD < 0) for (let k = 0; k < MANHOLES.length; k++) { const h = MANHOLES[k]; if (d2(h.x, h.z, player.x, player.z) < 2) { const o = MANHOLES[(k + 3) % MANHOLES.length]; holeCD = 6; player.x = o.x + 1.5; player.z = o.z; camPos.set(player.x, 0, player.z); if (wanted > 0) heat = wanted > 2 ? LV[wanted - 2] + .1 : 0; pager('Through the Catacombs... you surface elsewhere, unseen.', 3); noise(1, .3, 300); break; } }
-  const d = tileAt(player.x, player.z) >= 0 ? dist[tileAt(player.x, player.z)] : undefined; if (d !== undefined && d !== lastDistrict) { lastDistrict = d; districtMsg = DN[d]; districtT = 2.5; }
+  const dq = quarterAt(player.x, player.z), d = dq ? dq[0] : tileAt(player.x, player.z) >= 0 ? DN[dist[tileAt(player.x, player.z)]] : undefined; if (d !== undefined && d !== lastDistrict) { lastDistrict = d; districtMsg = dq ? dq[4] + ' — ' + dq[3] : d; districtT = 2.5; }
   musicTick(dt, nearCabaret()); for (const f of HOOKS.update) f(dt); }
 function nearCabaret() { let best = 0; for (const n of ['chatnoir', 'lapin', 'galette', 'moulinrouge', 'ratmort']) { const p = POI[n]; const dd = Math.sqrt(d2(p[0], p[1], player.x, player.z)); best = Math.max(best, 1 - dd / 30); } return state === 'title' ? .6 : best; }
 // ---- frame-time profiler (F3): per-section ms over the last 300 frames ----
