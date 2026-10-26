@@ -432,7 +432,7 @@ const RDK = (i, j) => { const k = kij(i, j); return k === K.ROAD || k === K.BRID
 const y0f = st => 1.6 * FS + .25 < 2.95 && 1.6 * FS + .25 + .08 > 2.4;
 function detailGeo(det, cx, cz, fw = []) { const B = new QB(), PLQB = new Set(); const lvl = Q.det | 0; if (!lvl) return B;
   for (const [ax, az, bx, bz, lo, hi, nx, nz] of fw) { const hs = hash(Math.round(ax), Math.round(az), 88); if (hs > .55) continue; const L = Math.hypot(bx - ax, bz - az), W = B.frame((ax + bx) / 2, (az + bz) / 2, nx, nz); /* v15 painted ads on firewalls (exposed party walls above a lower neighbour) */
-    let aw = Math.min(L * .82, 9), ah = aw * .37; const room = hi - lo - 1.2; if (ah > room) { ah = room; aw = ah / .37; } if (aw < 3) continue; const y1 = hi - .7; if (globalThis.__FWDBG) globalThis.__FWDBG.push([ax, az, bx, bz, lo, hi, nx, nz]); B.q(W(-aw / 2, y1 - ah, .03), W(aw / 2, y1 - ah, .03), W(aw / 2, y1, .03), W(-aw / 2, y1, .03), ADUV(Math.floor(hs * 7.3) % 4), [.9, .88, .84]); }
+    let aw = Math.min(L * .82, 9), ah = aw * .37; const room = hi - lo - 1.2; if (ah > room) { ah = room; aw = ah / .37; } if (aw < 3) continue; const y1 = hi - .7; B.q(W(-aw / 2, y1 - ah, .03), W(aw / 2, y1 - ah, .03), W(aw / 2, y1, .03), W(-aw / 2, y1, .03), ADUV(Math.floor(hs * 7.3) % 4), [.9, .88, .84]); }
   for (const [ax, az, bx, bz, h, st, nx, nz, ua, ub, oi, oj, bi, bj] of det) { const L = Math.hypot(bx - ax, bz - az), W = B.frame((ax + bx) / 2, (az + bz) / 2, nx, nz), mid = (ua + ub) / 2;
     // window sills and lintels (stone), Haussmann wrought-iron balconies on the 2nd and 5th floors
     if (lvl >= 2) { const fl = st === 2 ? 3 : 7, SHF = gclass(oi, oj) === 4 && y0f(st); for (let f = 0; f < fl; f++) { const y0 = (1.6 + f * 1.2) * FS, wh = (f === 0 && st === 0 ? .86 : .7) * FS; if (y0 + .3 + wh > h) break;
@@ -673,9 +673,9 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
     const hit = (px, pz, nx, nz, self) => { let best = null; for (const q of SG) { if (q[5] === self) continue; const ex = q[2] - q[0], ez = q[3] - q[1], den = nx * ez - nz * ex; if (Math.abs(den) < 1e-6) continue; const t = ((q[0] - px) * ez - (q[1] - pz) * ex) / den, w = ((q[0] - px) * nz - (q[1] - pz) * nx) / den; if (w < 0 || w > 1 || Math.abs(t) < 3.2 || Math.abs(t) > 6.5) continue; if (Math.abs((ex * nx + ez * nz) / q[4]) > .15) continue; if (!best || Math.abs(t) < Math.abs(best)) best = t; } return best; };
     for (const [ax, az, bx, bz, l, o] of SG) { const ux = (bx - ax) / l, uz = (bz - az) / l, nx = -uz, nz = ux; for (let t0 = 4; t0 + 26 < l; t0 += 40) { const hh = hash(Math.round(ax + ux * t0), Math.round(az + uz * t0), 92); if (hh > .45) continue;
       const px = ax + ux * t0, pz = az + uz * t0, d = hit(px, pz, nx, nz, o); if (d == null) continue; const XL = 18 + hh * 10, qx = px + nx * d + ux * XL, qz = pz + nz * d + uz * XL, L = Math.hypot(qx - px, qz - pz), vx_ = (qx - px) / L, vz_ = (qz - pz) / L;
-      g.fillStyle = 'rgba(64,44,28,.95)'; for (let t = .5; t < L - .3; t += .66) { const cx_ = px + vx_ * t, cz_ = pz + vz_ * t; g.save(); g.translate(cx_, cz_); g.rotate(Math.atan2(vz_, vx_)); g.fillRect(-.12, -1.3, .25, 2.6); g.restore(); }
-      for (const of_ of [-.72, .72]) { g.beginPath(); g.moveTo(px - vz_ * of_, pz + vx_ * of_); g.lineTo(qx - vz_ * of_, qz + vx_ * of_); g.strokeStyle = '#3a3836'; g.lineWidth = .16; g.stroke(); g.strokeStyle = '#9a9894'; g.lineWidth = .06; g.stroke(); }
-      g.fillStyle = '#4a4644'; g.fillRect(px - nx * 1.6 * Math.sign(d) - .25, pz - nz * 1.6 * Math.sign(d) - .25, .5, .5); } } }
+      g.fillStyle = 'rgba(52,36,22,1)'; for (let t = .4; t < L - .2; t += .55) { const cx_ = px + vx_ * t, cz_ = pz + vz_ * t; g.save(); g.translate(cx_, cz_); g.rotate(Math.atan2(vz_, vx_)); g.fillRect(-.16, -1.45, .32, 2.9); g.restore(); }
+      for (const of_ of [-.72, .72]) { g.beginPath(); g.moveTo(px - vz_ * of_, pz + vx_ * of_); g.lineTo(qx - vz_ * of_, qz + vx_ * of_); g.strokeStyle = '#24221f'; g.lineWidth = .3; g.stroke(); g.strokeStyle = '#c8c6c0'; g.lineWidth = .12; g.stroke(); }
+      g.fillStyle = '#2a2826'; g.fillRect(px - nx * 1.6 * Math.sign(d) - .35, pz - nz * 1.6 * Math.sign(d) - .35, .7, .7); g.fillStyle = '#b03a2a'; g.fillRect(px - nx * 1.6 * Math.sign(d) - .15, pz - nz * 1.6 * Math.sign(d) - .15, .3, .3); } } }
   const RD = VCH.roads.filter(r => !r.br), BR = VCH.roads.filter(r => r.br), JC = VCH.junc, jf = j => j.n >= 3 ? .62 : .5;
   for (const r of RD) if (r.c === -2) seg(r, r.w, 'gravel');
   for (const r of RD) if (r.c >= 0) seg(r, r.pw, 'flag');
@@ -863,6 +863,7 @@ function streamChunks(budgetMs, force) { const { list, cx, cz } = wantedChunks(f
     while (performance.now() - t0 < B) { if (!JOB) { let best = null; for (const q of list) { const k = q[0] * 1000 + q[1]; if (CHUNKS.has(k)) continue; const w = q[2] - (vis.has(k) ? 1e9 : 0); if (!best || w < best[2]) best = [q[0], q[1], w]; } if (!best) break; JOB = { a: best[0], b: best[1], it: buildChunkG(best[0], best[1]) }; }
       const r = JOB.it.next(); if (r.done) finishJob(r.value); } }
   stats.buildMs = performance.now() - t0;
+  { /* v17: prefetched/retained chunks outside the view (+20 margin, as in forced builds) are hidden so neither the main nor the shadow pass walks them */ const vw = force ? keep : new Set(wantedChunks(20).list.map(q => q[0] * 1000 + q[1])); for (const [k, ch] of CHUNKS) ch.g.visible = vw.has(k); }
   if (CHUNKS.size > 40) for (const [k, ch] of CHUNKS) { if (keep.has(k)) continue; const d = ((ch.cx + .5) * CHU - cx) ** 2 + ((ch.cz + .5) * CHU - cz) ** 2; if (d < (CHU * 3.5) ** 2) continue; disposeChunk(ch); CHUNKS.delete(k); }
   stats.chunks = CHUNKS.size;
   // landmarks: at most one new build per frame (all of them when forced)
