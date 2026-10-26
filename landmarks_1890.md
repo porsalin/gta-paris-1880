@@ -33,6 +33,7 @@ Each entry has a real OpenStreetMap position. Most also have a real OSM footprin
 | Salle Favart (`favart`) | **Burned on 25 May 1887**. Rebuilt in 1893–98, so it is shown as a burnt shell | OSM | wikipedia.org/wiki/Salle_Favart |
 | Tour Saint-Jacques & square (`stjacques`) | Restored in 1850s; square laid out in 1856 | OSM + square trees | wikipedia.org/wiki/Tour_Saint-Jacques |
 | Fontaine Saint-Michel (`fontstmichel`) | Standing (1860) | hand | wikipedia.org/wiki/Fontaine_Saint-Michel |
+| Fontaine des Innocents | Jean Goujon 1549; moved to the Square des Innocents 1858, stepped cascade basin added 1865 | square east of Les Halles |
 | Panthéon (`pantheon`) | Secular since **1885** (Victor Hugo's funeral) | OSM; drum, dome, portico | wikipedia.org/wiki/Panthéon |
 | Sorbonne (`sorbonne`) | **Being rebuilt** by Nénot (1885–1901). The 1642 chapel stands, the rest is a building site | OSM; half complete, half scaffolded, crane | wikipedia.org/wiki/Sorbonne_(building) |
 | Palais du Luxembourg (`luxembourg`) | Senate since 1879 | OSM | wikipedia.org/wiki/Luxembourg_Palace |

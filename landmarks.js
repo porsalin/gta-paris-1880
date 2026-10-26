@@ -201,6 +201,12 @@ add('stjacques', { lab: 'Tour Saint-Jacques & square', d: 'stjacques', r: 4, fn(
   const sq = G0(b, 'stjacquessq'); if (sq) for (const P of sq.P) for (let k = 0; k < 10; k++) { const v = P.o[Math.floor(k * P.o.length / 10)]; b.cyl(.2, .3, 2, v[0] + (x - v[0]) * .2, 0, v[1] + (z - v[1]) * .2, M.wood, 6).sphere(1.6, v[0] + (x - v[0]) * .2, 3.2, v[1] + (z - v[1]) * .2, M.tree); } } });
 add('fontstmichel', { lab: 'Fontaine Saint-Michel', pt: 'fstmichel', r: 5, fn(b) { const [x, z] = b.c, a = PI / 2 * 0; b.box(9, hw(26), 2, x, 0, z + 1.2, M.stone, a).box(9.8, .5, 2.6, x, hw(26), z + 1.2, M.cornice, a); pediment(b, x, z + .4, -PI / 2, 9, 2, hw(26));
   cols(b, [x - 4, z], [x + 4, z], 4, hw(14), .4, 2, M.marble); statue(b, x, z - .2, 4, 1.4, M.bronze); b.box(8, .6, 4, x, 0, z - 1.6, M.stone).box(7.4, .05, 3.4, x, .55, z - 1.6, M.water); } });
+add('innocents', { lab: 'Fontaine des Innocents (Goujon 1549, square since 1858)', pt: 'finnocents', r: 7, fn(b) { const [x, z] = b.c, w = 7, h = hw(15);
+  b.box(15, .5, 15, x, 0, z, M.stone).box(13, .9, 13, x, .5, z, M.stone).box(12, .06, 12, x, 1.38, z, M.water); // stepped basin, water cascading on four sides
+  for (const [s, t] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) b.box(1.4, h, 1.4, x + s * (w / 2 - .7), 1.4, z + t * (w / 2 - .7), M.marble);
+  for (const a of [0, PI / 2, PI, -PI / 2]) { const ux = Math.cos(a), uz = Math.sin(a); b.box(w * .5, 1.2, .5, x + ux * (w / 2 - .25), 1.4 + h - 1.2, z + uz * (w / 2 - .25), M.marble, a); pediment(b, x + ux * (w / 2 + .1), z + uz * (w / 2 + .1), a, w, 1.6, 1.4 + h); }
+  b.box(w + .6, .5, w + .6, x, 1.4 + h, z, M.cornice).cone(w * .72, 3.2, x, 1.9 + h, z, M.lead, 4, PI / 4);
+  for (const [s, t] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let k = 0; k < 6; k++) b.cyl(.18, .26, 2, x + s * 11 + t * (k - 2.5) * 3.6, 0, z + t * 11 + s * (k - 2.5) * 3.6, M.wood, 6).sphere(1.5, x + s * 11 + t * (k - 2.5) * 3.6, 3.1, z + t * 11 + s * (k - 2.5) * 3.6, M.tree); } });
 // --- Left bank ---
 add('pantheon', { lab: 'Panthéon', f: 'W', fn(b, G) { const o = G.o, h = std(b, G.P, 26, { roof: M.lead, rh: 1.5, win: false }); const q = at(o, -.05, 0); domeOn(b, q[0], q[1], Math.min(9, o.W * .3), h, M.lead, { drum: 6, rib: M.lead, sy: 1.15 });
   const p = at(o, 1.04, 0); b.box(5, h, o.W * .5, p[0], 0, p[1], M.stone, angOf(o)); pediment(b, ...at(o, 1.14, 0), angOf(o), o.W * .5, 3.4, h); cols(b, at(o, 1.16, -.24), at(o, 1.16, .24), 6, h - .3, .6); } });

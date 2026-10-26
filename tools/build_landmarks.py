@@ -39,7 +39,7 @@ pts={ # hand-placed 1890 features (lat, lon) where OSM has no 1890 geometry
  'henri4':(48.85718,2.34095),'marianne':(48.86763,2.36325),'louis13':(48.85561,2.36550),'liberty':(48.85010,2.27970),
  'moulinrouge':(48.88412,2.33225),'trocadero':(48.86210,2.28780),'halles':(48.86240,2.34530),'galerie':(48.85240,2.30055),
  'gareest':(48.87700,2.35920),'galettemill':(48.88720,2.33710),'radet':(48.88740,2.33640),'fstmichel':(48.85320,2.34370),
- 'opcomique':(48.87055,2.33720),'halleaux':(48.86180,2.34630),
+ 'opcomique':(48.87055,2.33720),'halleaux':(48.86180,2.34630),'finnocents':(48.86070,2.34857),
 }
 json.dump({'L':out,'pt':{k:P(*v) for k,v in pts.items()}},open(sys.argv[2],'w'),separators=(',',':'))
 for k,v in out.items(): print(k, v['c'], len(v['p']), sum(len(p['o']) for p in v['p']), 'holes', sum(len(p['h']) for p in v['p']))
