@@ -1,8 +1,10 @@
 // City layout & zoning (1890): land-use map, building variety rules, legal prop placement.
 // Data: map/zones.json (tools/zoning_gen.py). Plugs into world.js through `hooks` (style, floors, allow, zoneProps)
 // and into gfx.js through hooks.shop / hooks.stallAt. Renderable zone models live in zrender.js.
-import { propsNear, K, S, NX, NZ, T, CHU, kind, surf, ti, inb, kij, hash, LABELS, LM, skipT, hooks, PD } from './world.js';
-export const ZD = await fetch('map/zones.json').then(r => r.json());
+import { RESV, propsNear, K, S, NX, NZ, T, CHU, kind, surf, ti, inb, kij, hash, LABELS, LM, skipT, hooks, PD } from './world.js';
+// loaded synchronously on purpose: a top-level await would let gfx.js (a sibling that doesn't import this file) evaluate first
+// and place landmarks / style buildings before the zoning hooks and tile claims exist (that race hid the Gare du Nord model)
+export const ZD = (() => { const x = new XMLHttpRequest(); x.open('GET', 'map/zones.json', false); x.send(); return JSON.parse(x.responseText); })();
 const ZB = Uint8Array.from(atob(ZD.z), c => c.charCodeAt(0));
 export const Z = Object.fromEntries(ZD.names.map((n, k) => [n, k]));
 export const ZNAMES = ZD.names;
@@ -20,6 +22,8 @@ for (const h of ZD.halls) own(h[1], h[2], h[3], h[4], h[5]);
 for (const g of ZD.gaso) own(g[1], g[2], g[3] * 2, g[3] * 2, 0);
 for (const f of ZD.fact) own(f[1], f[2], f[3], f[4], f[5]);
 for (const w of ZD.ware) own(w[1], w[2], w[3], w[4], w[5]);
+// sheds that would sit on a terminus's own footprint are dropped: the station landmark (gfx fitFootprint) needs those building tiles
+{ const ST = Object.values(LM).filter(l => l[3] === 'station'); ZD.sheds = ZD.sheds.filter(s => !ST.some(l => l[0] === s[0] && (l[1] - s[1]) ** 2 + (l[2] - s[2]) ** 2 < 66 ** 2)); }
 for (const s of ZD.sheds) own(s[1], s[2], s[3], s[4], s[5]);
 for (const v of ZD.vines) own(v[0], v[1], v[2], v[3], v[4]);
 for (const q of ZD.quar) own(q[0], q[1], q[2] * 2, q[2] * 2, 0);
@@ -74,7 +78,8 @@ for (const f of FOUNTS) { if (f[3] === 'basin' && BASINLM.some(l => (l[1] - f[1]
 for (const [x, z, a] of ZD.stalls) reg(x, z, put => put('stall', x, z, { ry: a }));
 for (const [x, z, a] of ZD.bouq) reg(x, z, put => put('bouq', x, z, { ry: a }));
 for (const [x, z] of ZD.bands) reg(x, z, put => put('band', x, z));
-hooks.zoneProps = (cx, cz, put, nearAny) => { for (const f of BYCH.get(cx * 1000 + cz) || []) f((ty, x, z, o) => nearAny && ty !== 'fountain' && nearAny(x, z, ty === 'stall' ? 1.4 : ty === 'band' ? 3.4 : .8) ? null : put(ty, x, z, o)); };
+const resvAt = (x, z) => { const i = Math.floor(x / T), j = Math.floor(z / T); return inb(i, j) && RESV[ti(i, j)] === 1; };
+hooks.zoneProps = (cx, cz, put, nearAny) => { for (const f of BYCH.get(cx * 1000 + cz) || []) f((ty, x, z, o) => resvAt(x, z) || nearAny && ty !== 'fountain' && nearAny(x, z, ty === 'stall' ? 1.4 : ty === 'band' ? 3.4 : .8) ? null : put(ty, x, z, o)); };
 
 // ---- pavement-placement API (for signs, kiosks, columns, etc. added by other modules)
 // pavementSpot(x, z, {type, r=.5, band='kerb'|'facade', search=12}) -> {x, z, ry, i, j, zone} | null

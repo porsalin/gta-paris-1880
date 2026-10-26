@@ -10,10 +10,11 @@ const G=new Map();for(const p of all){const key=Math.floor(p.x/4)+','+Math.floor
 for(const p of all){const r=RAD[p.type]||.4;const gx=Math.floor(p.x/4),gz=Math.floor(p.z/4);for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)for(const q of G.get((gx+a)+','+(gz+b))||[]){if(q===p||q.x<p.x||(q.x===p.x&&q.z<=p.z))continue;const d=Math.hypot(q.x-p.x,q.z-p.z);if(d<(r+(RAD[q.type]||.4))*.8)R.overlap.push([p.type,q.type,p.x|0,p.z|0,+d.toFixed(2)]);}}
 
 // zoning rules (bouquinistes may lean on the quay parapet, i.e. a wall tile touching the river): no furniture on carriageways/bridges, none against a facade (doorways), fountains only in parks or at real historic sites, stalls only inside market radii, zone buildings on building tiles
-R.zRoad=[];R.zDoor=[];R.zFount=[];R.zStall=[];R.zBuild=[];R.zCem=[];const FURN=new Set(['stall','kiosk','bench','fountain','wallace','morris','pissoir','trough','bouq','band']);
+R.zResv=[];R.zRoad=[];R.zDoor=[];R.zFount=[];R.zStall=[];R.zBuild=[];R.zCem=[];const FURN=new Set(['stall','kiosk','bench','fountain','wallace','morris','pissoir','trough','bouq','band']);
 const kk=(x,z)=>kij(Math.floor(x/T),Math.floor(z/T));
 const ext=ZD.stalls.map(s=>({type:'stall',x:s[0],z:s[1]})).concat(ZD.bouq.map(s=>({type:'bouq',x:s[0],z:s[1]})));
 for(const p of all.concat(ext)){if(!FURN.has(p.type))continue;const i=Math.floor(p.x/T),j=Math.floor(p.z/T),k=kij(i,j);
+ if(w.RESV&&w.RESV[w.ti(i,j)]&&(p.type!=='stall'&&p.type!=='bouq'||all.includes(p)))R.zResv.push([p.type,p.x|0,p.z|0]);
  if(k===K.ROAD||k===K.BRIDGE||k===K.RAIL)R.zRoad.push([p.type,p.x|0,p.z|0]);
  if(k===K.SIDE&&p.type!=='fountain'&&[[1,0],[-1,0],[0,1],[0,-1]].some(([a,b])=>kij(i+a,j+b)===K.BLD&&!(p.type==='bouq'&&[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]].some(([c,d])=>kij(i+a+c,j+b+d)===K.WATER))))R.zDoor.push([p.type,p.x|0,p.z|0]);
  if(p.type==='fountain'&&!isFountainSite(p.x,p.z))R.zFount.push([p.x|0,p.z|0]);
@@ -35,7 +36,7 @@ async def main():
     pg=await b.new_page(); await pg.goto('http://localhost:'+os.environ.get('PORT','8188')+'/'); await pg.wait_for_timeout(4000)
     r=await pg.evaluate(JS)
     print('props',r['n'],r['types']); 
-    for k in ['bld','water','road','overlap','lampSurf','lampBand','lampSpacing','zRoad','zDoor','zFount','zStall','zBuild','zCem']: print(k,len(r[k]),r[k][:12])
+    for k in ['bld','water','road','overlap','lampSurf','lampBand','lampSpacing','zResv','zRoad','zDoor','zFount','zStall','zBuild','zCem']: print(k,len(r[k]),r[k][:12])
     await b.close()
-    sys.exit(1 if (r['bld'] or r['water'] or r['overlap'] or r['lampSurf'] or r['lampBand'] or r['lampSpacing'] or r['zRoad'] or r['zDoor'] or r['zFount'] or r['zStall'] or r['zBuild'] or r['zCem']) else 0)
+    sys.exit(1 if (r['bld'] or r['water'] or r['overlap'] or r['lampSurf'] or r['lampBand'] or r['lampSpacing'] or r['zResv'] or r['zRoad'] or r['zDoor'] or r['zFount'] or r['zStall'] or r['zBuild'] or r['zCem']) else 0)
 asyncio.run(main())

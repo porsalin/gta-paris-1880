@@ -17,8 +17,12 @@ async def main():
       await E('GAME.render()'); await pg.screenshot(path=SH+name+'.png'); print('shot',name,flush=True)
     ZD=await E('window.__ZN.ZD')
     find=lambda L,s: next(c for c in L if s in c[0])
-    h=ZD['markets'][0]; await shot('01_les_halles',h[1],h[2]+10)
-    s=find(ZD['sheds'],'Nord'); await shot('02_terminus_gare_du_nord',s[1],s[2]+20)
+    LMM=await E("Promise.all([import('./gfx.js'),import('./landmarks.js')]).then(([G,L])=>Object.assign(Object.fromEntries(G.LMODELS.map(m=>[m.key,[m.x,m.z]])),Object.fromEntries(L.FOOTPRINTS.map(f=>[f.key,f.c]))))")
+    # Les Halles: frame Baltard's pavilions (landmark model) together with the carreau stalls west of them, from higher up
+    h=ZD['markets'][0]; hl=LMM['halles']; await shot('01_les_halles',(hl[0]+h[1])/2,(hl[1]+h[2])/2,90)
+    # Gare du Nord: the terminus building and its fan of tracks running north-east
+    g=LMM['garenord']; await shot('02_terminus_gare_du_nord',g[0]+25,g[1]-10,95)
+    await shot('02b_gare_du_nord_tracks',g[0]+10,g[1]-60)
     g=ZD['gaso'][0]; await shot('03_la_villette_gasworks',g[1]+10,g[2]+30)
     w=find(ZD['ware'],'Villette') if any('Villette' in c[0] for c in ZD['ware']) else ZD['ware'][0]; await shot('03b_villette_canal_warehouses',w[1],w[2])
     f=next((c for c in ZD['fountains'] if 'Luxembourg' in c[0] or 'Médicis' in c[0]),None) or next(c for c in ZD['fountains'] if not c[4]); await shot('04_park_'+slug(f[0]),f[1],f[2]+6)
