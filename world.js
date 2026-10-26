@@ -53,6 +53,7 @@ export const hooks = { prop: null, style: null, floors: null, allow: null, zoneP
 export const ST = { HAUS: 0, OLD: 1, MONT: 2, BRICK: 3 };
 const DSTY = { 0: [2, 2, 2, 1], 1: [0], 2: [1, 1, 0], 3: [3, 3, 1], 4: [1], 5: [1, 1, 0], 6: [1, 0], 7: [0], 8: [0, 0, 1], 9: [2, 3, 1, 3], 10: [1, 3, 1], 11: [2, 1, 3], 12: [0, 1], 13: [0, 0, 1] };
 export const skipT = new Uint8Array(NX * NZ); // tiles replaced by landmark models
+export const RESV = new Uint8Array(NX * NZ); // tiles inside a real landmark footprint (landmarks.js): no zoning / props
 export function styleOf(i, j) { const zs = hooks.style && hooks.style(i, j); if (zs != null) return zs; const pi = i >> 2, pj = j >> 2, d = dist[ti(i, j)], l = DSTY[d] || [0]; return l[Math.floor(hash(pi, pj, 7) * l.length)]; }
 export const DCUT = [4, 3, 3, 5];
 // building height (walls) for tile, 0 if open. Returns also courtyard/workshop
@@ -100,7 +101,7 @@ export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key =
 const LAMPC = new Map(); for (const q of LAMPS) { const k = Math.floor(q.x / CHU) * 1000 + Math.floor(q.z / CHU); (LAMPC.get(k) || LAMPC.set(k, []).get(k)).push(q); }
 export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of OMNI) if (Math.floor(q.x / CHU) === cx && Math.floor(q.z / CHU) === cz) L.push(addProp('omnibus', q.x, q.z, { ry: q.ry })); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
   if (hooks.zoneProps) hooks.zoneProps(cx, cz, (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; }, nearAny); // zoning.js: fountains, market stalls, bouquinistes, bandstands
-  for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if (k !== K.SIDE && k !== K.PARK) continue;
+  for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if ((k !== K.SIDE && k !== K.PARK) || RESV[t]) continue;
     const d = dist[t], h = hash(i, j, 1), x = (i + .5) * T, z = (j + .5) * T; let road = null, water = false, bld = false;
     for (const [di, dj] of N4) { const kk = kij(i + di, j + dj); if ((kk === K.ROAD || kk === K.BRIDGE) && !road) road = [di, dj]; if (kk === K.WATER) water = true; if (kk === K.BLD) bld = true; }
     if (inClear(x, z)) continue; if (nearSame('lamp', x, z, 1.7)) continue;

@@ -4,6 +4,7 @@ import * as THREE from './vendor/three.module.js';
 import { K, S, NX, NZ, T, WX, WZ, CH, CHU, NCX, NCZ, kind, surf, dist, depth, ti, inb, kij, hash, LM, TRAM, TRAIN, pathAt, ST, styleOf, bldH, isYard, skipT, DCUT, ensureChunk, chunkProps, dynProps, hooks, addProp, ETOILE, kAt } from './world.js';
 import { GB, M as MX, VC, LAMPMAT } from './models.js';
 import { POST, postSize, postRender } from './post.js';
+import * as LMK from './landmarks.js'; // real-footprint 1890 landmarks
 import { chunkVec, polyPath, linePath, ROADS as VROADS, WATER as VWATER, ISLAND as VISLAND, PARK as VPARK, RAIL as VRAIL, near } from './vec.js';
 export { POST };
 // ================= TERRAIN: the Butte Montmartre =================
@@ -355,8 +356,9 @@ if (LM.trocadero && LM.ecolemil) { const tx = LM.trocadero[1], tz = LM.trocadero
   LM.eiffel = ['Tour Eiffel (1889)', tx + (ex - tx) * .31, tz + (ez - tz) * .31, 'eiffel', 'completed March 1889 for the Exposition Universelle'];
   LM.galerie = ['Galerie des Machines (1889)', tx + (ex - tx) * .80, tz + (ez - tz) * .80, 'galerie', 'Dutert & Contamin, 1889'];
   if (!FRONT.galerie) FRONT.galerie = 'N'; }
+LMK.install({ LMODELS, L_, stdM, ROSEM, LANCET, EIFM: typeof EIFM !== 'undefined' ? EIFM : null, EIFL: typeof EIFL !== 'undefined' ? EIFL : null });
 (function placeLandmarks() { const order = Object.keys(LM).sort((p, q) => (LS[LM[p][3]]?.R || 0) - (LS[LM[q][3]]?.R || 0));
-  for (const key of order) { const l = LM[key], type = l[3], sp = LS[type]; if (!sp) continue; let fp;
+  for (const key of order) { if (LMK.OWNED.has(key)) continue; const l = LM[key], type = l[3], sp = LS[type]; if (!sp) continue; let fp;
     if (sp.sign) { fp = { x: l[1], z: l[2], ang: 0, w: 2, d: 2, model: 'sign' }; let best = null, bd = 1e9; const ci = Math.floor(l[1] / T), cj = Math.floor(l[2] / T); for (let dj = -8; dj <= 8; dj++) for (let di = -8; di <= 8; di++) if (kij(ci + di, cj + dj) === K.SIDE) { const dd = di * di + dj * dj; if (dd < bd) { bd = dd; best = [ci + di, cj + dj]; } } if (!best) continue;
       fp.x = (best[0] + .5) * T; fp.z = (best[1] + .5) * T; for (const [a, b] of N4) if (kij(best[0] + a, best[1] + b) === K.ROAD) fp.ang = Math.atan2(b, a) + Math.PI / 2; }
     else if (sp.basin) { const ci = Math.floor(l[1] / T), cj = Math.floor(l[2] / T); if (kij(ci, cj) !== K.PARK || !['luxjardin', 'tuileriesg', 'monceau'].includes(key)) continue; fp = { x: l[1], z: l[2], ang: 0, w: 12, d: 12, model: 'basin', solid: 6 }; }
@@ -369,7 +371,7 @@ if (LM.trocadero && LM.ecolemil) { const tx = LM.trocadero[1], tz = LM.trocadero
     fp.key = key; fp.type = type; fp.model = fp.model || (type === 'concert' ? 'theatre' : type === 'store' ? 'palace' : type); LMODELS.push(fp);
     const ca = Math.cos(fp.ang), sa = Math.sin(fp.ang), solid = (lx, lz, r) => addProp('solid', fp.x + lx * ca - lz * sa, fp.z + lx * sa + lz * ca, { r, hp: 1e9 });
     if (type === 'arc') { solid(0, -6, 3.6); solid(0, 6, 3.6); } else if (type === 'obelisk') { solid(0, 0, 1.4); solid(0, 15, 4.6); solid(0, -15, 4.6); } else if (type === 'column') solid(0, 0, 1.7); else if (type === 'mill') solid(0, 0, 2); else if (type === 'tower') solid(0, 0, 2.6); else if (type === 'eiffel') { for (const a of [-1, 1]) for (const c of [-1, 1]) solid(a * 14.5, c * 14.5, 4.2); } else if (fp.solid) solid(0, 0, fp.solid); } })();
-function buildLandmark(L) { const b = new MB(); const f = BUILD[L.model]; if (!f) return null; f.call(BUILD, b, L.w, L.d, L.key, L.type === 'concert'); const g = b.build(); g.position.set(L.x, 0, L.z); g.rotation.y = -L.ang; g.scale.y = .58;
+function buildLandmark(L) { if (L.custom) return L.custom(L); const b = new MB(); const f = BUILD[L.model]; if (!f) return null; f.call(BUILD, b, L.w, L.d, L.key, L.type === 'concert'); const g = b.build(); g.position.set(L.x, 0, L.z); g.rotation.y = -L.ang; g.scale.y = .58;
   if (L.model === 'mill') { const s = new THREE.Group(); s.position.set(1.95, 5.3, 0); for (let k = 0; k < 4; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.08, 4.8, .9), L_.sail); m.position.y = 2.4; const a = new THREE.Group(); a.rotation.x = k * Math.PI / 2; a.add(m); s.add(a); m.castShadow = true; } g.add(s); L.sails = s; }
   if (L.model === 'sign') { const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .4, .3), LAMPMAT); lamp.position.set(1.3, 2.4, 0); g.add(lamp); }
   return g; }
@@ -932,7 +934,7 @@ function updateSky(dt, t) { const { day, rain } = ENV, night = 1 - day, dl = day
   const ch = camera.position.y; scene.fog.near = ch * .9 + 3 - rain * 10; scene.fog.far = ch + 80 - rain * 30 - night * 8;
   scene.environment = night > .6 ? ENV_NIGHT : ENV_DAY; renderer.toneMappingExposure = .82 + night * .3; POST.U.ex.value = renderer.toneMappingExposure; POST.U.night.value = night; POST.bs = .45 + night * .45;
   const fl = .9 + Math.sin(t * 13) * .05 + (R() < .03 ? -.2 : 0);
-  for (let k = 0; k < 8; k++) BM[k].emissiveIntensity = night * [1.7, 1.05, 1.45, .75, 1.35, .9, 1.2, .65][k] * (1 + Math.sin(t * .05 + k * 1.7) * .08); LANTM.emissiveIntensity = night * 3 * fl + .05; GLOBEM.emissiveIntensity = night * 4.5; ROSEM.emissiveIntensity = .12 + night * 1.6; LANCET.emissiveIntensity = night * .9; EIFL.emissiveIntensity = night * 3.2 * (.9 + fl * .1); POOLM.opacity = night * (PL.length ? .3 : .5) * fl; SPILLM.opacity = night * .55; REFLM.opacity = night * ENV.wet * .75 * fl; POOLM.visible = POOLM.opacity > .004; SPILLM.visible = SPILLM.opacity > .004; REFLM.visible = REFLM.opacity > .004; /* v14 perf: no additive light-pool draws by day or when dry */
+  for (let k = 0; k < 8; k++) BM[k].emissiveIntensity = night * [1.7, 1.05, 1.45, .75, 1.35, .9, 1.2, .65][k] * (1 + Math.sin(t * .05 + k * 1.7) * .08); LANTM.emissiveIntensity = night * 3 * fl + .05; GLOBEM.emissiveIntensity = night * 4.5; ROSEM.emissiveIntensity = .12 + night * 1.6; LANCET.emissiveIntensity = night * .9; LMK.update(night, t); EIFL.emissiveIntensity = night * 3.2 * (.9 + fl * .1); POOLM.opacity = night * (PL.length ? .3 : .5) * fl; SPILLM.opacity = night * .55; REFLM.opacity = night * ENV.wet * .75 * fl; POOLM.visible = POOLM.opacity > .004; SPILLM.visible = SPILLM.opacity > .004; REFLM.visible = REFLM.opacity > .004; /* v14 perf: no additive light-pool draws by day or when dry */
   for (const l of PL) if (l.userData.base) l.intensity = l.userData.base * fl;
   if (Math.abs((ENV.wetApplied ?? -1) - (ENV.wet || 0)) > .02) { ENV.wetApplied = ENV.wet || 0; for (const m of wetMats) applyWet(m, m.userData.roof); WATERM.roughness = .1 + rain * .15; } WETU.uWet.value = ENV.wet || 0;
   WN.offset.x = t * .012; WN.offset.y = t * .02; FWN.offset.x = Math.sin(t * .7) * .3; FWN.offset.y = t * .25; FWN.rotation = t * .15; FSPRM.opacity = .32 + Math.sin(t * 11) * .06 + Math.sin(t * 17.3) * .04; WU.uT.value = t; WU.uDay.value = day * (1 - rain * .5);
