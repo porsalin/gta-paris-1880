@@ -6,7 +6,7 @@
 // Zoning / prop placement: use inLandmark(x, z, pad) or the RESV tile mask (world.js) — nothing goes inside a footprint.
 import * as THREE from './vendor/three.module.js';
 import { ROADS as VROADS } from './vec.js';
-import { LM, T, K, NX as NXl, kind, skipT, ti, inb, addProp, RESV, POI, POIV } from './world.js';
+import { LM, T, K, NX as NXl, kind, skipT, ti, inb, addProp, RESV, POI, POIV, hooks } from './world.js';
 const D = await fetch('map/landmarks.json').then(r => r.json());
 const PI = Math.PI;
 // height compression: ~.62 unit per metre up to 21 m (a Haussmann front is ~12 units, like the procedural blocks), then compressed so towers and domes
@@ -200,8 +200,18 @@ add('stjacques', { lab: 'Tour Saint-Jacques & square', d: 'stjacques', r: 4, fn(
   for (const [s, t] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) b.box(.7, h + 1.6, .7, x + s * w / 2, 0, z + t * w / 2, M.gothic).cone(.5, 1.5, x + s * w / 2, h + 1.6, z + t * w / 2, M.gothic, 6);
   b.box(w - 1, .3, w - 1, x, h + .3, z, M.lead).cyl(.3, .4, 1.4, x, h + .6, z, M.bronze, 8); // Saint James on the top
   const sq = G0(b, 'stjacquessq'); if (sq) for (const P of sq.P) for (let k = 0; k < 10; k++) { const v = P.o[Math.floor(k * P.o.length / 10)]; b.cyl(.2, .3, 2, v[0] + (x - v[0]) * .2, 0, v[1] + (z - v[1]) * .2, M.wood, 6).sphere(1.6, v[0] + (x - v[0]) * .2, 3.2, v[1] + (z - v[1]) * .2, M.tree); } } });
-add('fontstmichel', { lab: 'Fontaine Saint-Michel', pt: 'fstmichel', r: 5, fn(b) { const [x, z] = b.c, a = PI / 2 * 0; b.box(9, hw(26), 2, x, 0, z + 1.2, M.stone, a).box(9.8, .5, 2.6, x, hw(26), z + 1.2, M.cornice, a); pediment(b, x, z + .4, -PI / 2, 9, 2, hw(26));
-  cols(b, [x - 4, z], [x + 4, z], 4, hw(14), .4, 2, M.marble); statue(b, x, z - .2, 4, 1.4, M.bronze); b.box(8, .6, 4, x, 0, z - 1.6, M.stone).box(7.4, .05, 3.4, x, .55, z - 1.6, M.water); } });
+add('fontstmichel', { lab: 'Fontaine Saint-Michel (1860)', pt: 'fstmichel', r: 5, fn(b) { const fx = .545, fz = -.839, x0 = b.c[0] - fx * 2.4, z0 = b.c[1] - fz * 2.4, // faces NNE onto the place, back against the corner block
+    a = Math.atan2(fx, -fz), ca = Math.cos(a), sa = Math.sin(a); // Davioud's wall fountain, a triumphal-arch façade turned to the place and the bridge
+  const P = (u, v) => [x0 + ca * u - sa * v, z0 + sa * u + ca * v], H = hw(26), bx = (w, h, d, u, y, v, m) => { const q = P(u, v); b.box(w, h, d, q[0], y, q[1], m, a); }, cy = (r0, r1, h, u, y, v, m, n = 10) => { const q = P(u, v); b.cyl(r0, r1, h, q[0], y, q[1], m, n); }, sp = (r, u, y, v, m) => { const q = P(u, v); b.sphere(r, q[0], y, q[1], m); };
+  bx(7.6, H * .86, 1.8, 0, 0, 1.6, M.stone); bx(8, .35, 2.4, 0, H * .62, 1.4, M.cornice); bx(4.4, H * .12, 2, 0, H * .86, 1.6, M.stone); bx(4.8, .3, 2.2, 0, H * .98, 1.6, M.cornice); // body, entablature, crowning attic
+  bx(4.8, .15, 1.4, 0, H * .64 + .35, 1.4, M.lead); // roof flats seen from above
+  bx(2.6, H * .5, .3, 0, H * .1, .55, M.soot); // the deep central niche
+  for (const s of [-3.2, -1.7, 1.7, 3.2]) { bx(.9, 1.8, .9, s, 0, .2, M.stone); cy(.3, .34, H * .62 - 1.8, s, 1.8, .2, M.red, 12); bx(.8, 1.3, .8, s, H * .62 + .35, .2, M.stone); cy(.22, .3, 1.1, s, H * .62 + 1.65, .2, M.stone, 8); sp(.2, s, H * .62 + 2.9, .2, M.stone); } // four red-marble columns carrying the Virtues
+  bx(1.6, 1.2, .4, 0, H * .86 + .2, .5, M.bronze); // arms of Paris on the attic
+  bx(2.4, 2.2, 1.6, 0, 0, -.3, M.stoneD); cy(.35, .45, 2.1, 0, 2.2, -.3, M.bronze, 8); sp(.32, 0, 4.6, -.3, M.bronze); bx(.2, .2, 2.4, .5, 4.4, -.5, M.bronze); bx(1.6, .2, .6, -.3, 5.1, -.1, M.bronze); bx(1.2, .45, 1.6, 0, 2.2, -1.1, M.bronze); // St Michael with sword and wings, the devil under his foot
+  for (const s of [-1, 1]) { sp(.55, s * 2.4, 1.2, -1, M.bronze); bx(.45, .35, 1.6, s * 2.4, .9, -1.6, M.bronze); } // the two water-spitting dragons
+  [[3.2, .9, 1.4, -1.6], [5.2, .6, 1.5, -2.9], [7.8, .45, 3, -5]].forEach(([w, h, d, o]) => { bx(w, h, d, 0, 0, o, M.stone); bx(w - .5, .06, d - .5, 0, h - .04, o, M.water); }); // stepped cascade into the street basin
+  for (const s of [-1, 1]) { const q = P(s * 5, -5); b.cyl(.1, .16, 3.4, q[0], 0, q[1], M.iron, 6).box(.42, .5, .42, q[0], 3.4, q[1], M.gas); } } });
 add('innocents', { lab: 'Fontaine des Innocents (Goujon 1549, square since 1858)', pt: 'finnocents', r: 7, fn(b) { const [x, z] = b.c, w = 7, h = hw(15);
   b.box(15, .5, 15, x, 0, z, M.stone).box(13, .9, 13, x, .5, z, M.stone).box(12, .06, 12, x, 1.38, z, M.water); // stepped basin, water cascading on four sides
   for (const [s, t] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) b.box(1.4, h, 1.4, x + s * (w / 2 - .7), 1.4, z + t * (w / 2 - .7), M.marble);
@@ -242,7 +252,7 @@ function bridge(b, c, kind_, n, o2 = {}, key) { const o = deckOf(c, kind_ === 'f
   if (o2.extra) o2.extra(b, o, a); }
 const BR = { // key: [label, lat, lon, construction, arches]
   pontneufb: ['Pont Neuf (1607), grand bras', 48.85790, 2.34190, 'stone', 7], pontneufs: ['Pont Neuf (1607), petit bras', 48.85630, 2.34070, 'stone', 5], pontcarrousel: ['Pont du Carrousel (Polonceau, cast iron, 1834)', 48.85955, 2.33300, 'iron', 3],
-  pontroyal: ['Pont Royal (1689)', 48.86030, 2.32960, 'stone', 5], pontsolferino: ['Passerelle de Solférino (cast iron, 1861)', 48.86130, 2.32440, 'iron', 3],
+  pontroyal: ['Pont Royal (1689)', 48.86030, 2.32960, 'stone', 5], pontsolferino: ['Pont de Solférino (cast iron road bridge, 1861)', 48.86130, 2.32440, 'iron', 3],
   pontconcorde: ['Pont de la Concorde (Perronet, 1791)', 48.86370, 2.31960, 'stone', 5], pontinvalides: ['Pont des Invalides (1855)', 48.86360, 2.31040, 'stone', 4],
   pontalma: ["Pont de l'Alma (1856, with the Zouave)", 48.86350, 2.30160, 'stone', 3], pontiena: ["Pont d'Iéna (1814)", 48.85990, 2.29300, 'stone', 5],
   pontchange: ['Pont au Change (1860)', 48.85650, 2.34680, 'stone', 3], pontnd: ['Pont Notre-Dame (stone, 1853)', 48.85600, 2.34960, 'stone', 3],
@@ -251,7 +261,7 @@ const BR = { // key: [label, lat, lon, construction, arches]
   pontlp: ['Pont Louis-Philippe (1862)', 48.85470, 2.35460, 'stone', 3], pontstlouis: ['Pont Saint-Louis (iron, 1870)', 48.85300, 2.35300, 'iron', 1],
   pontmarie: ['Pont Marie (1635)', 48.85230, 2.35770, 'stone', 5], ponttournelle: ['Pont de la Tournelle (1656)', 48.85100, 2.35450, 'stone', 6],
   pontsully: ['Pont Sully (iron, 1876)', 48.84980, 2.35950, 'iron', 3], pontausterlitz: ["Pont d'Austerlitz (stone, 1854)", 48.84430, 2.36580, 'stone', 5],
-  pontbercy: ['Pont de Bercy (1864)', 48.83840, 2.37470, 'stone', 5], pontpassy: ['Passerelle de Passy (iron, 1878)', 48.85560, 2.28760, 'iron', 4] };
+  pontbercy: ['Pont de Bercy (1864)', 48.83840, 2.37470, 'stone', 5], pontpassy: ['Passerelle de Passy (iron footbridge, 1878)', 48.85560, 2.28760, 'foot', 4] };
 const ZOUAVE = (b, o, a) => { for (const s of [-.33, .33]) { const q = at(o, s, 1 + 2.4 / o.W); b.cyl(.35, .45, 1.6, q[0], -1.6, q[1], M.stone, 8).cyl(.25, .3, 1.5, q[0], 0, q[1], M.stoneD, 8).sphere(.3, q[0], 1.7, q[1], M.stoneD); } };
 for (const k in BR) { const [lab, la, lo, ty, n] = BR[k], c = ll(la, lo); D.pt['br_' + k] = c; add(k, { lab, pt: 'br_' + k, label: true, fn(b) { bridge(b, c, ty, n, k === 'pontalma' ? { extra: ZOUAVE } : {}, k); } }); }
 // --- Left bank ---
@@ -311,7 +321,30 @@ add('elyseemont', { lab: 'Élysée-Montmartre', relabel: 'moulinrouge' });
 add('concorde', { lab: 'Place de la Concorde', d: 'concordepl', label: true, clear: 'concordepl', fn(b) { const o = PT.obelisk; b.box(2.6, 3, 2.6, o[0], 0, o[1], M.stoneD).put(new THREE.CylinderGeometry(.8, 1.15, 17, 4), M.marble, o[0], 3 + 8.5, o[1], PI / 4).cone(.8, 1.4, o[0], 20, o[1], M.marble, 4, PI / 4);
   for (const k of ['fmers', 'ffleuves']) { const f = PT[k]; fountain(b, f[0], f[1], 6.6); } for (const f of [PT.fmers, PT.ffleuves]) gasLamps(b, f[0], f[1], 8.5, 8, PI / 8);
   for (let k = 0; k < 8; k++) { const a = k * PI / 4 + PI / 8, x = o[0] + Math.cos(a) * 34, z = o[1] + Math.sin(a) * 26; b.box(3, 2.4, 3, x, 0, z, M.stone).box(2.4, 1.4, 2.4, x, 2.4, z, M.stone); } }, solid: [['obelisk', 1.9], ['fmers', 6.8], ['ffleuves', 6.8]], cen: 'obelisk' });
-add('arc', { lab: "Arc de Triomphe de l'Étoile", r: 14, fn(b) { const c = LM.champs, a = Math.atan2(c[2] - b.c[1], c[1] - b.c[0]) + PI / 2; gate(b, b.c[0], b.c[1], a, 18, 9, 50, { pier: 5.2, cross: true }); }, sol: 6 });
+add('arc', { lab: "Arc de Triomphe de l'Étoile", r: 14, fn(b) { const c = LM.champs, [x, z] = b.c, a = Math.atan2(c[2] - z, c[1] - x) + PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+  const P = (u, v) => [x + ca * u - sa * v, z + sa * u + ca * v], W = 18, D = 8.8, H = hw(50), mw = 5.8, tw = 3.4, pw = (W - mw) / 2, pd = (D - tw) / 2; // 45 x 22 m, main arch 14.6 m, side arches 8.4 m
+  const bx = (w, h, d, u, y, v, m = M.stone) => b.box(w, h, d, ...[P(u, v)].map(q => [q[0], y, q[1]])[0], m, a);
+  for (const su of [-1, 1]) { const u = su * (W - pw) / 2; for (const sv of [-1, 1]) bx(pw, H * .62, pd, u, 0, sv * (D - pd) / 2); // four piers
+    bx(pw, H * .62 - H * .4, tw, u, H * .4, 0); // over the transverse arches
+    for (let k = 1; k <= 4; k++) { const t = k / 5, e = tw / 2 * (1 - Math.sqrt(1 - t * t)); for (const sv of [-1, 1]) bx(pw, H * .4 - H * .4 * Math.sqrt(1 - t * t) * .18 - H * .3, .35, u, H * .3 + H * .1 * (1 - Math.sqrt(1 - t * t)), sv * (tw / 2 - e - .17)); } // transverse vault haunches
+    for (const sv of [-1, 1]) bx(pw * .55, H * .28, .5, u, H * .04, sv * (D / 2 + .2), M.stoneD); } // the sculpted groups (Départ, Triomphe, Résistance, Paix) on the pier faces
+  for (let k = 0; k < 6; k++) { const t = (k + .5) / 6, du = mw / 2 * Math.sqrt(1 - t * t); for (const s of [-1, 1]) bx(mw / 2 - du, H * .05, D, s * (mw / 2 - (mw / 2 - du) / 2), H * .38 + H * .2 * t - .01, 0); } // the main barrel vault, stepped
+  bx(mw, H * .04, D, 0, H * .58, 0); // crown of the arch
+  bx(W, H * .1, D, 0, H * .62, 0); bx(W + .6, .4, D + .6, 0, H * .72, 0, M.cornice); // frieze & cornice
+  bx(W - .2, H * .2, D - .2, 0, H * .72 + .4, 0); bx(W + .1, .3, D + .1, 0, H * .92 + .4, 0, M.cornice); // attic with its band of shields
+  for (let k = 0; k < 15; k++) { const u = -W / 2 + .6 + k * (W - 1.2) / 14; for (const s of [-1, 1]) bx(.5, .6, .12, u, H * .8, s * (D / 2 - .02), M.stoneD); }
+  for (let k = 0; k < 6; k++) { const v = -D / 2 + .6 + k * (D - 1.2) / 5; for (const s of [-1, 1]) bx(.12, .6, .5, s * (W / 2 - .02), H * .8, v, M.stoneD); }
+  const top = H * .92 + .7; bx(W - 1.4, .08, D - 1.4, 0, top - .05, 0, M.paving); for (const s of [-1, 1]) { bx(mw + .6, .14, D - 1.6, s * 0, top, 0, M.stoneD); bx(W - 1.6, .14, tw + .4, 0, top, 0, M.stoneD); } for (const su of [-1, 1]) for (const sv of [-1, 1]) bx(pw - 1.8, .2, pd - 1, su * (W - pw) / 2, top, sv * (D - pd) / 2, M.zinc); // vault-crown flags over the arches, zinc skylights over the four piers // flat stone-flagged roof terrace seen from above
+  for (const s of [-1, 1]) { bx(W, .6, .3, 0, top, s * (D / 2 - .15)); bx(.3, .6, D, s * (W / 2 - .15), top, 0); } // parapet round the terrace
+  bx(2.4, 1.1, 1.6, W / 2 - 2.6, top, 0, M.stone); bx(2.6, .15, 1.8, W / 2 - 2.6, top + 1.1, 0, M.cornice); // stair-head kiosk of the visitors' stair
+  // Place de l'Étoile: chained bollard ring round the monument, candelabra ring, lamp pairs at the mouth of each of the 12 avenues
+  for (let k = 0; k < 32; k++) { const t = k * 2 * PI / 32; b.cyl(.14, .18, .9, x + Math.cos(t) * 13, 0, z + Math.sin(t) * 13, M.stoneD, 6); }
+  for (let k = 0; k < 32; k++) { const t0 = k * 2 * PI / 32, t1 = (k + 1) * 2 * PI / 32, m = (t0 + t1) / 2, L = 13 * (t1 - t0); b.box(L, .05, .05, x + Math.cos(m) * 13, .7, z + Math.sin(m) * 13, M.iron, m + PI / 2); }
+  gasLamps(b, x, z, 18, 16, PI / 16);
+  for (const t of avenues(x, z)) for (const s of [-1, 1]) { const q = [x + Math.cos(t) * 71 - Math.sin(t) * s * 8, z + Math.sin(t) * 71 + Math.cos(t) * s * 7]; b.cyl(.12, .2, 3.8, q[0], 0, q[1], M.iron, 6).box(.5, .55, .5, q[0], 3.8, q[1], M.gas).cone(.4, .35, q[0], 4.35, q[1], M.iron, 4, PI / 4); } }, sol: 6 });
+// bearings of the avenues leaving a rond-point, from the vector road ends near its centre (Étoile has 12)
+function avenues(x, z, rIn = 40, rOut = 75) { const B = []; for (const r of VROADS) { if (r.br || r.w < 4) continue; const p = r.p; for (let i = 0; i + 3 < p.length; i += 2) { const d0 = Math.hypot(p[i] - x, p[i + 1] - z), d1 = Math.hypot(p[i + 2] - x, p[i + 3] - z); if (Math.min(d0, d1) < rIn && Math.max(d0, d1) > rIn && Math.max(d0, d1) < rOut + 60) { const q = d0 > d1 ? i : i + 2; B.push(Math.atan2(p[q + 1] - z, p[q] - x)); } } }
+  B.sort((a, b) => a - b); const C = []; for (const t of B) { const l = C[C.length - 1]; if (l && Math.abs(t - l.t / l.n) < .14) { l.t += t; l.n++; } else C.push({ t, n: 1 }); } if (C.length > 1 && Math.abs(C[0].t / C[0].n + 2 * PI - C[C.length - 1].t / C[C.length - 1].n) < .14) C.shift(); return C.map(c => c.t / c.n).slice(0, 12); }
 add('vendome', { lab: 'Place Vendôme & Column', pt: 'vendomecol', r: 2.2, fn(b) { const [x, z] = b.c; b.box(3.2, 2.4, 3.2, x, 0, z, M.bronze).cyl(1.15, 1.25, hw(44) - 3, x, 2.4, z, M.bronze, 14).box(1.8, .8, 1.8, x, hw(44) - .6, z, M.bronze).cyl(.3, .4, 2, x, hw(44) + .2, z, M.bronze, 8);
   for (let k = 0; k < 7; k++) b.put(new THREE.TorusGeometry(1.24, .08, 4, 16), M.bronze, x, 3 + k * (hw(44) - 6) / 7, z, 0, 1, 1, 1, PI / 2); gasLamps(b, x, z, 6, 4, PI / 4); }, sol: 2.2 });
 add('bastille', { lab: 'Colonne de Juillet (Bastille)', d: 'juillet', r: 4.8, fn(b) { const [x, z] = b.c; b.cyl(4.6, 4.8, 1.4, x, 0, z, M.stone, 24).box(5, 3, 5, x, 1.4, z, M.marble).cyl(1, 1.1, hw(51) - 6, x, 4.4, z, M.bronze, 14).cyl(1.5, 1.5, .6, x, hw(51) - 1.6, z, M.bronze, 12).sphere(.8, x, hw(51) - .2, z, M.gold).cyl(.15, .2, 2.4, x, hw(51) + .4, z, M.gold, 6); gasLamps(b, x, z, 7, 8); }, sol: 4.8 });
@@ -341,7 +374,9 @@ function clearHull(P) { const pts = P.flatMap(q => q.o).slice().sort((a, b) => a
   for (let j = Math.floor(z0 / T); j <= Math.floor(z1 / T); j++) for (let i = Math.floor(x0 / T); i <= Math.floor(x1 / T); i++) { if (!inb(i, j)) continue; const t = ti(i, j); if (kind[t] === K.BLD && !RESV[t] && pip(H, (i + .5) * T, (j + .5) * T)) { RESV[t] = 1; skipT[t] = 1; } } }
 function solid(x, z, r) { addProp('solid', x, z, { r, hp: 1e9 }); SOL.push([x, z, r]); }
 const SOL = [];
-export function install(ctx) { if (M) return; mats(ctx.L_, ctx);
+// no street trees, kiosks or benches out on the bridge decks (1890 bridges were bare stone or iron)
+function onDeck(x, z) { for (const r of VROADS) { if (!r.br) continue; const [x0, z0, x1, z1] = r.bb; if (x < x0 || x > x1 || z < z0 || z > z1) continue; const p = r.p; for (let i = 0; i + 3 < p.length; i += 2) { const ax = p[i], az = p[i + 1], dx = p[i + 2] - ax, dz = p[i + 3] - az, l = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l)); if (Math.hypot(x - ax - t * dx, z - az - t * dz) < r.pw / 2 + 1.5) return true; } } return false; }
+export function install(ctx) { if (M) return; mats(ctx.L_, ctx); { const prev = hooks.allow; hooks.allow = (ty, x, z) => (!prev || prev(ty, x, z)) && (ty === 'lamp' || !onDeck(x, z)); }
   const tro = LM.trocadero, em = LM.ecolemil; // 1889 Exposition, real positions along the Trocadéro – École Militaire axis
   PT.trocadero = PT.trocadero || [tro[1], tro[2]]; const ax = PT.trocadero, f = (k) => [ax[0] + (em[1] - ax[0]) * k, ax[1] + (em[2] - ax[1]) * k];
   PT.eiffelC = f(.335); PT.galerieC = f(.80);
@@ -375,4 +410,4 @@ export function install(ctx) { if (M) return; mats(ctx.L_, ctx);
 // ---------------- per-frame: night lighting + windmill sails ----------------
 export function update(night, t, dt = 1 / 60) { if (!M) return; M.win.emissiveIntensity = night * 1.1; M.gas.emissiveIntensity = night * 3; M.redl.emissiveIntensity = .05 + night * 1.6; M.eifl.emissiveIntensity = Math.max(M.eifl.emissiveIntensity, night * 2.2);
   for (let i = ROT.length - 1; i >= 0; i--) { const r = ROT[i]; if (!r.parent?.parent?.parent) { if (r.userData.seen) ROT.splice(i, 1); continue; } r.userData.seen = 1; r.rotation.x = t * .35; } }
-export const _bridgeDeck = k => assign().get(k) || null; export const _bridgeDecks = () => clusters();
+export const _bridgeDeck = k => BR[k] ? deckOf(ll(BR[k][1], BR[k][2]), BR[k][3] === 'foot', k) : null; export const _bridgeDecks = () => clusters();

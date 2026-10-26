@@ -864,7 +864,7 @@ function streamChunks(budgetMs, force) { const { list, cx, cz } = wantedChunks(f
       const r = JOB.it.next(); if (r.done) finishJob(r.value); } }
   stats.buildMs = performance.now() - t0;
   { /* v17: prefetched/retained chunks outside the view (+20 margin, as in forced builds) are hidden so neither the main nor the shadow pass walks them */ const vw = force ? keep : new Set(wantedChunks(20).list.map(q => q[0] * 1000 + q[1])); for (const [k, ch] of CHUNKS) ch.g.visible = vw.has(k); }
-  if (CHUNKS.size > 40) for (const [k, ch] of CHUNKS) { if (keep.has(k)) continue; const d = ((ch.cx + .5) * CHU - cx) ** 2 + ((ch.cz + .5) * CHU - cz) ** 2; if (d < (CHU * 3.5) ** 2) continue; disposeChunk(ch); CHUNKS.delete(k); }
+  if (CHUNKS.size > 16) for (const [k, ch] of CHUNKS) { if (keep.has(k)) continue; const d = ((ch.cx + .5) * CHU - cx) ** 2 + ((ch.cz + .5) * CHU - cz) ** 2; if (d < (CHU * 3.5) ** 2) continue; disposeChunk(ch); CHUNKS.delete(k); }
   stats.chunks = CHUNKS.size;
   // landmarks: at most one new build per frame (all of them when forced)
   let lb = 0; for (const L of LMODELS) { const d = (L.x - cx) ** 2 + (L.z - cz) ** 2, r = Math.max(L.w, L.d) / 2; if (d < (130 + r) ** 2) { if (!LBUILT.has(L) && (force || lb < 1)) { lb++; const _tl = performance.now(); const g = buildLandmark(L); stats.tLand = (stats.tLand || 0) + performance.now() - _tl; if (g) { LGROUP.add(g); LBUILT.set(L, g); } } } else if (d > (200 + r) ** 2 && LBUILT.has(L)) { const g = LBUILT.get(L); LGROUP.remove(g); g.traverse(o => o.geometry && o.geometry.dispose()); LBUILT.delete(L); } } }

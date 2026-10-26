@@ -6,6 +6,7 @@ import { scene, camera, hillH } from './gfx.js';
 import { GB, M } from './models.js';
 import { K, T, NX, NZ, kind, ti, inb, hash, chunkProps } from './world.js';
 import { ZD, Z, zoneTile } from './zoning.js';
+import { ROADS as VROADS } from './vec.js';
 GB.round = true;
 const MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .84, metalness: 0, envMapIntensity: .5 });
 const GLOW = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .4, emissive: 0xffb060, emissiveIntensity: 0 });
@@ -97,7 +98,10 @@ for (const q of ZD.quar) at(q[0], q[1], B => place(B, q[0], q[1], 0, b => quarry
 ZD.shacks.forEach((s, k) => at(s[0], s[1], B => place(B, s[0], s[1], s[2], b => shack(b, k))));
 for (const m of ZD.mills) at(m[1], m[2], B => place(B, m[1], m[2], .6, b => mill(b)));
 ZD.bouq.forEach((q, k) => at(q[0], q[1], B => place(B, q[0], q[1], q[2] + Math.PI / 2, b => bouq(b, k))));
-for (const o of ZD.boats) at(o[1], o[2], B => place(B, o[1], o[2], o[3], b => boat(b, o[0])));
+// keep moored boats clear of bridge decks (hull ~16 long: test bow, midships and stern against every bridge segment)
+const BRS = VROADS.filter(r => r.br), segD = (x, z, p, i) => { const ax = p[i], az = p[i + 1], dx = p[i + 2] - ax, dz = p[i + 3] - az, l = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l)); return Math.hypot(x - ax - t * dx, z - az - t * dz); };
+const nearBridge = (x, z, a) => { for (const r of BRS) { const [x0, z0, x1, z1] = r.bb; if (x < x0 - 12 || x > x1 + 12 || z < z0 - 12 || z > z1 + 12) continue; for (const s of [-8, 0, 8]) { const px = x + Math.cos(a) * s, pz = z + Math.sin(a) * s; for (let i = 0; i + 3 < r.p.length; i += 2) if (segD(px, pz, r.p, i) < r.pw / 2 + 3) return true; } } return false; };
+for (const o of ZD.boats) if (!nearBridge(o[1], o[2], o[3])) at(o[1], o[2], B => place(B, o[1], o[2], o[3], b => boat(b, o[0])));
 for (const o of ZD.bands) at(o[0], o[1], B => place(B, o[0], o[1], 0, b => band(b)));
 ZD.stalls.forEach((s, k) => at(s[0], s[1], B => place(B, s[0], s[1], s[2], b => stall(b, k))));
 for (let rz = 0; rz * RS < NZ * T; rz++) for (let rx = 0; rx * RS < NX * T; rx++) put(rx + ',' + rz, B => { const b = new GB(); tombs(b, rx * RS, rz * RS, (rx + 1) * RS, (rz + 1) * RS); if (b.p.length) B.push(b.geo()); });
