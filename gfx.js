@@ -101,7 +101,7 @@ function cutOf(cl, i, j, c) { const n = cl(i, j - 1), e = cl(i + 1, j), s = cl(i
 const FY = y => 512 - y * 51.2;
 function facade(st, emis) { return cv(256, 512, g => { rs = 77 + st * 13 + (emis ? 5 : 0);
   const base = [[222, 210, 184], [200, 186, 160], [214, 202, 178], [150, 78, 54]][st];
-  if (emis) { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 512); } else { noise(g, 256, 512, base, st === 3 ? 18 : 12, 2);
+  if (emis) { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 512); } else { g.fillStyle = `rgb(${base})`; g.fillRect(0, 0, 256, 512); noise(g, 256, 512, base, st === 3 ? 8 : 4, 8, .6);
     if (st === 3) { g.fillStyle = 'rgba(220,200,170,.35)'; for (let y = 0; y < 512; y += 6) { g.fillRect(0, y, 256, 1); for (let x = (y / 6 % 2) * 8; x < 256; x += 16) g.fillRect(x, y, 1, 6); } }
     else if (st === 0) { g.fillStyle = 'rgba(120,104,80,.25)'; for (let y = FY(1.6); y > 0; y -= 15) g.fillRect(0, y, 256, 1); }
     else if (st === 2) { g.fillStyle = 'rgba(90,64,40,.55)'; for (let x = 0; x < 256; x += 40) g.fillRect(x, 0, 5, 512); for (let y = 30; y < 512; y += 61) g.fillRect(0, y, 256, 4); } }
@@ -130,26 +130,23 @@ function facade(st, emis) { return cv(256, 512, g => { rs = 77 + st * 13 + (emis
     g.fillStyle = 'rgba(60,48,34,.5)'; g.fillRect(0, 6, 256, 5); g.fillStyle = 'rgba(250,244,228,.7)'; g.fillRect(0, 0, 256, 6); for (let k = 0; k < 256; k += 8) { g.fillStyle = 'rgba(250,244,228,.6)'; g.fillRect(k, 11, 5, 4); } // crowning cornice + dentils
     g.fillStyle = 'rgba(70,58,42,.28)'; for (let y = FY(1.6) + 14; y < 512; y += 14) g.fillRect(0, y, 256, 2); }
   }); }
-const FACC = [0, 1, 2, 3].map(s => paintify(facade(s, false), 2.2, .55, .38)); const FAC = FACC.map(c => tex(c)), FACE = [0, 1, 2, 3].map(s => tex(facade(s, true)));
+const FACC = [0, 1, 2, 3].map(s => facade(s, false)); /* v18: crisp facades (no paint dabs) */ const FAC = FACC.map(c => tex(c)), FACE = [0, 1, 2, 3].map(s => tex(facade(s, true)));
 // window glass: smooth and partly metallic so it picks up the sky; stone stays matte
 const FACRM = FACC.map(c => { const o = cv(c.width, c.height, () => {}); const gi = c.getContext('2d').getImageData(0, 0, c.width, c.height), go = o.getContext('2d'), od = go.createImageData(c.width, c.height);
   for (let k = 0; k < gi.data.length; k += 4) { const r = gi.data[k], gg = gi.data[k + 1], b = gi.data[k + 2], glass = r < 96 && gg < 108 && b < 120 && b >= r - 4; od.data[k] = 255; od.data[k + 1] = glass ? 30 : 232; od.data[k + 2] = glass ? 150 : 0; od.data[k + 3] = 255; } go.putImageData(od, 0, 0); return tex(o, true, false); });
 // mansard slopes 128x64 = 3.2 units along x 1 slope
 function slope(st, emis) { return cv(128, 64, g => { rs = 99 + st; const base = [[94, 100, 110], [84, 82, 86], [160, 82, 54], [70, 70, 68]][st]; /* v14: zinc a touch darker so sunlit hip ends stop reading as pale patches */
-  if (emis) { g.fillStyle = '#000'; g.fillRect(0, 0, 128, 64); } else { noise(g, 128, 64, base, 14, 2); g.fillStyle = 'rgba(30,30,40,.35)'; if (st === 2) for (let y = 0; y < 64; y += 5) g.fillRect(0, y, 128, 1); else for (let x = 0; x < 128; x += 6) g.fillRect(x, 0, 1, 64); }
+  if (emis) { g.fillStyle = '#000'; g.fillRect(0, 0, 128, 64); } else { g.fillStyle = `rgb(${base})`; g.fillRect(0, 0, 128, 64); noise(g, 128, 64, base, 3, 8, .5); g.fillStyle = 'rgba(30,30,40,.2)'; if (st === 2) for (let y = 0; y < 64; y += 8) g.fillRect(0, y, 128, 1); else for (let x = 0; x < 128; x += 16) g.fillRect(x, 0, 1, 64); } /* v18: calm slope, regular seams */
   if (st < 2) for (const x of [32, 96]) { if (emis) { g.fillStyle = rnd() < .3 ? '#ffc070' : '#000'; g.fillRect(x - 7, 26, 14, 18); continue; } g.fillStyle = 'rgba(20,22,28,.35)'; g.fillRect(x - 10, 50, 22, 4); g.fillStyle = st === 0 ? '#8c939c' : '#7e7a78'; g.fillRect(x - 11, 20, 22, 30); g.beginPath(); g.moveTo(x - 13, 22); g.lineTo(x, 11); g.lineTo(x + 13, 22); g.fill(); g.fillStyle = '#d8d0c0'; g.fillRect(x - 8, 25, 16, 20); g.fillStyle = '#1c2226'; g.fillRect(x - 6, 27, 12, 16); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x - 13, 21, 26, 2); /* v13: zinc dormer cheeks, slim cream frame */ }
   if (!emis) { g.fillStyle = 'rgba(40,40,46,.35)'; g.fillRect(0, 0, 128, 2); } }); } /* v14: dark zinc ridge roll instead of a pale strip (pale wedges on hips) */
-const SLO = [0, 1, 2, 3].map(s => tex(paintify(slope(s, false), 2, .7, .45))), SLOE = [0, 1, 2, 3].map(s => tex(slope(s, true)));
-function roofT(st) { return cv(256, 256, g => { rs = 55 + st; const base = [[126, 129, 134], [98, 96, 98], [168, 90, 58], [74, 72, 70]][st]; noise(g, 256, 256, base, 10, 2);
-  for (let k = 0; k < 10; k++) { g.fillStyle = `rgba(${rnd() < .5 ? '255,255,255' : '20,24,30'},${.04 + rnd() * .05})`; g.fillRect(rnd() * 256, rnd() * 256, 30 + rnd() * 60, 20 + rnd() * 60); } // weathered patches
-  if (st === 0) for (let x = 0; x < 256; x += 8) { g.fillStyle = "rgba(255,255,255,.2)"; g.fillRect(x, 0, 1, 256); g.fillStyle = "rgba(20,24,30,.3)"; g.fillRect(x + 1, 0, 1, 256); for (let y = 0; y < 256; y += 64) { g.fillStyle = 'rgba(20,24,30,.15)'; g.fillRect(x, y + rnd() * 8, 12, 1); } }
-  else if (st === 1) for (let y = 0; y < 256; y += 7) { g.fillStyle = 'rgba(20,20,26,.4)'; g.fillRect(0, y, 256, 1.5); for (let x = (y / 7 % 2) * 6; x < 256; x += 12) { g.fillStyle = `rgba(${rnd() < .5 ? '255,255,255,.06' : '0,0,0,.08'})`; g.fillRect(x, y + 1.5, 11, 5.5); g.fillStyle = 'rgba(20,20,26,.3)'; g.fillRect(x, y, 1, 7); } }
-  else if (st === 2) for (let y = 0; y < 256; y += 6) { g.fillStyle = 'rgba(60,20,10,.45)'; g.fillRect(0, y, 256, 1.5); for (let x = (y / 6 % 2) * 5; x < 256; x += 10) { g.fillStyle = sh([180, 96, 62], (rnd() - .5) * 40); g.fillRect(x + .5, y + 1.5, 9, 4); } }
-  else { g.fillStyle = 'rgba(150,180,190,.55)'; g.fillRect(20, 40, 216, 32); g.fillRect(20, 160, 216, 32); g.fillStyle = 'rgba(30,40,40,.6)'; for (let x = 20; x < 236; x += 12) { g.fillRect(x, 40, 2, 32); g.fillRect(x, 160, 2, 32); } }
-  if (st < 2) { for (let k = 0; k < 2; k++) { const x = 30 + rnd() * 190, y = 30 + rnd() * 190; g.fillStyle = 'rgba(30,34,40,.7)'; g.fillRect(x, y, 16, 22); g.fillStyle = 'rgba(160,190,200,.55)'; g.fillRect(x + 2, y + 2, 12, 18); g.fillStyle = 'rgba(30,34,40,.6)'; g.fillRect(x + 7, y + 2, 2, 18); } // skylights
-    for (let k = 0; k < 3; k++) { const x = rnd() * 256, y = rnd() * 256, gr = g.createLinearGradient(x, y, x, y + 70); gr.addColorStop(0, 'rgba(20,18,16,.25)'); gr.addColorStop(1, 'rgba(20,18,16,0)'); g.fillStyle = gr; g.fillRect(x, y, 10, 70); } } // soot streaks
-  g.fillStyle = 'rgba(255,255,255,.06)'; for (let k = 0; k < 10; k++) g.fillRect(rnd() * 256, rnd() * 256, 30, 3); }); }
-const ROOF = [0, 1, 2, 3].map(s => tex(paintify(roofT(s), 3, .8, .5)));
+const SLO = [0, 1, 2, 3].map(s => tex(slope(s, false))), SLOE = [0, 1, 2, 3].map(s => tex(slope(s, true)));
+function roofT(st) { return cv(256, 256, g => { rs = 55 + st; const base = [[124, 128, 134], [96, 96, 100], [166, 92, 62], [78, 76, 74]][st]; /* v18: calm, illustration-clean roofs: flat tone, faint grain, crisp regular seams; no blotches, soot or random skylights */
+  g.fillStyle = `rgb(${base})`; g.fillRect(0, 0, 256, 256); noise(g, 256, 256, base, 3, 8, .5);
+  if (st === 0) for (let x = 0; x < 256; x += 32) { g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(x, 0, 2, 256); g.fillStyle = 'rgba(20,24,30,.22)'; g.fillRect(x + 2, 0, 2, 256); }
+  else if (st === 1) for (let y = 0; y < 256; y += 16) { g.fillStyle = 'rgba(20,20,26,.18)'; g.fillRect(0, y, 256, 2); }
+  else if (st === 2) for (let y = 0; y < 256; y += 16) { g.fillStyle = 'rgba(70,24,12,.25)'; g.fillRect(0, y, 256, 2); g.fillStyle = 'rgba(255,220,190,.08)'; g.fillRect(0, y + 2, 256, 2); }
+  else { g.fillStyle = 'rgba(150,176,186,.5)'; g.fillRect(24, 40, 208, 32); g.fillRect(24, 168, 208, 32); g.fillStyle = 'rgba(40,48,50,.5)'; for (let x = 24; x < 232; x += 16) { g.fillRect(x, 40, 2, 32); g.fillRect(x, 168, 2, 32); } } }); }
+const ROOF = [0, 1, 2, 3].map(s => tex(roofT(s)));
 const PARTY = tex(cv(128, 128, g => { noise(g, 128, 128, [184, 170, 146], 16, 2); g.fillStyle = 'rgba(60,50,40,.15)'; for (let k = 0; k < 6; k++) g.fillRect(rnd() * 128, 0, 6 + rnd() * 6, 128); }));
 const QUAY = tex(cv(128, 128, g => { g.fillStyle = '#5a544a'; g.fillRect(0, 0, 128, 128); for (let y = 0; y < 128; y += 16) for (let x = (y / 16 % 2) * 16; x < 140; x += 32) { g.fillStyle = sh([160, 150, 132], (rnd() - .5) * 26); g.fillRect(x - 16 + 1, y + 1, 30, 14); } g.fillStyle = 'rgba(30,50,40,.35)'; g.fillRect(0, 96, 128, 32); }));
 const GLASS = tex(cv(64, 64, g => { g.fillStyle = '#8aa4a8'; g.fillRect(0, 0, 64, 64); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, 0, 64, 20); g.fillStyle = '#2a3230'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 64); for (let y = 0; y < 64; y += 16) g.fillRect(0, y, 64, 2); }));
@@ -157,6 +154,8 @@ const stdM = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: .8
 export const BM = [...FAC.map((m, k) => stdM({ map: m, emissiveMap: FACE[k], emissive: 0xffffff, emissiveIntensity: 0, vertexColors: true, roughnessMap: FACRM[k], metalnessMap: FACRM[k], roughness: 1, metalness: 1 })), ...SLO.map((m, k) => stdM({ map: m, emissiveMap: SLOE[k], emissive: 0xffffff, emissiveIntensity: 0, vertexColors: true, roughness: .55, metalness: .25 })),
   ...ROOF.map((m, k) => stdM({ map: m, vertexColors: true, roughness: k === 0 ? .5 : .8, metalness: k === 0 ? .3 : 0 })), stdM({ map: PARTY, vertexColors: true }), stdM({ map: QUAY, vertexColors: true }), stdM({ map: GLASS, roughness: .2, metalness: .3, vertexColors: true })];
 const MI = { fac: 0, slo: 4, roof: 8, party: 12, quay: 13, glass: 14 };
+// v18 building mask: building materials write alpha .75 into the HDR target so the paint pass leaves architecture crisp
+THREE.ShaderChunk.opaque_fragment = THREE.ShaderChunk.opaque_fragment + '\n#ifdef BMASK\ngl_FragColor.a = .75;\n#endif\n'; const bmask = m => { m.defines = Object.assign(m.defines || {}, { BMASK: '' }); m.needsUpdate = true; return m; }; BM.forEach(bmask);
 // ================= MATERIAL HELPERS FOR LANDMARKS =================
 const LMat = { stone: stdM({ color: 0xd8ccb0 }), stoneD: stdM({ color: 0xa89c88 }), gothic: stdM({ color: 0xb4ac9c }), slate: stdM({ color: 0x4a5058, roughness: .6, metalness: .2 }), copper: stdM({ color: 0x6aa88a, roughness: .55, metalness: .3 }),
   gold: stdM({ color: 0xe0b040, roughness: .3, metalness: .9 }), glass: stdM({ map: GLASS, roughness: .15, metalness: .4 }), iron: stdM({ color: 0x3a4440, roughness: .5, metalness: .6 }), soot: stdM({ color: 0x3a3430 }), wood: stdM({ color: 0x8a6a48 }), sail: stdM({ color: 0xe8dcc0, side: THREE.DoubleSide }), brick: stdM({ color: 0x9a5038 }), zinc: stdM({ color: 0x7a8690, roughness: .45, metalness: .4 }), water: stdM({ color: 0x3a6a78, roughness: .05, metalness: .2 }), red: stdM({ color: 0x8a2a20 }), white: stdM({ color: 0xf0ece0 }) };
@@ -172,6 +171,7 @@ class MB { constructor() { this.m = new Map(); } add(geo, mat, x = 0, y = 0, z =
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
       const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = mesh.receiveShadow = true; g.add(mesh); } return g; } }
 const L_ = LMat; LMat.slate.emissive.set(0x161a20); LMat.zinc.emissive.set(0x181c22); LMat.copper.emissive.set(0x10201a); LMat.slate.color.set(0x5a626c);
+Object.values(LMat).forEach(bmask); /* v18: landmarks count as architecture for the paint mask */
 // --- procedural ashlar blocks + weathering on landmark stone (world-space, no UVs needed) ---
 function ashlar(mat, bh = .55, bl = 1.1, wear = 1) { mat.onBeforeCompile = (sh) => {
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPa; varying vec3 vWNa;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWPa=(modelMatrix*vec4(transformed,1.)).xyz; vWNa=normalize(mat3(modelMatrix)*objectNormal);');
@@ -380,7 +380,7 @@ function buildLandmark(L) { if (L.custom) return L.custom(L); const b = new MB()
   if (L.model === 'sign') { const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .4, .3), LAMPMAT); lamp.position.set(1.3, 2.4, 0); g.add(lamp); }
   return g; }
 // ================= PROP MODELS (instanced) =================
-const PROPMAT = stdM({ vertexColors: true, roughness: .8 });
+const PROPMAT = stdM({ vertexColors: true, roughness: .8 }); const ROOFFM = stdM({ vertexColors: true, roughness: .8 }); ROOFFM.defines = { BMASK: '' }; /* v18: roof furniture is architecture (paint mask) */
 const LANTM = stdM({ color: 0x3a3020, emissive: 0xffc070, emissiveIntensity: 0, roughness: .3 }), GLOBEM = stdM({ color: 0xd8dce0, emissive: 0xdde8ff, emissiveIntensity: 0, roughness: .2 });
 const CANOPYM = stdM({ color: 0xffffff, roughness: .9, vertexColors: true });
 export const CUTU = { uRes: { value: new THREE.Vector2(1280, 720) }, uCut: { value: 1 } };
@@ -751,7 +751,12 @@ function buildingGeo(cx, cz, out) { const FWE = out ? [] : null; const A = BM.ma
   const ry = (p, ci) => p.k < 0 || !ci.sl ? ci.h : ci.h + ci.sl * Math.min(1, DI[p.k] / ci.inn);
   // roofs (fan per cell polygon; mansard slope from inward distance)
   for (let v = FM; v < FM + CHU; v++) for (let u = FM; u < FM + CHU; u++) { const PL = FC[v * (FN - 1) + u]; if (!PL) continue; const ci = cellI(u, v); if (!ci) continue; const mt = ci.work ? MI.glass : MI.roof + ci.st;
-    for (const P of PL) { const Y = P.map(p => ry(p, ci)), col = Y.map(y => { const f = (ci.sl ? .86 + .14 * (y - ci.h) / ci.sl : 1) * .95; return [ci.tint[0] * f, ci.tint[1] * f, ci.tint[2] * f]; });
+    const PLc = []; for (const P0 of PL) { /* v18: split each cell polygon along the mansard break line (DI = inn) so the slope/top edge is a straight clean crease, not a sawtooth of straddling triangles */
+      const V = P0.map(p => ({ x: p.x, z: p.z, k: p.k, d: p.k < 0 || !ci.sl ? 0 : DI[p.k] })); if (!ci.sl || V.every(v => v.d <= ci.inn) || V.every(v => v.d >= ci.inn)) { PLc.push(V); continue; }
+      const lo = [], hi = []; for (let q = 0; q < V.length; q++) { const a = V[q], b = V[(q + 1) % V.length]; (a.d < ci.inn ? lo : hi).push(a); if ((a.d < ci.inn) !== (b.d < ci.inn)) { const t = (ci.inn - a.d) / (b.d - a.d), m = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, k: 0, d: ci.inn }; lo.push(m); hi.push(m); } }
+      if (lo.length > 2) PLc.push(lo); if (hi.length > 2) PLc.push(hi); }
+    const ryv = p => !ci.sl || p.k < 0 ? ci.h : ci.h + ci.sl * Math.min(1, p.d / ci.inn);
+    for (const P of PLc) { const Y = P.map(ryv), col = Y.map(y => { const f = (ci.sl ? .86 + .14 * (y - ci.h) / ci.sl : 1) * .95; return [ci.tint[0] * f, ci.tint[1] * f, ci.tint[2] * f]; });
       for (let k = 1; k < P.length - 1; k++) { const A_ = [P[0].x, Y[0], P[0].z], B_ = [P[k + 1].x, Y[k + 1], P[k + 1].z], C_ = [P[k].x, Y[k], P[k].z];
         if (ci.sl && Math.min(Y[0], Y[k], Y[k + 1]) < ci.top - .02) { const e1 = [B_[0] - A_[0], B_[1] - A_[1], B_[2] - A_[2]], e2 = [C_[0] - A_[0], C_[1] - A_[1], C_[2] - A_[2]], tnx = e1[1] * e2[2] - e1[2] * e2[1], tnz = e1[0] * e2[1] - e1[1] * e2[0], ax = Math.abs(tnx) > Math.abs(tnz); const hl = Math.hypot(tnx, tnz) || 1, tx = -tnz / hl, tz = tnx / hl; const sv = p => [(p[0] * tx + p[2] * tz) / 4.8, (p[1] - ci.h) / ci.sl]; tri(MI.slo + ci.st, A_, B_, C_, sv(A_), sv(B_), sv(C_), ci.tint, ci.tint, ci.tint); }
         else tri(mt, A_, B_, C_, [A_[0] / 4, A_[2] / 4], [B_[0] / 4, B_[2] / 4], [C_[0] / 4, C_[2] / 4], col[0], col[k + 1], col[k]); } }
@@ -821,7 +826,7 @@ function* buildChunkG(cx, cz) { const ch = { cx, cz, g: new THREE.Group(), lamps
     const wt1 = ri(PG.wtower, PROPMAT, out.wtow || [], q => place(q[0], q[1], q[2], 0, 1)); if (wt1) ch.g.add(wt1);
     const dm1 = ri(PG.dome, PROPMAT, out.domes || [], q => place(q[0], q[1], q[2], 0, .55)); if (dm1) ch.g.add(dm1);
     const st1 = ri(PG.stack, PROPMAT, out.stacks || [], q => place(q[0], q[1] - .5, q[2], 0, 1)); if (st1) ch.g.add(st1); ch.chims = out.chim || []; ch.stacks = (out.stacks || []).map(q => [q[0], q[1] + 10.6, q[2]]);
-    const mm = mergeBaked(RC); if (mm) { const m = new THREE.Mesh(mm, PROPMAT); m.castShadow = m.receiveShadow = true; ch.g.add(m); } }
+    const mm = mergeBaked(RC); if (mm) { const m = new THREE.Mesh(mm, ROOFFM); m.castShadow = m.receiveShadow = true; ch.g.add(m); } }
   stats.tMid = performance.now() - _t0; yield; _t0 = performance.now();
   // props
   const props = ensureChunk(cx, cz).filter(p => !p.dyn); const by = {}; for (const p of props) (by[p.type] = by[p.type] || []).push(p);
