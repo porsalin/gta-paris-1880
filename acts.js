@@ -78,8 +78,8 @@ function pay(n) { if (G.money < n) { G.pager(`Not enough money (${n} F).`, 2); r
 function shopTailor() { A.UI.show('À la Belle Jardinière', 'A change of clothes throws off the description the police are circulating. Ready-made suits, caps, bowlers.', [
   ['Change of coat — 150 F', () => { if (G.wanted > 2) { G.pager('M. Isidore: "With half the Préfecture outside? Non, non, non."', 3); return; } if (!pay(150)) return; G.heat = 0; G.wanted = 0; A.UI.close(); G.pager('New coat, new cap. The sergents de ville look straight past you.', 3); A.S.wins++; }],
   ['Frock coat & silk hat — 600 F', () => { if (!pay(600)) return; A.S.dandy = 1; A.saveS(); A.UI.close(); G.pager('You look like a stockbroker. The doormen of the Opéra bow.', 3); }]]); }
-function shopGuns() { const W = [['revolver', 'Lefaucheux revolver', 350, 30], ['swordcane', 'Sword-cane', 250, 1], ['shotgun', 'Double-barrel (sporting)', 700, 16], ['winchester', 'Winchester 1873', 1400, 45]];
-  A.UI.show('Gastinne Renette, Gunsmith', 'Fine arms for gentlemen. Licence? Monsieur jests.', W.map(([id, n, p, a]) => [`${n} — ${p} F`, () => { if (!pay(p)) return; G.give(id, a); G.pager(`Bought: ${n}.`, 2); }]).concat([['Cartridges (revolver ×30) — 60 F', () => { if (pay(60)) G.give('revolver', 30); }]])); }
+function shopGuns() { // period stock & pricing live in the engine shop (main.js SHOP): velodog, derringer, pinfire, Mle 1873, sporting shotgun, Gras, Lebel, sword-cane…
+  (window.GAME || G).openShop('Gastinne Renette, Gunsmith'); }
 function shopFence() { const P = A.S.pockets; const tot = P.reduce((a, b) => a + b[1], 0);
   A.UI.show('Mme Cahen, brocanteuse', P.length ? 'In your pockets: ' + P.map(p => p[0]).join(', ') + `.<br>She offers ${Math.round(tot * .45)} F for the lot.` : 'Your pockets are empty, chéri. Come back when Paris has been careless.',
     P.length ? [['Sell the lot', () => { const v = Math.round(tot * .45); A.S.pockets = []; A.saveS(); G.addMoney(v, true); A.UI.close(); G.pager(`Fenced for ${v} F. Mme Cahen counts it twice.`, 3); }]] : []); }
@@ -175,7 +175,7 @@ export function map(hx, P) { const s = A.S.seenActs || {}; hx.fillStyle = '#9fe'
 export function selftest() { const out = {}; const m0 = G.money; G.addMoney(20000, true);
   out.cards = cards(20, true); out.billiards = billiards(30, true); A.UI.close();
   shopFence(); A.UI.close(); A.S.pockets.push(['test watch', 100]); shopFence(); out.fence = A.UI.press('Sell'); A.UI.close();
-  shopGuns(); out.guns = A.UI.press('Lefaucheux'); A.UI.close(); shopTailor(); out.tailor = A.UI.press('Change'); A.UI.close();
+  shopGuns(); { const r = document.querySelector('.panel [data-id]'); out.guns = !!r; if (r) r.click(); const pn = r && r.closest('.panel'); if (pn) pn.lastElementChild.click(); } shopTailor(); out.tailor = A.UI.press('Change'); A.UI.close();
   shopNews(); out.paper = A.UI.press('Buy'); A.UI.close(); shopCamera(); out.camera = A.UI.press('Buy') || !!A.S.camera; A.UI.close();
   G.setTime(21); showOffer('mirliton'); out.show = A.UI.press('Go in'); A.UI.close();
   for (const k of ['theft', 'duel', 'fire', 'protest', 'crowd']) { const e = startEvent(k); out['ev_' + k] = !!e; endEvent(); }
