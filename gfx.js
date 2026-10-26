@@ -27,6 +27,9 @@ export let Q = Object.assign({}, PRESETS[CFG.preset] || PRESETS.high);
 export function saveCfg() { localStorage.setItem('gtaParis1880gfx', JSON.stringify(CFG)); }
 // ================= RENDERER / SCENE =================
 const glc = document.getElementById('gl');
+// Seine bridges (tools/seine.py): centre, unit axis, span between the smoothed quay walls, real 1890 width — the authored models in landmarks.js and the quay approaches here share it
+const BRJ = await fetch('map/bridges.json').then(r => r.json()).catch(() => ({})); globalThis.__BRJ = BRJ;
+const inBridge = (x, z, mu = 1, mv = .6) => { for (const k in BRJ) { const b = BRJ[k], dx = x - b.x, dz = z - b.z, du = dx * b.ux + dz * b.uz, dv = -dx * b.uz + dz * b.ux; if (Math.abs(du) <= b.L / 2 + mu && Math.abs(dv) <= b.W / 2 + mv) return true; } return false; };
 export const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: Q.aa && !CFG.ps1, powerPreference: 'high-performance', stencil: false });
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -662,7 +665,7 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
     lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = 'destination-in'; lg.drawImage(m, 0, 0, CPX, CPX); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(lc, 0, 0); WT(); };
   const WALK = new Set([K.SIDE, K.ROAD, K.BRIDGE, K.STAIR]);
   layer(t => WALK.has(kind[t]), 'flag'); yield; layer(t => skipT[t] > 0, 'parvis'); yield; layer(t => kind[t] === K.PARK, 'grass', 10); yield;
-  { const m = smooth(t => kind[t] === K.WATER, 9); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
+  { const m = smooth(t => kind[t] === K.WATER || kind[t] === K.BRIDGE, 16); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
   yield; { /* v15: railway yards (zoning 'railway' land + rail tiles) as ballast with parallel tracks, aligned to the nearest main line */ const ZN = globalThis.__ZN, ZR = ZN && ZN.Z.railway;
     const m = smooth((t, i, j) => kind[t] === K.RAIL || (ZR != null && ZN.zoneTile(i, j) === ZR && !WALK.has(kind[t]) && kind[t] !== K.BLD && kind[t] !== K.WATER && kind[t] !== K.PARK), 4);
     if (m) { let best = null, bl = 0; for (const o of near(VRAIL, vx - 80, vz - 80, vx + CHU + 80, vz + CHU + 80)) for (let k = 0; k + 3 < o.p.length; k += 2) { const l = Math.hypot(o.p[k + 2] - o.p[k], o.p[k + 3] - o.p[k + 1]); if (l > bl) { bl = l; best = [o.p[k], o.p[k + 1], o.p[k + 2], o.p[k + 3]]; } }
@@ -677,7 +680,7 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
       g.fillStyle = 'rgba(52,36,22,1)'; for (let t = .4; t < L - .2; t += .55) { const cx_ = px + vx_ * t, cz_ = pz + vz_ * t; g.save(); g.translate(cx_, cz_); g.rotate(Math.atan2(vz_, vx_)); g.fillRect(-.16, -1.45, .32, 2.9); g.restore(); }
       for (const of_ of [-.72, .72]) { g.beginPath(); g.moveTo(px - vz_ * of_, pz + vx_ * of_); g.lineTo(qx - vz_ * of_, qz + vx_ * of_); g.strokeStyle = '#24221f'; g.lineWidth = .3; g.stroke(); g.strokeStyle = '#c8c6c0'; g.lineWidth = .12; g.stroke(); }
       g.fillStyle = '#2a2826'; g.fillRect(px - nx * 1.6 * Math.sign(d) - .35, pz - nz * 1.6 * Math.sign(d) - .35, .7, .7); g.fillStyle = '#b03a2a'; g.fillRect(px - nx * 1.6 * Math.sign(d) - .15, pz - nz * 1.6 * Math.sign(d) - .15, .3, .3); } } }
-  const RD = VCH.roads.filter(r => !r.br), BR = VCH.roads.filter(r => r.br), JC = VCH.junc, jf = j => j.n >= 3 ? .62 : .5;
+  const RD = VCH.roads.filter(r => !r.br), JC = VCH.junc.filter(j => { const k = kAt(j.x, j.z); return k !== K.WATER && k !== K.BRIDGE && !inBridge(j.x, j.z, -.5, 0); }), jf = j => j.n >= 3 ? .62 : .5;
   for (const r of RD) if (r.c === -2) seg(r, r.w, 'gravel');
   for (const r of RD) if (r.c >= 0) seg(r, r.pw, 'flag');
   for (const j of JC) disc(j, j.w * .5 + T, 'flag');
@@ -689,13 +692,12 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
   // v13 period wear: horses walk the crown of the road (polished centre band), old lanes drain to a stone centre gutter (caniveau), granite kerb edge
   for (const r of RD) if (r.c >= 2 && r.sf !== 0) seg(r, r.w * .42, 'rgba(255,238,205,.06)');
   for (const r of RD) if (r.c === 1) { seg(r, .55, 'rgba(150,140,124,.55)'); seg(r, .22, 'rgba(26,22,18,.55)'); }
-  if (BR.length) { /* bridge decks are painted only over the river and cut exactly at the quay wall line (same mask as the water), so nothing overlaps the quay roads */
-    const wm = smooth(t => kind[t] === K.WATER || kind[t] === K.BRIDGE, 9), lc = SMC[2]; lc.width = lc.height = CPX; const lg = lc.getContext('2d', CTX2D); lg.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs); lg.lineCap = 'butt'; lg.lineJoin = 'round';
-    const sg = (r, w, st) => { lg.lineWidth = w; lg.strokeStyle = typeof st === 'string' && GP[st] ? wp(st) : st; lg.beginPath(); linePath(lg, r.p); lg.stroke(); };
-    for (const r of BR) { sg(r, r.pw + .7, 'rgba(40,36,30,.7)'); sg(r, r.pw, 'flag'); if (r.c >= 1) { sg(r, r.w + .5, '#cfc8b8'); sg(r, r.w, RSF[r.sf] || 'pave'); } }
-    if (wm) { lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = 'destination-in'; lg.drawImage(wm, 0, 0, CPX, CPX); lg.globalCompositeOperation = 'source-over'; g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(lc, 0, 0); WT(); } }
-  g.lineCap = 'butt';
-  g.lineCap = 'round'; for (const j of JC) if (j.br && j.n >= 3) disc(j, j.w * .5, RSF[j.sf] || 'pave'); /* v14 bridge heads: carry the street surface over the deck joint */
+  /* bridge approaches: each deck meets the quay road in one clean splayed apron (flagged footway, kerb, setts), straight off the quay wall line; the decks themselves are 3D models */
+  g.lineCap = 'butt'; for (const k in BRJ) { const b = BRJ[k]; if (Math.abs(b.x - vx - CHU / 2) > CHU / 2 + b.L / 2 + 12 || Math.abs(b.z - vz - CHU / 2) > CHU / 2 + b.L / 2 + 12) continue; const foot = b.ty === 'foot', D = foot ? 2.5 : 4.5, nx = -b.uz, nz = b.ux;
+    for (const sg of [-1, 1]) { const ex = b.x + b.ux * sg * b.L / 2, ez = b.z + b.uz * sg * b.L / 2, fx = ex + b.ux * sg * D, fz = ez + b.uz * sg * D;
+      const trap = (w0, w1, st) => { g.fillStyle = typeof st === 'string' && GP[st] ? wp(st, Math.atan2(b.uz, b.ux)) : st; g.beginPath(); g.moveTo(ex - b.ux * sg * .4 + nx * w0, ez - b.uz * sg * .4 + nz * w0); g.lineTo(fx + nx * w1, fz + nz * w1); g.lineTo(fx - nx * w1, fz - nz * w1); g.lineTo(ex - b.ux * sg * .4 - nx * w0, ez - b.uz * sg * .4 - nz * w0); g.closePath(); g.fill(); };
+      const hw = b.W / 2, rw = foot ? 0 : hw * .55; trap(hw + .1, hw + 1.8, 'flag'); if (!foot) { trap(rw + .14, rw + 1.4, '#3a342c'); trap(rw, rw + 1.25, 'pave'); } } }
+  { /* final river cut after every road and pavement stroke: the OSM quay roads never spill past the quay wall line */ const m = smooth(t => kind[t] === K.WATER || kind[t] === K.BRIDGE, 16); if (m) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(m, 0, 0, CPX, CPX); g.globalCompositeOperation = 'source-over'; WT(); } }
   g.setTransform(1, 0, 0, 1, 0, 0);
   // Place de l'Étoile: true circles for the ring road and the Arc's island, with radiating paving
   if (ETOILE) { const sc3 = PXT / T, X = (ETOILE.x - i0 * T) * sc3, Y = (ETOILE.z - j0 * T) * sc3, ri = ETOILE.ri * sc3, ro = ETOILE.ro * sc3; if (X > -ro && Y > -ro && X < CPX + ro && Y < CPX + ro) {
@@ -801,19 +803,20 @@ function buildingGeo(cx, cz, out) { const FWE = out ? [] : null; const A = BM.ma
     if (ci.st === 3 && di > 2 && hash(i >> 1, j >> 1, 62) < .05 && !(i & 1) && !(j & 1)) wtow.push([i * T + 1, ci.top, j * T + 1]);
     if (ci.st === 3 && ci.dp >= 2 && hash(i >> 1, j >> 1, 52) < .05 && !(i & 1) && !(j & 1)) stacks.push([i * T + 1, ci.top, j * T + 1]); }
   // quay walls along the real river banks
-  { const qc = [1, 1, 1], qd = [.6, .65, .6]; const wall = (a, b, par) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), ux = dx / l, uz = dz / l, nx = uz, nz = -ux, ua = a[0] * ux + a[1] * uz, ub = ua + l, ins = .28;
+  { const qc = [1, 1, 1], qd = [.6, .65, .6], qp = [1.75, 1.68, 1.55]; const wall = (a, b, par) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), ux = dx / l, uz = dz / l, nx = uz, nz = -ux, ua = a[0] * ux + a[1] * uz, ub = ua + l, ins = .45;
       quad(MI.quay, [a[0], -2, a[1]], [b[0], -2, b[1]], [b[0], par, b[1]], [a[0], par, a[1]], [ua / 3.2, 0], [ub / 3.2, 0], [ub / 3.2, .78], [ua / 3.2, .78], qd, qd, qc, qc);
-      if (par) { const ai = [a[0] - nx * ins, a[1] - nz * ins], bi = [b[0] - nx * ins, b[1] - nz * ins]; quad(MI.quay, [a[0], par, a[1]], [b[0], par, b[1]], [bi[0], par, bi[1]], [ai[0], par, ai[1]], [ua / 3.2, .9], [ub / 3.2, .9], [ub / 3.2, .95], [ua / 3.2, .95], qc, qc, qc, qc);
+      if (par) { const ai = [a[0] - nx * ins, a[1] - nz * ins], bi = [b[0] - nx * ins, b[1] - nz * ins]; quad(MI.quay, [a[0], par, a[1]], [b[0], par, b[1]], [bi[0], par, bi[1]], [ai[0], par, ai[1]], [ua / 3.2, .9], [ub / 3.2, .9], [ub / 3.2, .95], [ua / 3.2, .95], qp, qp, qp, qp);
         quad(MI.quay, [bi[0], 0, bi[1]], [ai[0], 0, ai[1]], [ai[0], par, ai[1]], [bi[0], par, bi[1]], [ub / 3.2, .8], [ua / 3.2, .8], [ua / 3.2, .9], [ub / 3.2, .9], qd, qd, qc, qc); } };
     // bank line = iso-contour of the bilinear water-tile field on a 1-unit lattice (marching squares), so the wall sits exactly on the gameplay water edge without stair-steps
-    const isW = (i, j) => inb(i, j) && kind[ti(i, j)] === K.WATER ? 1 : 0, wf = (x, z) => { const fx = x / T - .5, fz = z / T - .5, i = Math.floor(fx), j = Math.floor(fz), a = fx - i, b = fz - j; return (isW(i, j) * (1 - a) + isW(i + 1, j) * a) * (1 - b) + (isW(i, j + 1) * (1 - a) + isW(i + 1, j + 1) * a) * b - .5; };
+    const isW = (i, j) => inb(i, j) && (kind[ti(i, j)] === K.WATER || kind[ti(i, j)] === K.BRIDGE) ? 1 : 0, wf0 = (x, z) => { const fx = x / T - .5, fz = z / T - .5, i = Math.floor(fx), j = Math.floor(fz), a = fx - i, b = fz - j; return (isW(i, j) * (1 - a) + isW(i + 1, j) * a) * (1 - b) + (isW(i, j + 1) * (1 - a) + isW(i + 1, j + 1) * a) * b; },
+      wf = (x, z) => { let s = 0, n = 0; for (let dz = -3; dz <= 3; dz += 1.5) for (let dx = -3; dx <= 3; dx += 1.5) { const w = 1 - Math.hypot(dx, dz) / 5; s += wf0(x + dx, z + dz) * w; n += w; } return s / n - .5; }; /* smoothed bank field: the tile stair-steps vanish and the wall runs as a clean curve */
     const NQ = CHU + 1, WF = new Float32Array(NQ * NQ); let anyW = 0; for (let v = 0; v < NQ; v++) for (let u = 0; u < NQ; u++) { const f = wf(ox + u, oz + v); WF[v * NQ + u] = f === 0 ? 1e-3 : f; if (f > 0) anyW = 1; }
     if (anyW) for (let v = 0; v < CHU; v++) for (let u = 0; u < CHU; u++) { const id = [v * NQ + u, v * NQ + u + 1, (v + 1) * NQ + u + 1, (v + 1) * NQ + u], A4 = id.map(k => WF[k]), ins = A4.map(q => q > 0), n = ins.filter(Boolean).length; if (!n || n === 4) continue;
       const C = [[u, v], [u + 1, v], [u + 1, v + 1], [u, v + 1]], cr = k => { const p = C[k], q = C[(k + 1) % 4], t = A4[k] / (A4[k] - A4[(k + 1) % 4]); return [ox + p[0] + (q[0] - p[0]) * t, oz + p[1] + (q[1] - p[1]) * t]; };
       const SG = []; if (n === 2 && ins[0] === ins[2]) { for (let k = 0; k < 4; k++) if (ins[k]) SG.push([cr(k), cr((k + 3) % 4)]); } else { const P_ = []; for (let k = 0; k < 4; k++) { if (ins[k]) P_.push(null); if (ins[k] !== ins[(k + 1) % 4]) P_.push(cr(k)); } for (let k = 0; k < P_.length; k++) { const p = P_[k], q = P_[(k + 1) % P_.length]; if (p && q) SG.push([p, q]); } }
       // SG segment p->q has outward normal (dz,-dx) pointing to land; the wall must face the water, so reverse it
-      for (const [p, q] of SG) { const l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l < .02) continue; const nx = (q[1] - p[1]) / l, nz = -(q[0] - p[0]) / l, mx = (p[0] + q[0]) / 2, mz = (p[1] + q[1]) / 2, lk = kAt(mx + nx * .8, mz + nz * .8);
-        wall(q, p, (lk === K.SIDE || lk === K.PARK || lk === K.STAIR) ? .5 : 0); } } }
+      for (const [p, q] of SG) { const l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l < .02) continue; const nx = (q[1] - p[1]) / l, nz = -(q[0] - p[0]) / l, mx = (p[0] + q[0]) / 2, mz = (p[1] + q[1]) / 2, wet_ = k => k === K.WATER || k === K.BRIDGE; let lk = kAt(mx + nx * 1.2, mz + nz * 1.2), lk2 = kAt(mx - nx * 1.2, mz - nz * 1.2), A_ = q, B_ = p; if (wet_(lk) && !wet_(lk2)) { lk = lk2; A_ = p; B_ = q; } /* always face the water */
+        wall(A_, B_, (lk === K.SIDE || lk === K.PARK || lk === K.STAIR || lk === K.ROAD) && !inBridge(mx, mz, 1.2, .9) ? .5 : 0); } } }
   const geo = new THREE.BufferGeometry(), P = [], Nn = [], U = [], Cc = []; let off = 0;
   A.forEach((t, k) => { const cnt = t.p.length / 3; if (!cnt) return; P.push(...t.p); Nn.push(...t.n); U.push(...t.u); Cc.push(...t.c); geo.addGroup(off, cnt, k); off += cnt; });
   if (!off) return null; geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); geo.computeBoundingSphere();
