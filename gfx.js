@@ -689,7 +689,12 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
   // v13 period wear: horses walk the crown of the road (polished centre band), old lanes drain to a stone centre gutter (caniveau), granite kerb edge
   for (const r of RD) if (r.c >= 2 && r.sf !== 0) seg(r, r.w * .42, 'rgba(255,238,205,.06)');
   for (const r of RD) if (r.c === 1) { seg(r, .55, 'rgba(150,140,124,.55)'); seg(r, .22, 'rgba(26,22,18,.55)'); }
-  g.lineCap = 'butt'; /* bridge decks end square on the quays, no round racetrack caps */ for (const r of BR) { seg(r, r.pw + .7, 'rgba(40,36,30,.7)'); seg(r, r.pw, 'flag'); if (r.c >= 1) { seg(r, r.w + .5, '#cfc8b8'); seg(r, r.w, RSF[r.sf] || 'pave', r.sf === 1 ? Math.PI / 2 : null); } }
+  if (BR.length) { /* bridge decks are painted only over the river and cut exactly at the quay wall line (same mask as the water), so nothing overlaps the quay roads */
+    const wm = smooth(t => kind[t] === K.WATER || kind[t] === K.BRIDGE, 9), lc = SMC[2]; lc.width = lc.height = CPX; const lg = lc.getContext('2d', CTX2D); lg.setTransform(vs, 0, 0, vs, -vx * vs, -vz * vs); lg.lineCap = 'butt'; lg.lineJoin = 'round';
+    const sg = (r, w, st) => { lg.lineWidth = w; lg.strokeStyle = typeof st === 'string' && GP[st] ? wp(st) : st; lg.beginPath(); linePath(lg, r.p); lg.stroke(); };
+    for (const r of BR) { sg(r, r.pw + .7, 'rgba(40,36,30,.7)'); sg(r, r.pw, 'flag'); if (r.c >= 1) { sg(r, r.w + .5, '#cfc8b8'); sg(r, r.w, RSF[r.sf] || 'pave'); } }
+    if (wm) { lg.setTransform(1, 0, 0, 1, 0, 0); lg.globalCompositeOperation = 'destination-in'; lg.drawImage(wm, 0, 0, CPX, CPX); lg.globalCompositeOperation = 'source-over'; g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(lc, 0, 0); WT(); } }
+  g.lineCap = 'butt';
   g.lineCap = 'round'; for (const j of JC) if (j.br && j.n >= 3) disc(j, j.w * .5, RSF[j.sf] || 'pave'); /* v14 bridge heads: carry the street surface over the deck joint */
   g.setTransform(1, 0, 0, 1, 0, 0);
   // Place de l'Étoile: true circles for the ring road and the Arc's island, with radiating paving
