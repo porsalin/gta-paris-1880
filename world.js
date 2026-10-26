@@ -107,11 +107,11 @@ export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps
     const put = (ty, px, pz, o) => { if (hooks.allow && !hooks.allow(ty, px, pz)) return null; if (nearSame('stall', px, pz, 2.6) || nearSame('bouq', px, pz, 2) || nearSame('band', px, pz, 5)) return null; const p = addProp(ty, px, pz, o); L.push(p); return p; };
     // v12: fountain / stall placement now belongs to zoning.js (city-layout worker); the fountain model stays in gfx.js
     if (nearSame('fountain', x, z, 5.2)) continue;
-    if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }
+    if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5) && !nearSame('omnibus', x, z, 2.8)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }
     if (road) { const rs = surf[ti(i + road[0], j + road[1])], boul = rs === S.MAC; const lx = x + road[0] * .7, lz = z + road[1] * .7;
-      if (boul && !bld && h > .6 && !nearSame('tree', x, z, 4.8)) { put('tree', x + road[0] * .3, z + road[1] * .3, { s: .9 + hash(i, j, 4) * .4 }); continue; }
-      if (boul && h > .55 && h < .6 && !nearSame('tree', x, z, 4.8) && !bld) { put('tree', x, z, { s: 1 }); continue; } }
-    if (water && h > .55 && !nearSame('tree', x, z, 5.5)) { put('tree', x, z, { s: 1.05 }); continue; }
+      if (boul && !bld && h > .6 && !nearSame('tree', x, z, 4.8) && !nearSame('omnibus', x, z, 2.8)) { put('tree', x + road[0] * .3, z + road[1] * .3, { s: .9 + hash(i, j, 4) * .4 }); continue; }
+      if (boul && h > .55 && h < .6 && !nearSame('tree', x, z, 4.8) && !nearSame('omnibus', x, z, 2.8) && !bld) { put('tree', x, z, { s: 1 }); continue; } }
+    if (water && h > .55 && !nearSame('tree', x, z, 5.5) && !nearSame('omnibus', x, z, 2.8)) { put('tree', x, z, { s: 1.05 }); continue; }
     if (h > .9955 && !nearSame('morris', x, z, 30)) put('morris', x, z); else if (h > .991 && h <= .9955 && d !== 0 && !nearSame('wallace', x, z, 40)) put('wallace', x, z);
     else if (h > .987 && h <= .991 && (d === 0 || d === 9 || d === 3 || d === 11) && !nearSame('trough', x, z, 30)) put('trough', x, z);
     else if (k === K.SIDE && h > .983 && h <= .987 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('kiosk', x, z, 26)) put('kiosk', x, z);
