@@ -99,13 +99,13 @@ export const LAMPS = (() => { const W = VJ.W, out = [], nodes = new Map(), key =
         if (c >= 3 && hash(Math.round(x), Math.round(z), 131) < .09) { const ox = x0 - dz * (off + .2) * sd + dx * 2.6, oz = z0 + dx * (off + .2) * sd + dz * 2.6; if (kij(Math.floor(ox / T), Math.floor(oz / T)) === K.SIDE && !OMNI.some(o => (o.x - ox) ** 2 + (o.z - oz) ** 2 < 80 * 80)) OMNI.push({ x: ox, z: oz, ry: Math.atan2(dz * sd, dx * sd) }); } /* v14 omnibus stops: on the vector pavement just behind the kerb, a few metres past a lamp */ (grid.get(gk(x, z)) || grid.set(gk(x, z), []).get(gk(x, z))).push(q); } } }
   return out; })();
 const LAMPC = new Map(); for (const q of LAMPS) { const k = Math.floor(q.x / CHU) * 1000 + Math.floor(q.z / CHU); (LAMPC.get(k) || LAMPC.set(k, []).get(k)).push(q); }
-export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of OMNI) if (Math.floor(q.x / CHU) === cx && Math.floor(q.z / CHU) === cz) L.push(addProp('omnibus', q.x, q.z, { ry: q.ry })); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
+export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps.has(key)) return chunkProps.get(key); const L = []; chunkProps.set(key, L); for (const q of LAMPC.get(key) || []) L.push(addProp('lamp', q.x, q.z, { arc: q.arc, ry: q.ry }));
   if (hooks.zoneProps) hooks.zoneProps(cx, cz, (ty, px, pz, o) => { const p = addProp(ty, px, pz, o); L.push(p); return p; }, nearAny); // zoning.js: fountains, market stalls, bouquinistes, bandstands
   for (let j = cz * CH; j < Math.min(NZ, cz * CH + CH); j++) for (let i = cx * CH; i < Math.min(NX, cx * CH + CH); i++) { const t = ti(i, j), k = kind[t]; if ((k !== K.SIDE && k !== K.PARK) || RESV[t]) continue;
     const d = dist[t], h = hash(i, j, 1), x = (i + .5) * T, z = (j + .5) * T; let road = null, water = false, bld = false;
     for (const [di, dj] of N4) { const kk = kij(i + di, j + dj); if ((kk === K.ROAD || kk === K.BRIDGE) && !road) road = [di, dj]; if (kk === K.WATER) water = true; if (kk === K.BLD) bld = true; }
     if (inClear(x, z)) continue; if (nearSame('lamp', x, z, 1.7)) continue;
-    const put = (ty, px, pz, o) => { if (hooks.allow && !hooks.allow(ty, px, pz)) return null; if (nearSame('stall', px, pz, 2.6) || nearSame('bouq', px, pz, 2) || nearSame('band', px, pz, 5)) return null; const p = addProp(ty, px, pz, o); L.push(p); return p; };
+    const put = (ty, px, pz, o) => { if (hooks.allow && !hooks.allow(ty, px, pz)) return null; if (ty === 'tree' && (nearSame('kiosk', px, pz, 2.6) || nearSame('pissoir', px, pz, 2.6))) return null; if (nearSame('stall', px, pz, 2.6) || nearSame('bouq', px, pz, 2) || nearSame('band', px, pz, 5)) return null; const p = addProp(ty, px, pz, o); L.push(p); return p; };
     // v12: fountain / stall placement now belongs to zoning.js (city-layout worker); the fountain model stays in gfx.js
     if (nearSame('fountain', x, z, 5.2)) continue;
     if (k === K.PARK) { if (h < .13 && !nearSame('tree', x, z, 4.5) && !nearSame('omnibus', x, z, 2.8)) put('tree', x + (hash(i, j, 2) - .5) * 1.5, z + (hash(i, j, 3) - .5) * 1.5, { s: .8 + hash(i, j, 4) * .6 }); else if (h > .995) put('bench', x, z); continue; }
@@ -115,10 +115,12 @@ export function ensureChunk(cx, cz) { const key = cx * 1000 + cz; if (chunkProps
     if (water && h > .55 && !nearSame('tree', x, z, 5.5) && !nearSame('omnibus', x, z, 2.8)) { put('tree', x, z, { s: 1.05 }); continue; }
     if (h > .9955 && !nearSame('morris', x, z, 30)) put('morris', x, z); else if (h > .991 && h <= .9955 && d !== 0 && !nearSame('wallace', x, z, 40)) put('wallace', x, z);
     else if (h > .987 && h <= .991 && (d === 0 || d === 9 || d === 3 || d === 11) && !nearSame('trough', x, z, 30)) put('trough', x, z);
-    else if (k === K.SIDE && h > .983 && h <= .987 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('kiosk', x, z, 26)) put('kiosk', x, z);
-    else if (k === K.SIDE && h > .979 && h <= .983 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('pissoir', x, z, 26)) put('pissoir', x, z);
+    else if (k === K.SIDE && h > .983 && h <= .987 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('kiosk', x, z, 26)) { const sp = PAVE(x, z, 'kiosk', 1.1, 4); if (sp) put('kiosk', sp.x, sp.z, { ry: sp.ry }); }
+    else if (k === K.SIDE && h > .979 && h <= .983 && road && surf[ti(i + road[0], j + road[1])] === S.MAC && !nearSame('pissoir', x, z, 26)) { const sp = PAVE(x, z, 'pissoir', 1.1, 4); if (sp) put('pissoir', sp.x, sp.z, { ry: sp.ry }); }
     else if (h > .97 && h <= .979 && road && surf[ti(i + road[0], j + road[1])] === S.MAC) put('bench', x, z, { ry: Math.atan2(road[1], road[0]) }); }
+  for (const q of OMNI) if (Math.floor(q.x / CHU) === cx && Math.floor(q.z / CHU) === cz) { const sp = PAVE(q.x, q.z, 'omnibus', 1.3, 6); if (sp && !nearSame('omnibus', sp.x, sp.z, 40)) L.push(addProp('omnibus', sp.x, sp.z, { ry: q.ry })); } /* v15: snapped through zoning's pavementSpot (legal, clear of lamps/trees/stalls) */
   return L; }
+const PAVE = (x, z, type, r, search) => { const Z = globalThis.__ZN; return Z ? Z.pavementSpot(x, z, { type, r, search, band: 'kerb' }) : null; }; /* zoning.js pavement API (window.__ZN; world.js cannot import zoning.js: circular) */
 export function propsNear(x, z) { const out = []; const a = Math.floor(x / 8), b = Math.floor(z / 8);
   const c0 = Math.floor((x - 8) / CHU), c1 = Math.floor((x + 8) / CHU), d0 = Math.floor((z - 8) / CHU), d1 = Math.floor((z + 8) / CHU);
   for (let c = c0; c <= c1; c++) for (let d = d0; d <= d1; d++) if (c >= 0 && d >= 0 && c < NCX && d < NCZ) ensureChunk(c, d);
