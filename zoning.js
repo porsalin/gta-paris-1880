@@ -1,7 +1,7 @@
 // City layout & zoning (1890): land-use map, building variety rules, legal prop placement.
 // Data: map/zones.json (tools/zoning_gen.py). Plugs into world.js through `hooks` (style, floors, allow, zoneProps)
 // and into gfx.js through hooks.shop / hooks.stallAt. Renderable zone models live in zrender.js.
-import { K, S, NX, NZ, T, CHU, kind, surf, ti, inb, kij, hash, LABELS, LM, skipT, hooks, PD } from './world.js';
+import { propsNear, K, S, NX, NZ, T, CHU, kind, surf, ti, inb, kij, hash, LABELS, LM, skipT, hooks, PD } from './world.js';
 export const ZD = await fetch('map/zones.json').then(r => r.json());
 const ZB = Uint8Array.from(atob(ZD.z), c => c.charCodeAt(0));
 export const Z = Object.fromEntries(ZD.names.map((n, k) => [n, k]));
@@ -75,4 +75,21 @@ for (const [x, z, a] of ZD.stalls) reg(x, z, put => put('stall', x, z, { ry: a }
 for (const [x, z, a] of ZD.bouq) reg(x, z, put => put('bouq', x, z, { ry: a }));
 for (const [x, z] of ZD.bands) reg(x, z, put => put('band', x, z));
 hooks.zoneProps = (cx, cz, put, nearAny) => { for (const f of BYCH.get(cx * 1000 + cz) || []) f((ty, x, z, o) => nearAny && ty !== 'fountain' && nearAny(x, z, ty === 'stall' ? 1.4 : ty === 'band' ? 3.4 : .8) ? null : put(ty, x, z, o)); };
-window.__ZN = { ZD, Z, zoneAt, zoneTile: zt, legal, isFountainSite, quarterAt };
+
+// ---- pavement-placement API (for signs, kiosks, columns, etc. added by other modules)
+// pavementSpot(x, z, {type, r=.5, band='kerb'|'facade', search=12}) -> {x, z, ry, i, j, zone} | null
+//   ry faces the carriageway. 'kerb' = centre of a pavement tile touching a road; 'facade' = pavement tile against a building (signs).
+//   Never returns a road/bridge/rail/water/building tile, and keeps r clear of every existing prop (lamps included).
+// pavementSpots(x0, z0, x1, z1, opts & {spacing=16}) -> spots along all pavements in the rectangle, at least `spacing` apart.
+const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function spotAt(i, j, o) { if (kij(i, j) !== K.SIDE) return null; let rd = null, bld = false; for (const [a, b] of N4) { const q = kij(i + a, j + b); if ((q === K.ROAD || q === K.BRIDGE) && !rd) rd = [a, b]; if (q === K.BLD) bld = true; }
+  const band = o.band || 'kerb'; if (band === 'kerb' ? (!rd || bld) : !bld) return null;
+  const x = (i + .5) * T, z = (j + .5) * T, r = o.r ?? .5; if (o.type && !legal(o.type, x, z)) return null;
+  for (const p of propsNear(x, z)) if (Math.hypot(p.x - x, p.z - z) < r + (PD[p.type]?.r ?? .4) + .1) return null;
+  const d = rd || N4.map(([a, b]) => [-a, -b]).find(([a, b]) => kij(i - a, j - b) === K.BLD) || [1, 0];
+  return { x, z, ry: Math.atan2(-d[1], d[0]), i, j, zone: ZNAMES[zt(i, j)] }; }
+export function pavementSpot(x, z, o = {}) { const i0 = Math.floor(x / T), j0 = Math.floor(z / T), R = Math.ceil((o.search ?? 12) / T); let best = null, bd = 1e18;
+  for (let b = -R; b <= R; b++) for (let a = -R; a <= R; a++) { const d = a * a + b * b; if (d >= bd || !inb(i0 + a, j0 + b)) continue; const s = spotAt(i0 + a, j0 + b, o); if (s) { best = s; bd = d; } } return best; }
+export function pavementSpots(x0, z0, x1, z1, o = {}) { const sp = o.spacing ?? 16, out = [];
+  for (let j = Math.floor(z0 / T); j <= Math.floor(z1 / T); j++) for (let i = Math.floor(x0 / T); i <= Math.floor(x1 / T); i++) { if (!inb(i, j)) continue; const s = spotAt(i, j, o); if (s && !out.some(q => (q.x - s.x) ** 2 + (q.z - s.z) ** 2 < sp * sp)) out.push(s); } return out; }
+window.__ZN = { pavementSpot, pavementSpots, ZD, Z, zoneAt, zoneTile: zt, legal, isFountainSite, quarterAt };
