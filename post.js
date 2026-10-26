@@ -41,20 +41,22 @@ const PAINT = mat(`uniform sampler2D t; uniform vec2 px; uniform float q, night,
   void main(){ vec2 sp=vUv/px; // brush strokes: a slowly varying stroke angle; warp along it
     float ang=n2(sp*.012)*6.283; vec2 dir=vec2(cos(ang),sin(ang)); float st=n2(vec2(dot(sp,dir)*.11, dot(sp,vec2(-dir.y,dir.x))*.32)+n2(sp*.02)*7.);
     // edge-aware: Sobel on luminance at the true pixel => silhouettes, ridges, eaves and cornices stay crisp (no warp, no Kuwahara)
-    vec3 c0=texture2D(t,vUv).rgb; float L00=dot(texture2D(t,vUv+px*vec2(-1,-1)).rgb,vec3(.3,.59,.11)), L10=dot(texture2D(t,vUv+px*vec2(0,-1)).rgb,vec3(.3,.59,.11)), L20=dot(texture2D(t,vUv+px*vec2(1,-1)).rgb,vec3(.3,.59,.11)),
-      L01=dot(texture2D(t,vUv+px*vec2(-1,0)).rgb,vec3(.3,.59,.11)), L21=dot(texture2D(t,vUv+px*vec2(1,0)).rgb,vec3(.3,.59,.11)), L02=dot(texture2D(t,vUv+px*vec2(-1,1)).rgb,vec3(.3,.59,.11)), L12=dot(texture2D(t,vUv+px*vec2(0,1)).rgb,vec3(.3,.59,.11)), L22=dot(texture2D(t,vUv+px*vec2(1,1)).rgb,vec3(.3,.59,.11));
+    vec3 c0=texture2D(t,vUv).rgb; const vec3 LW=vec3(.3,.59,.11); vec3 cL=texture2D(t,vUv+px*vec2(-1,0)).rgb, cR=texture2D(t,vUv+px*vec2(1,0)).rgb, cD=texture2D(t,vUv+px*vec2(0,-1)).rgb, cU=texture2D(t,vUv+px*vec2(0,1)).rgb; // v17: axis taps shared by Sobel and the edge sharpen
+    float L00=dot(texture2D(t,vUv+px*vec2(-1,-1)).rgb,LW), L10=dot(cD,LW), L20=dot(texture2D(t,vUv+px*vec2(1,-1)).rgb,LW),
+      L01=dot(cL,LW), L21=dot(cR,LW), L02=dot(texture2D(t,vUv+px*vec2(-1,1)).rgb,LW), L12=dot(cU,LW), L22=dot(texture2D(t,vUv+px*vec2(1,1)).rgb,LW);
     float gx=L20+2.*L21+L22-L00-2.*L01-L02, gy=L02+2.*L12+L22-L00-2.*L10-L20; float edge=smoothstep(.1,.32,sqrt(gx*gx+gy*gy));
     // stone / zinc / slate are low-saturation: weaker brush there; foliage, grass, sky and water (saturated) get the full stroke
     float sat0=max(c0.r,max(c0.g,c0.b))-min(c0.r,min(c0.g,c0.b)); float bw=mix(.45,1.,smoothstep(.06,.2,sat0))*(1.-edge);
     vec2 uv=vUv+dir*px*(st-.5)*1.4*q*bw;
     vec3 c;
     if (q > 1.5) { vec3 m[4]; vec3 s2[4]; for(int k=0;k<4;k++){ m[k]=vec3(0.); s2[k]=vec3(0.); }
-      for(int j=0;j<=2;j++) for(int i=0;i<=2;i++){ vec2 o=(vec2(float(i),float(j))*mat2(dir.x,dir.y,-dir.y,dir.x)*vec2(1.9,.9))*px*1.25;
+      { vec3 a=texture2D(t,uv).rgb; for(int k=0;k<4;k++){ m[k]=a; s2[k]=a*a; } } // v17: centre tap shared by all four quadrants
+      for(int j=0;j<=2;j++) for(int i=0;i<=2;i++){ if(i+j==0) continue; vec2 o=(vec2(float(i),float(j))*mat2(dir.x,dir.y,-dir.y,dir.x)*vec2(1.9,.9))*px*1.25;
         vec3 a=texture2D(t,uv+vec2(-o.x,-o.y)).rgb; m[0]+=a; s2[0]+=a*a; vec3 b=texture2D(t,uv+vec2(o.x,-o.y)).rgb; m[1]+=b; s2[1]+=b*b;
         vec3 cc=texture2D(t,uv+vec2(-o.x,o.y)).rgb; m[2]+=cc; s2[2]+=cc*cc; vec3 d=texture2D(t,uv+o).rgb; m[3]+=d; s2[3]+=d*d; }
       float best=1e9; c=vec3(0.); for(int k=0;k<4;k++){ vec3 mu=m[k]/9.; vec3 v=abs(s2[k]/9.-mu*mu); float vs=v.r+v.g+v.b; if(vs<best){best=vs;c=mu;} } }
     else c=texture2D(t,uv).rgb*.6+(texture2D(t,uv+px*vec2(1.5,0)).rgb+texture2D(t,uv-px*vec2(0,1.5)).rgb)*.2;
-    { vec3 sh=c0*1.6-(texture2D(t,vUv+px*vec2(1,0)).rgb+texture2D(t,vUv-px*vec2(1,0)).rgb+texture2D(t,vUv+px*vec2(0,1)).rgb+texture2D(t,vUv-px*vec2(0,1)).rgb)*.15; c=mix(c, sh, clamp(edge*.85+(1.-bw)*.25,0.,1.)); }
+    { vec3 sh=c0*1.6-(cR+cL+cU+cD)*.15; c=mix(c, sh, clamp(edge*.85+(1.-bw)*.25,0.,1.)); }
     // palette: muted, harmonious, no pure blacks; ochre-warm lights, grey-blue shade
     float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.86); c+=(vec3(n2(sp*.035),n2(sp*.035+17.),n2(sp*.035+41.))-.5)*vec3(.035,.025,.04)*min(q,1.); // broken colour
     c=mix(c, mix(vec3(.08,.085,.1)*(1.-night*.5), vec3(1.,.965,.9), c), .7);
