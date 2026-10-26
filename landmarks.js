@@ -226,7 +226,7 @@ function clusters() { if (BCL) return BCL; BCL = []; // every bridge deck the ga
   for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) if (ends(R[i]).some(a => ends(R[j]).some(b => Math.hypot(a[0] - b[0], a[1] - b[1]) < 3))) grp[f(i)] = f(j);
   const G = new Map(); R.forEach((r, i) => (G.get(f(i)) || G.set(f(i), []).get(f(i))).push(r));
   let C = [...G.values()].map(rs => { const P = []; let W = 0; for (const r of rs) { W = Math.max(W, r.pw); for (let k = 0; k < r.p.length; k += 2) P.push([r.p[k], r.p[k + 1]]); } return { P, W }; });
-  const mk = c => { const o = obb(c.P); if (o.W > o.L) { [o.ux, o.uz] = [-o.uz, o.ux]; [o.L, o.W] = [o.W, o.L]; } o.W += c.W; o.walk = true; return o; };
+  const mk = c => { const o = obb(c.P); if (o.W > o.L) { [o.ux, o.uz] = [-o.uz, o.ux]; [o.L, o.W] = [o.W, o.L]; } o.W += c.W; o.walk = true; o.P = c.P; o.pw = c.W; return o; };
   for (let again = true; again;) { again = false; const O = C.map(mk); // twin carriageways of one bridge (drawn as parallel roads) become a single deck
     outer: for (let i = 0; i < C.length; i++) for (let j = i + 1; j < C.length; j++) { const a = O[i], b = O[j]; if (Math.abs(a.ux * b.ux + a.uz * b.uz) > .96 && Math.hypot(a.x - b.x, a.z - b.z) < (a.W + b.W) * .6 + 4) { C[i] = { P: C[i].P.concat(C[j].P), W: Math.max(C[i].W, C[j].W) }; C.splice(j, 1); again = true; break outer; } } }
   for (const c of C) { const o = mk(c); if (o.L >= 8) BCL.push(o); }
@@ -239,16 +239,29 @@ function deckOf(c, foot, k) { const best = k && assign().get(k); if (best) retur
   if (wp.length < 20) return null; if (kind[ti(ci, cj)] !== K.WATER) { let bd = 1e9, w0 = null; for (const w of wp) { const d = Math.hypot(w[0] - c[0], w[1] - c[1]); if (d < bd) { bd = d; w0 = w; } } c = w0; } const r = obb(wp), ux = -r.uz, uz = r.ux; let s0 = 0, s1 = 0; const wet = s => { const x = c[0] + ux * s, z = c[1] + uz * s; return inb(Math.floor(x / T), Math.floor(z / T)) && kind[ti(Math.floor(x / T), Math.floor(z / T))] === K.WATER; };
   if (!wet(0)) return null; while (s1 < 200 && wet(s1 + 1)) s1++; while (s0 > -200 && wet(s0 - 1)) s0--; const L = s1 - s0 + 4, m = (s0 + s1) / 2;
   return { x: c[0] + ux * m, z: c[1] + uz * m, ux, uz, L, W: foot ? 4.4 : 8, walk: false }; }
-function bridge(b, c, kind_, n, o2 = {}, key) { const o = deckOf(c, kind_ === 'foot', key); if (!o) return; if (!o.walk) { const q = at(o, 0, 0); b.box(o.L, .25, o.W, q[0], -.05, q[1], kind_ === 'foot' ? M.wood : M.paving, angOf(o)); } const a = angOf(o), L = o.L, W = o.W, iron = kind_ === 'iron', foot = kind_ === 'foot';
-  const par = iron || foot ? M.iron : M.stone, ph = iron || foot ? .75 : 1.0, pw = iron || foot ? .12 : .45;
-  for (const t of [-1, 1]) { const q = at(o, 0, t * (1 - pw / W)); b.box(L, ph, pw, q[0], 0, q[1], par, a); if (!iron && !foot) b.box(L + .2, .14, pw + .16, ...at3(o, 0, t * (1 - pw / W), ph), M.cornice, a); }
-  // piers and cutwaters (the pointed noses a top-down eye sees upstream and downstream of each pier)
-  const nar = n || Math.max(2, Math.round(L / 22)), ex = foot ? .4 : 1.6;
-  for (let k = 1; k < nar; k++) { const s = -1 + 2 * k / nar; for (const t of [-1, 1]) { const q = at(o, s, t * (1 + ex / W)); b.box(foot ? .9 : 2.4, 2.8, ex * 2, q[0], -3, q[1], foot ? M.iron : M.stoneD, a); } // pier ends either side of the deck (never across the roadway)
-    for (const t of [-1, 1]) { const e = at(o, s, t * (1 + ex / W * 2)); b.cone(foot ? .5 : 1.3, 2.8, e[0], -3, e[1], foot ? M.iron : M.stoneD, 4, a + PI / 4);
-      if (!foot && !iron) b.box(1.2, ph + .25, pw + .7, ...at3(o, s, t * (1 - pw / W), 0), M.stone, a); } } // refuges over the piers
-  if (iron) for (let k = 0; k < nar; k++) { const s0 = -1 + 2 * k / nar, s1 = s0 + 2 / nar; for (const t of [-1, 1]) for (let r = 1; r < 8; r++) { const u = s0 + (s1 - s0) * r / 8, h = Math.sin(PI * r / 8) * .55; b.box(.12, .1, .16, ...at3(o, u, t * (1 + .3 / W), -h - .2), M.iron, a); } } // cast-iron arch ribs peeking out
-    if (o2.lamps !== false) for (let k = 0; k <= nar; k += (nar > 4 ? 2 : 1)) for (const t of [-1, 1]) { const q = at(o, -1 + 2 * k / nar, t * (1 - pw / W)); b.cyl(.09, .14, 3.2, q[0], ph, q[1], M.iron, 6).box(.36, .4, .36, q[0], ph + 3.2, q[1], M.gas); }
+function waterSpan(o) { // trim a deck to the part over the river so it runs square onto the quays
+  const wet = (s, t) => { const q = at(o, s, t), i = Math.floor(q[0] / T), j = Math.floor(q[1] / T); if (!inb(i, j)) return false; const k = kind[ti(i, j)]; return k === K.WATER || k === K.BRIDGE; };
+  let s0 = null, s1 = null; for (let s = -1; s <= 1.0001; s += .02) if (wet(s, 0) || wet(s, -.6) || wet(s, .6)) { if (s0 === null) s0 = s; s1 = s; }
+  if (s0 === null || s1 - s0 < .2) return o; s0 = Math.max(-1, s0 - .04); s1 = Math.min(1, s1 + .04); const m = at(o, (s0 + s1) / 2, 0); let W = o.W, x = m[0], z = m[1];
+  if (o.P && o.P.length > 1) { let lo = 1e9, hi = -1e9; for (let i = 0; i < o.P.length; i++) { const p = o.P[i], u = ((p[0] - o.x) * o.ux + (p[1] - o.z) * o.uz) / (o.L / 2); if (u < s0 - .02 || u > s1 + .02) continue; const v = -(p[0] - o.x) * o.uz + (p[1] - o.z) * o.ux; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (hi >= lo) { W = hi - lo + o.pw + .7; const vm = (hi + lo) / 2, cv = -(m[0] - o.x) * o.uz + (m[1] - o.z) * o.ux; x += -o.uz * (vm - cv); z += o.ux * (vm - cv); } } // width of the painted deck itself (pavements + dark kerb edge), centred on it
+  return { ...o, x, z, W, L: o.L * (s1 - s0) / 2 }; }
+function bridge(b, c, kind_, n, o2 = {}, key) { const o0 = deckOf(c, kind_ === 'foot', key); if (!o0) return; const o = waterSpan(o0), a = angOf(o), L = o.L, W = o.W, iron = kind_ === 'iron', foot = kind_ === 'foot';
+  const par = iron || foot ? M.iron : M.stone, ph = iron || foot ? .75 : 1.0, pw = iron || foot ? .14 : .45, sw = foot ? 0 : Math.min(1.6, W * .14);
+  // one solid deck: slab, roadway, raised pavements and parapets share the same edges (no water showing between)
+  b.box(L, .55, W + .3, ...at3(o, 0, 0, -.58), foot ? M.iron : M.stone, a); if (!o.walk) b.box(L, .05, W, ...at3(o, 0, 0, 0), foot ? M.wood : M.paving, a); // slab top sits just under the painted roadway, filling any gap to the parapets
+  for (const t of [-1, 1]) { b.box(L, ph, pw, ...at3(o, 0, t * (1 - pw / W), 0), par, a); if (!iron && !foot) b.box(L + .2, .14, pw + .16, ...at3(o, 0, t * (1 - pw / W), ph), M.cornice, a); }
+  const nar = n || Math.max(2, Math.round(L / 22)), sl = L / nar, pd = foot ? .8 : Math.min(3, sl * .16), nose = foot ? .7 : pd * 1.5, ox = W / 2 + .15;
+  // spandrel faces and the arch rings of every span (voussoirs stepping down from crown to springing)
+  for (const t of [-1, 1]) { b.box(L, .7, .3, ...at3(o, 0, t * (ox / (W / 2)), -1.2), iron || foot ? M.iron : M.stoneD, a);
+    for (let k = 0; k < nar; k++) { const s0 = -1 + 2 * k / nar; for (let r = 1; r < 10; r++) { const u = s0 + 2 / nar * r / 10, h = Math.sin(PI * r / 10); b.box(sl / 10 + .05, .22, .35, ...at3(o, u, t * ((ox + .05) / (W / 2)), -1.6 + h * 1.0), iron || foot ? M.iron : M.cornice, a); } } }
+  // piers with pointed cutwaters (avant-becs) upstream and downstream, capped by a stone hood
+  for (let k = 1; k < nar; k++) { const s = -1 + 2 * k / nar, mat = foot ? M.iron : M.stoneD; b.box(pd, 2.8, W + .6, ...at3(o, s, 0, -3.3), mat, a);
+    for (const t of [-1, 1]) { const A = at(o, s - pd / L, t * (ox + .15) / (W / 2)), B2 = at(o, s + pd / L, t * (ox + .15) / (W / 2)), C2 = at(o, s, t * (ox + .15 + nose) / (W / 2)); b.prism([{ o: [A, B2, C2], h: [] }], -3.3, 3.0, mat);
+      const A2 = at(o, s - pd * .8 / L, t * (ox + .15) / (W / 2)), B3 = at(o, s + pd * .8 / L, t * (ox + .15) / (W / 2)), C3 = at(o, s, t * (ox + .15 + nose * .8) / (W / 2)); b.prism([{ o: [A2, B3, C3], h: [] }], -.3, .35, foot ? M.iron : M.stone);
+      if (!foot && !iron) b.cyl(pd * .45, pd * .45, ph + .2, ...at3(o, s, t * (1 + .2 / W), 0), M.stone, 12); } } // refuge bays over the piers
+  if (iron) for (let k = 0; k < nar; k++) { const s0 = -1 + 2 * k / nar, s1 = s0 + 2 / nar; for (const t of [-1, 1]) for (let r = 1; r < 8; r++) { const u = s0 + (s1 - s0) * r / 8, h = Math.sin(PI * r / 8) * .55; b.box(.12, .1, .16, ...at3(o, u, t * (1 + .3 / W), -h - .2), M.iron, a); } }
+  if (o2.lamps !== false) for (let k = 0; k <= nar; k += (nar > 4 ? 2 : 1)) for (const t of [-1, 1]) { const q = at(o, -1 + 2 * k / nar, t * (1 - pw / W)); b.cyl(.09, .14, 3.2, q[0], ph, q[1], M.iron, 6).box(.36, .4, .36, q[0], ph + 3.2, q[1], M.gas); }
   if (o2.extra) o2.extra(b, o, a); }
 const BR = { // key: [label, lat, lon, construction, arches]
   pontneufb: ['Pont Neuf (1607), grand bras', 48.85790, 2.34190, 'stone', 7], pontneufs: ['Pont Neuf (1607), petit bras', 48.85630, 2.34070, 'stone', 5], pontcarrousel: ['Pont du Carrousel (Polonceau, cast iron, 1834)', 48.85955, 2.33300, 'iron', 3],

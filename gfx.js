@@ -688,8 +688,8 @@ function* groundCanvasG(cx, cz) { const c = document.createElement('canvas'); c.
   // v13 period wear: horses walk the crown of the road (polished centre band), old lanes drain to a stone centre gutter (caniveau), granite kerb edge
   for (const r of RD) if (r.c >= 2 && r.sf !== 0) seg(r, r.w * .42, 'rgba(255,238,205,.06)');
   for (const r of RD) if (r.c === 1) { seg(r, .55, 'rgba(150,140,124,.55)'); seg(r, .22, 'rgba(26,22,18,.55)'); }
-  for (const r of BR) { seg(r, r.pw + .7, 'rgba(40,36,30,.7)'); seg(r, r.pw, 'flag'); if (r.c >= 1) { seg(r, r.w + .5, '#cfc8b8'); seg(r, r.w, RSF[r.sf] || 'pave', r.sf === 1 ? Math.PI / 2 : null); } }
-  for (const j of JC) if (j.br) disc(j, j.w * .5, RSF[j.sf] || 'pave'); /* v14 bridge heads: carry the street surface over the deck joint */
+  g.lineCap = 'butt'; /* bridge decks end square on the quays, no round racetrack caps */ for (const r of BR) { seg(r, r.pw + .7, 'rgba(40,36,30,.7)'); seg(r, r.pw, 'flag'); if (r.c >= 1) { seg(r, r.w + .5, '#cfc8b8'); seg(r, r.w, RSF[r.sf] || 'pave', r.sf === 1 ? Math.PI / 2 : null); } }
+  g.lineCap = 'round'; for (const j of JC) if (j.br && j.n >= 3) disc(j, j.w * .5, RSF[j.sf] || 'pave'); /* v14 bridge heads: carry the street surface over the deck joint */
   g.setTransform(1, 0, 0, 1, 0, 0);
   // Place de l'Étoile: true circles for the ring road and the Arc's island, with radiating paving
   if (ETOILE) { const sc3 = PXT / T, X = (ETOILE.x - i0 * T) * sc3, Y = (ETOILE.z - j0 * T) * sc3, ri = ETOILE.ri * sc3, ro = ETOILE.ro * sc3; if (X > -ro && Y > -ro && X < CPX + ro && Y < CPX + ro) {
