@@ -31,7 +31,7 @@ const COMP = mat(`uniform sampler2D t; uniform sampler2D bl; uniform sampler2D a
     c=mix(c, c*tint, .55); c=c+ (vec3(.035,.02,0.)*(1.-l)) * (1.-night);           // warm lift in shadows by day
     c=mix(c, c*vec3(.82,.9,1.12), night*.6);                                       // moonlit blue by night
     vec2 q=vUv-.5; c*=1.-vig*dot(q,q)*1.9;                                         // vignette
-    c=srgb(clamp(c,0.,1.)); c+=(h(vUv*913.+time)-.5)*grain; gl_FragColor=vec4(c,1.); }`,
+    c=srgb(clamp(c,0.,1.)); float bm=smoothstep(.55,.75,c4.a)*smoothstep(.95,.8,c4.a); c+=(h(vUv*913.+time)-.5)*grain*(1.-bm*.85); gl_FragColor=vec4(c,c4.a); }`, // v18: alpha carries the building mask to the paint pass; almost no grain on architecture
   { t: { value: null }, bl: { value: null }, ao: { value: null }, lo: { value: null }, ts: { value: 0 }, ssr: { value: 0 }, wet: { value: 0 }, aoOn: { value: 0 }, aoPx: { value: new THREE.Vector2() }, gr: { value: 0 }, sunUV: { value: new THREE.Vector2(.5, .5) }, bs: { value: .9 }, ex: { value: 1 }, vig: { value: .45 }, night: { value: 0 }, grain: { value: .018 }, time: { value: 0 }, sat: { value: 1.06 }, tint: { value: new THREE.Color(1.03, 1.0, .94) } });
 // PAINT: Impressionist oil-on-canvas pass. Brush-direction warp + Kuwahara (picks the calmest quadrant => flat
 // dabs of paint with crisp-but-soft edges), muted harmonious palette, lifted shadows, canvas weave and colour bleed.
@@ -47,6 +47,7 @@ const PAINT = mat(`uniform sampler2D t; uniform vec2 px; uniform float q, night,
     float gx=L20+2.*L21+L22-L00-2.*L01-L02, gy=L02+2.*L12+L22-L00-2.*L10-L20; float edge=smoothstep(.1,.32,sqrt(gx*gx+gy*gy));
     // stone / zinc / slate are low-saturation: weaker brush there; foliage, grass, sky and water (saturated) get the full stroke
     float sat0=max(c0.r,max(c0.g,c0.b))-min(c0.r,min(c0.g,c0.b)); float bw=mix(.45,1.,smoothstep(.06,.2,sat0))*(1.-edge);
+    float bmk=smoothstep(.55,.75,texture2D(t,vUv).a)*smoothstep(.95,.8,texture2D(t,vUv).a); bw*=1.-bmk; // v18: no brush warp on buildings
     vec2 uv=vUv+dir*px*(st-.5)*1.4*q*bw;
     vec3 c;
     if (q > 1.5) { vec3 m[4]; vec3 s2[4]; for(int k=0;k<4;k++){ m[k]=vec3(0.); s2[k]=vec3(0.); }
@@ -56,15 +57,16 @@ const PAINT = mat(`uniform sampler2D t; uniform vec2 px; uniform float q, night,
         vec3 cc=texture2D(t,uv+vec2(-o.x,o.y)).rgb; m[2]+=cc; s2[2]+=cc*cc; vec3 d=texture2D(t,uv+o).rgb; m[3]+=d; s2[3]+=d*d; }
       float best=1e9; c=vec3(0.); for(int k=0;k<4;k++){ vec3 mu=m[k]/9.; vec3 v=abs(s2[k]/9.-mu*mu); float vs=v.r+v.g+v.b; if(vs<best){best=vs;c=mu;} } }
     else c=texture2D(t,uv).rgb*.6+(texture2D(t,uv+px*vec2(1.5,0)).rgb+texture2D(t,uv-px*vec2(0,1.5)).rgb)*.2;
+    c=mix(c, c0, bmk); // v18: architecture keeps the true (MSAA) pixel, no Kuwahara dabs
     { vec3 sh=c0*1.6-(cR+cL+cU+cD)*.15; c=mix(c, sh, clamp(edge*.85+(1.-bw)*.25,0.,1.)); }
     // palette: muted, harmonious, no pure blacks; ochre-warm lights, grey-blue shade
-    float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.86); c+=(vec3(n2(sp*.035),n2(sp*.035+17.),n2(sp*.035+41.))-.5)*vec3(.035,.025,.04)*min(q,1.); // broken colour
+    float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,.86); c+=(vec3(n2(sp*.035),n2(sp*.035+17.),n2(sp*.035+41.))-.5)*vec3(.035,.025,.04)*min(q,1.)*(1.-bmk); // broken colour (not on buildings)
     c=mix(c, mix(vec3(.08,.085,.1)*(1.-night*.5), vec3(1.,.965,.9), c), .7);
     c=mix(c, c*vec3(1.06,1.,.88), smoothstep(.45,.9,l)*(1.-night)); c=mix(c, c*vec3(.86,.9,1.1), 1.-smoothstep(.08,.5,l)); // Caillebotte blue-violet shade
     { float cl=smoothstep(.35,.7,n2(sp*.0022+vec2(time*.012,time*.004))); c*=mix(1.,mix(.84,1.05,cl),1.-night); } // drifting cloud light over the city
     c=mix(c, mix(vec3(.74,.77,.8),vec3(.12,.13,.17),night), .07); // aerial haze
     // canvas weave + pigment granulation + stroke ridges
-    float w=sin(sp.x*1.9)*sin(sp.y*1.9); float g=n2(sp*.7); c*=1.+(g-.5)*.035+0.;
+    float g=n2(sp*.7); c*=1.+(g-.5)*.035*(1.-bmk);
     c=mix(c, vec3(.93,.9,.83), .02); // ground of the canvas showing through
     gl_FragColor=vec4(clamp(c,0.,1.),1.); }`, { t: { value: null }, px: { value: new THREE.Vector2() }, q: { value: 2 }, night: { value: 0 }, time: { value: 0 } });
 // SSAO (Ultra): half-res, view-space positions from the depth buffer, 12 spiral taps, normal from depth derivatives
@@ -76,13 +78,20 @@ const SSAO = mat(`uniform sampler2D dT; uniform mat4 pInv; uniform float rad, st
     for(int i=0;i<12;i++){ float fi=float(i)+.5; float a=fi*2.39996+j; vec2 off=vec2(cos(a),sin(a))*r*sqrt(fi/12.); vec3 q=vp(vUv+off); vec3 v=q-p; float l=length(v); occ+=max(0.,dot(n,v/l)-.12)*smoothstep(rad*3.,0.,l); }
     gl_FragColor=vec4(vec3(clamp(1.-occ/12.*str,0.,1.)),1.); }`, { dT: { value: null }, pInv: { value: new THREE.Matrix4() }, rad: { value: .9 }, str: { value: 1.6 } });
 SSAO.extensions = { derivatives: true };
+// v18 FXAA (3.11-style, luma from rgb) after the paint pass, so Kuwahara/edge-sharpen stair-steps are smoothed at full res
+const FXAA = mat(`uniform sampler2D t; uniform vec2 px; varying vec2 vUv; float lu(vec3 c){ return dot(c,vec3(.299,.587,.114)); }
+  void main(){ vec3 cM=texture2D(t,vUv).rgb; float lM=lu(cM), lNW=lu(texture2D(t,vUv+px*vec2(-1,-1)).rgb), lNE=lu(texture2D(t,vUv+px*vec2(1,-1)).rgb), lSW=lu(texture2D(t,vUv+px*vec2(-1,1)).rgb), lSE=lu(texture2D(t,vUv+px*vec2(1,1)).rgb);
+    float mn=min(lM,min(min(lNW,lNE),min(lSW,lSE))), mx=max(lM,max(max(lNW,lNE),max(lSW,lSE))); if(mx-mn<max(.0312,mx*.125)){ gl_FragColor=vec4(cM,1.); return; }
+    vec2 d=vec2(-((lNW+lNE)-(lSW+lSE)), (lNW+lSW)-(lNE+lSE)); float rd=max((lNW+lNE+lSW+lSE)*.03125,.0078125); float rm=1./(min(abs(d.x),abs(d.y))+rd); d=clamp(d*rm,vec2(-8.),vec2(8.))*px;
+    vec3 a=.5*(texture2D(t,vUv+d*(1./3.-.5)).rgb+texture2D(t,vUv+d*(2./3.-.5)).rgb); vec3 b=a*.5+.25*(texture2D(t,vUv-d*.5).rgb+texture2D(t,vUv+d*.5).rgb); float lb=lu(b);
+    gl_FragColor=vec4((lb<mn||lb>mx)?a:b,1.); }`, { t: { value: null }, px: { value: new THREE.Vector2() } });
 const COPY = mat(`uniform sampler2D t; varying vec2 vUv; void main(){ gl_FragColor=texture2D(t,vUv); }`, { t: { value: null } });
 export const POST = { paint: 2, on: false, bloom: true, ssao: false, fx: 2, c: null, d: null, ao: null, w: 0, h: 0, rt: null, a: null, b: null, samples: 0, U: COMP.uniforms };
 function mkRT(w, h, s = 0, depthTex = false) { const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: s, depthBuffer: s >= 0, colorSpace: THREE.LinearSRGBColorSpace }); if (depthTex) { rt.depthTexture = new THREE.DepthTexture(w, h); rt.depthTexture.type = THREE.UnsignedIntType; } return rt; }
 export function postSize(r, samples) { const v = r.getDrawingBufferSize(new THREE.Vector2()), w = Math.max(1, v.x | 0), h = Math.max(1, v.y | 0);
   if (w === POST.w && h === POST.h && samples === POST.samples && POST.rt && !!POST.ao === !!POST.ssao) return; POST.w = w; POST.h = h; POST.samples = samples;
-  for (const k of ['rt', 'a', 'b', 'ao', 'c', 'd', 'p']) if (POST[k]) { POST[k].dispose(); POST[k] = null; }
-  POST.rt = mkRT(w, h, samples, POST.ssao); if (POST.ssao) { POST.ao = mkRT(Math.max(1, w >> 1), Math.max(1, h >> 1)); COMP.uniforms.aoPx.value.set(1 / (w >> 1), 1 / (h >> 1)); } const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); POST.p = mkRT(w, h); POST.a = mkRT(bw, bh); POST.b = mkRT(bw, bh); POST.c = mkRT(bw, bh); POST.d = mkRT(bw, bh);
+  for (const k of ['rt', 'a', 'b', 'ao', 'c', 'd', 'p', 'f']) if (POST[k]) { POST[k].dispose(); POST[k] = null; }
+  POST.rt = mkRT(w, h, samples, POST.ssao); if (POST.ssao) { POST.ao = mkRT(Math.max(1, w >> 1), Math.max(1, h >> 1)); COMP.uniforms.aoPx.value.set(1 / (w >> 1), 1 / (h >> 1)); } const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); POST.p = mkRT(w, h); POST.f = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false }); FXAA.uniforms.px.value.set(1 / w, 1 / h); POST.a = mkRT(bw, bh); POST.b = mkRT(bw, bh); POST.c = mkRT(bw, bh); POST.d = mkRT(bw, bh);
   BRIGHT.uniforms.px.value.set(1 / w, 1 / h); }
 function pass(r, m, target) { quad.material = m; r.setRenderTarget(target); r.render(qs, qc); }
 export function postRender(r, scene, camera, t) { const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping;
@@ -94,5 +103,5 @@ export function postRender(r, scene, camera, t) { const tm = r.toneMapping; r.to
   COMP.uniforms.ts.value = tsOn ? .65 : 0; COMP.uniforms.ssr.value = POST.fx >= 1 ? 1 : 0;
   const aoOn = !!(POST.ssao && POST.ao && POST.rt.depthTexture); if (aoOn) { SSAO.uniforms.dT.value = POST.rt.depthTexture; SSAO.uniforms.pInv.value.copy(camera.projectionMatrixInverse); pass(r, SSAO, POST.ao); COMP.uniforms.ao.value = POST.ao.texture; } COMP.uniforms.aoOn.value = aoOn ? 1 : 0;
   COMP.uniforms.t.value = POST.rt.texture; COMP.uniforms.bl.value = POST.a.texture; COMP.uniforms.bs.value = POST.bloom ? POST.bs ?? .9 : 0; COMP.uniforms.time.value = t % 100;
-  if (POST.paint > 0 && POST.p) { pass(r, COMP, POST.p); PAINT.uniforms.t.value = POST.p.texture; PAINT.uniforms.px.value.set(1 / POST.p.width, 1 / POST.p.height); PAINT.uniforms.q.value = POST.paint; PAINT.uniforms.night.value = COMP.uniforms.night.value; PAINT.uniforms.time.value = t % 1000; pass(r, PAINT, null); }
+  if (POST.paint > 0 && POST.p) { pass(r, COMP, POST.p); PAINT.uniforms.t.value = POST.p.texture; PAINT.uniforms.px.value.set(1 / POST.p.width, 1 / POST.p.height); PAINT.uniforms.q.value = POST.paint; PAINT.uniforms.night.value = COMP.uniforms.night.value; PAINT.uniforms.time.value = t % 1000; if (POST.aa !== false && POST.f) { pass(r, PAINT, POST.f); FXAA.uniforms.t.value = POST.f.texture; pass(r, FXAA, null); } else pass(r, PAINT, null); }
   else pass(r, COMP, null); r.toneMapping = tm; }
